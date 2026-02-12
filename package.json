@@ -2,6 +2,8 @@
   "name": "family-planner",
   "version": "0.1.0",
   "private": true,
+  "description": "Smart family planner starter built with Next.js for Vercel.",
+  "packageManager": "npm@10.8.2",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

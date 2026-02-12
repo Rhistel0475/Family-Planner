@@ -85,6 +85,26 @@ git clone git@github.com:Rhistel0475/Family-Planner.git
 ### Why `cd Family-Planner` failed after clone
 If authentication fails, cloning never completes, so the `Family-Planner` folder is not created.
 
+
+## Fixing Vercel error: `Could not read package.json`
+
+If Vercel shows:
+
+```
+Expected ',' or '}' after property value in JSON
+```
+
+it means the deployed commit contains invalid JSON in `package.json`.
+
+Use these checks locally before pushing:
+
+```bash
+node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('package.json is valid')"
+python -m json.tool package.json >/dev/null && echo "json syntax ok"
+```
+
+Then commit and redeploy the branch. If Vercel still shows the old failure, trigger a new deployment from the latest commit and disable stale cache for that deploy.
+
 ## Deploy to Vercel
 
 ### Option A: Vercel dashboard (recommended)
