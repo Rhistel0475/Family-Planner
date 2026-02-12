@@ -105,6 +105,33 @@ python -m json.tool package.json >/dev/null && echo "json syntax ok"
 
 Then commit and redeploy the branch. If Vercel still shows the old failure, trigger a new deployment from the latest commit and disable stale cache for that deploy.
 
+Also verify the file uses plain JSON syntax only (double quotes, no trailing commas, no comments, no smart quotes).
+
+
+## Creating a real GitHub Pull Request (not just local commits)
+
+If you already committed locally but do not see a PR on GitHub, do this from inside your repo:
+
+```bash
+git remote -v
+git branch --show-current
+git push -u origin <your-branch-name>
+```
+
+Then open a PR using one of these options:
+
+```bash
+gh pr create --fill
+```
+
+or in GitHub web UI: open your repo and click **Compare & pull request**.
+
+If `git remote -v` shows nothing, add the remote first:
+
+```bash
+git remote add origin https://github.com/Rhistel0475/Family-Planner.git
+```
+
 ## Deploy to Vercel
 
 ### Option A: Vercel dashboard (recommended)
