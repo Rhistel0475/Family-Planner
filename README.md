@@ -107,6 +107,35 @@ Then commit and redeploy the branch. If Vercel still shows the old failure, trig
 
 Also verify the file uses plain JSON syntax only (double quotes, no trailing commas, no comments, no smart quotes).
 
+Quick sanity check: if Vercel reports an error position larger than your local file size, it is deploying an older commit. Compare with:
+
+```bash
+wc -c package.json
+git rev-parse --short HEAD
+```
+
+Then redeploy the latest commit/branch in Vercel.
+
+
+
+### If the same Vercel parse error repeats
+
+This usually means Vercel is building an older commit than the one you fixed.
+
+1. In Vercel → Project → **Deployments**, open the failed build.
+2. Confirm the commit SHA in the log matches your latest GitHub commit.
+3. If it does not match, go to **Settings → Git** and verify the correct repository and production branch.
+4. Trigger a fresh deploy from the newest commit and disable cache for that run.
+
+Local checks before re-deploy:
+
+```bash
+git rev-parse --short HEAD
+wc -c package.json
+node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('package.json is valid')"
+```
+
+If the Vercel log shows an error position larger than your current `package.json` byte count, it is definitively deploying stale source.
 
 ## Creating a real GitHub Pull Request (not just local commits)
 
