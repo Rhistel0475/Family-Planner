@@ -1,8 +1,6 @@
-{"name":"family-planner","private":true,"version":"0.1.0","scripts":{"dev":"next dev","build":"next build","start":"next start"},"dependencies":{"next":"14.2.26","react":"18.3.1","react-dom":"18.3.1"},"engines":{"node":"20.x"}}
+cat > package.json <<'JSON'
 {
   "name": "family-planner",
-  "private": true,
-  "version": "0.1.0",
   "version": "0.1.0",
   "private": true,
   "description": "Smart family planner starter built with Next.js for Vercel.",
@@ -11,8 +9,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start"
-    "start": "next start",
-    "lint": "next lint"
   },
   "dependencies": {
     "next": "14.2.26",
@@ -21,11 +17,6 @@
   },
   "engines": {
     "node": "20.x"
-  "devDependencies": {
-    "eslint": "8.57.1",
-    "eslint-config-next": "14.2.26"
-  },
-  "engines": {
-    "node": ">=18.17.0"
   }
 }
+JSON
