@@ -1,460 +1,414 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { getRotationAngle, getStatusString } from '../../lib/boardChores';
+import styles from './chores.module.css';
 
-export default function ChoresPage({ searchParams }) {
-  const router = useRouter();
-  const [frequency, setFrequency] = useState('ONCE');
-  const [assignmentScope, setAssignmentScope] = useState('all');
-  const [loading, setLoading] = useState(false);
-  const [templates, setTemplates] = useState([]);
+export default function ChoresPage() {
+  const [settings, setSettings] = useState([]);
   const [members, setMembers] = useState([]);
-  const [selectedTemplate, setSelectedTemplate] = useState('');
-  const [eligibleMemberIds, setEligibleMemberIds] = useState([]);
-  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [expandedKey, setExpandedKey] = useState(null);
+  const [message, setMessage] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
 
-  const saved = searchParams?.saved === '1';
-  const error = searchParams?.error === '1';
-
-  // Fetch templates and family members on mount
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoadingTemplates(true);
-        
-        // Fetch templates
-        const templatesRes = await fetch('/api/chore-templates');
-        const templatesData = await templatesRes.json();
-        setTemplates(templatesData.templates || []);
-
-        // Fetch family members
-        const membersRes = await fetch('/api/family-members');
-        const membersData = await membersRes.json();
-        setMembers(membersData.members || []);
-
-        // Set default template
-        if (templatesData.templates && templatesData.templates.length > 0) {
-          setSelectedTemplate(templatesData.templates[0].id);
-        }
-      } catch (err) {
-        console.error('Failed to fetch templates/members:', err);
-      } finally {
-        setLoadingTemplates(false);
-      }
-    };
-
-    fetchData();
+    fetchBoardSettings();
   }, []);
 
-  const systemTemplates = useMemo(() => 
-    templates.filter(t => t.isSystem),
-    [templates]
-  );
-
-  const customTemplates = useMemo(() => 
-    templates.filter(t => !t.isSystem),
-    [templates]
-  );
-
-  const toggleEligibleMember = (memberId) => {
-    setEligibleMemberIds(prev => 
-      prev.includes(memberId)
-        ? prev.filter(id => id !== memberId)
-        : [...prev, memberId]
-    );
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const fetchBoardSettings = async () => {
     try {
-      const formData = new FormData(e.target);
-      const templateId = formData.get('choreTemplate');
-      const customTitle = (formData.get('title') || '').trim();
-      
-      // Validate template selection
-      if (!templateId || templateId === '') {
-        alert('Please select a chore template');
-        setLoading(false);
-        return;
-      }
-
-      // Get template info
-      const template = templates.find(t => t.id === templateId);
-      const title = templateId === 'CUSTOM' ? customTitle : (template?.name || customTitle);
-
-      // Validate custom title
-      if (templateId === 'CUSTOM' && !customTitle) {
-        alert('Please enter a custom chore title');
-        setLoading(false);
-        return;
-      }
-
-      // Validate assignment scope
-      if (assignmentScope === 'one' && !formData.get('assignedTo')) {
-        alert('Please select a member to assign to');
-        setLoading(false);
-        return;
-      }
-
-      // Validate eligibility
-      if (assignmentScope === 'eligible' && eligibleMemberIds.length === 0) {
-        alert('Please select at least one eligible member');
-        setLoading(false);
-        return;
-      }
-
-      const data = {
-        title,
-        choreTemplateId: templateId !== 'CUSTOM' ? templateId : null,
-        assignedTo: assignmentScope === 'all' ? 'All Members' : formData.get('assignedTo'),
-        dueDay: formData.get('dueDay'),
-        frequency: frequency.toLowerCase(),
-        eligibleMemberIds: assignmentScope === 'eligible' ? eligibleMemberIds : null,
-        isRecurring: frequency !== 'ONCE',
-        recurrencePattern: frequency !== 'ONCE' ? frequency : null,
-        recurrenceInterval: frequency !== 'ONCE' ? parseInt(formData.get('interval')) || 1 : null,
-        recurrenceEndDate: frequency !== 'ONCE' && formData.get('endDate') ? formData.get('endDate') : null
-      };
-
-      const res = await fetch('/api/chores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-
-      const result = await res.json();
-
-      if (res.ok) {
-        router.push('/chores?saved=1');
-        e.target.reset();
-        setFrequency('ONCE');
-        setAssignmentScope('all');
-        setEligibleMemberIds([]);
-      } else {
-        console.error('Error response:', result);
-        router.push('/chores?error=1');
-      }
-    } catch (err) {
-      console.error('Request error:', err);
-      router.push('/chores?error=1');
+      setLoading(true);
+      const res = await fetch('/api/chore-board');
+      const data = await res.json();
+      if (data.error && !data.settings) throw new Error(data.error);
+      setSettings(data.settings || []);
+      setMembers(data.members || []);
+    } catch (error) {
+      console.error('Failed to fetch board settings:', error);
+      setMessage({ type: 'error', text: 'Failed to load chore board settings' });
     } finally {
       setLoading(false);
     }
   };
 
-  if (loadingTemplates) {
-    return (
-      <main style={styles.main}>
-        <section style={styles.card}>
-          <h1 style={styles.title}>Add Chore</h1>
-          <p>Loading templates...</p>
-        </section>
-      </main>
+  const handleSettingChange = (templateKey, updates) => {
+    setSettings(prev =>
+      prev.map(s =>
+        s.templateKey === templateKey ? { ...s, ...updates } : s
+      )
     );
+  };
+
+  const handleFrequencyChange = (templateKey, frequencyType) => {
+    const updates = { frequencyType };
+    if (frequencyType !== 'CUSTOM') {
+      updates.customEveryDays = null;
+    }
+    handleSettingChange(templateKey, updates);
+  };
+
+  const handleEligibilityModeChange = (templateKey, mode) => {
+    const updates = { eligibilityMode: mode };
+    if (mode === 'ALL') {
+      updates.eligibleMemberIds = [];
+    }
+    handleSettingChange(templateKey, updates);
+  };
+
+  const handleToggleMember = (templateKey, memberId) => {
+    setSettings(prev =>
+      prev.map(s => {
+        if (s.templateKey === templateKey) {
+          const current = s.eligibleMemberIds || [];
+          return {
+            ...s,
+            eligibleMemberIds: current.includes(memberId)
+              ? current.filter(id => id !== memberId)
+              : [...current, memberId]
+          };
+        }
+        return s;
+      })
+    );
+  };
+
+  const handleSaveAll = async () => {
+    try {
+      setSaving(true);
+
+      for (const setting of settings) {
+        if (!setting.isRecurring && setting.frequencyType !== 'ONE_TIME') {
+          setMessage({ type: 'error', text: `${setting.title}: Disable recurring to use One-time` });
+          return;
+        }
+        if (setting.frequencyType === 'CUSTOM' && (!setting.customEveryDays || setting.customEveryDays < 1)) {
+          setMessage({ type: 'error', text: `${setting.title}: Custom frequency requires a valid day count` });
+          return;
+        }
+        if (setting.eligibilityMode === 'SELECTED' && (!setting.eligibleMemberIds || setting.eligibleMemberIds.length === 0)) {
+          setMessage({ type: 'error', text: `${setting.title}: SELECTED mode requires at least 1 member` });
+          return;
+        }
+      }
+
+      const res = await fetch('/api/chore-board', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
+
+      setMessage({ type: 'success', text: `Saved ${data.updated} chore${data.updated !== 1 ? 's' : ''}` });
+      setExpandedKey(null);
+
+      setTimeout(() => {
+        fetchBoardSettings();
+        setMessage(null);
+      }, 1000);
+    } catch (error) {
+      console.error('Save error:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to save' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddChore = async (e) => {
+    e.preventDefault();
+    setAddLoading(true);
+
+    try {
+      const formData = new FormData(e.target);
+      const title = formData.get('title')?.trim();
+      const assignedTo = formData.get('assignedTo');
+      const dueDay = formData.get('dueDay');
+
+      if (!title) {
+        setMessage({ type: 'error', text: 'Please enter a chore title' });
+        return;
+      }
+
+      const res = await fetch('/api/chores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title,
+          assignedTo,
+          dueDay,
+          isRecurring: false
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to save chore');
+
+      setMessage({ type: 'success', text: '✓ Chore added' });
+      setShowAddModal(false);
+      e.target.reset();
+
+      setTimeout(() => setMessage(null), 2000);
+    } catch (error) {
+      setMessage({ type: 'error', text: error.message });
+    } finally {
+      setAddLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className={styles.loading}>Loading chore board...</div>;
   }
 
   return (
-    <main style={styles.main}>
-      <section style={styles.card}>
-        <div style={styles.titleBar}>
-          <h1 style={styles.title}>Add Chore</h1>
-          <a href="/chores/board" style={styles.boardLink}>
-            📋 Chore Board Setup
-          </a>
+    <div className={styles.container}>
+      <div className={styles.header}>
+        <div>
+          <h1>Chore Board</h1>
+          <p>Configure your household chores, assignments, and schedules</p>
         </div>
-        <p style={styles.subtitle}>Capture chores so your family task plan stays organized.</p>
-        {saved && <p style={styles.success}>✓ Chore saved.</p>}
-        {error && <p style={styles.error}>Please complete all fields.</p>}
+        <button
+          className={styles.addButton}
+          onClick={() => setShowAddModal(true)}
+          title="Add a manual chore"
+        >
+          +
+        </button>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          {/* Template Selection */}
-          <label style={styles.label}>Standard Chore</label>
-          <select 
-            name="choreTemplate" 
-            style={styles.input} 
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value)}
-          >
-            <option value="">-- Select a chore --</option>
-            
-            {systemTemplates.length > 0 && (
-              <optgroup label="System Templates">
-                {systemTemplates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            
-            {customTemplates.length > 0 && (
-              <optgroup label="Custom Templates">
-                {customTemplates.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.name}
-                  </option>
-                ))}
-              </optgroup>
-            )}
-            
-            <option value="CUSTOM">→ Create custom chore...</option>
-          </select>
+      {message && (
+        <div className={`${styles.message} ${styles[`message_${message.type}`]}`}>
+          {message.text}
+        </div>
+      )}
 
-          {/* Custom Chore */}
-          {selectedTemplate === 'CUSTOM' && (
-            <>
-              <label style={styles.label}>Custom Chore Title</label>
-              <input 
-                name="title" 
-                style={styles.input} 
-                placeholder="Enter custom chore name"
-                required
-              />
-            </>
-          )}
+      <div className={styles.board}>
+        {settings.map(setting => (
+          <ChoreCard
+            key={setting.templateKey}
+            setting={setting}
+            members={members}
+            expanded={expandedKey === setting.templateKey}
+            onToggleExpand={() => setExpandedKey(expandedKey === setting.templateKey ? null : setting.templateKey)}
+            onChange={(updates) => handleSettingChange(setting.templateKey, updates)}
+            onFrequencyChange={(freq) => handleFrequencyChange(setting.templateKey, freq)}
+            onEligibilityModeChange={(mode) => handleEligibilityModeChange(setting.templateKey, mode)}
+            onToggleMember={(memberId) => handleToggleMember(setting.templateKey, memberId)}
+          />
+        ))}
+      </div>
 
-          {/* Assignment Scope */}
-          <label style={styles.label}>Assignment</label>
-          <select
-            style={styles.input}
-            value={assignmentScope}
-            onChange={(e) => setAssignmentScope(e.target.value)}
-          >
-            <option value="all">Available to all members</option>
-            <option value="one">Assign to one specific member</option>
-            <option value="eligible">Eligible members only</option>
-          </select>
+      <div className={styles.footer}>
+        <button
+          className={styles.saveButton}
+          onClick={handleSaveAll}
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : 'Save All Settings'}
+        </button>
+      </div>
 
-          {/* Assign To One */}
-          {assignmentScope === 'one' && (
-            <>
-              <label style={styles.label}>Assigned To</label>
-              <select name="assignedTo" style={styles.input} required>
-                <option value="">-- Select member --</option>
-                {members.map((member) => (
-                  <option key={member.id} value={member.name}>
-                    {member.name}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
-
-          {/* Eligible Members Multi-Select */}
-          {assignmentScope === 'eligible' && (
-            <>
-              <label style={styles.label}>Eligible Members</label>
-              <div style={styles.membersList}>
-                {members.map((member) => (
-                  <label key={member.id} style={styles.checkboxLabel}>
-                    <input
-                      type="checkbox"
-                      checked={eligibleMemberIds.includes(member.id)}
-                      onChange={() => toggleEligibleMember(member.id)}
-                      style={styles.checkbox}
-                    />
-                    <span>{member.name}</span>
-                  </label>
-                ))}
-              </div>
-              <input 
-                name="assignedTo" 
-                type="hidden"
-                value={eligibleMemberIds[0] || ''}
-              />
-            </>
-          )}
-
-          {/* Due Day */}
-          <label style={styles.label}>Due Day</label>
-          <select name="dueDay" style={styles.input} defaultValue="Friday">
-            <option>Monday</option>
-            <option>Tuesday</option>
-            <option>Wednesday</option>
-            <option>Thursday</option>
-            <option>Friday</option>
-            <option>Saturday</option>
-            <option>Sunday</option>
-          </select>
-
-          {/* Frequency */}
-          <label style={styles.label}>Frequency</label>
-          <select
-            value={frequency}
-            onChange={(e) => setFrequency(e.target.value)}
-            style={styles.input}
-          >
-            <option value="ONCE">One-time</option>
-            <option value="DAILY">Daily</option>
-            <option value="WEEKLY">Weekly</option>
-            <option value="MONTHLY">Monthly</option>
-            <option value="YEARLY">Yearly</option>
-          </select>
-
-          {/* Recurrence Options */}
-          {frequency !== 'ONCE' && (
-            <div style={styles.recurringSection}>
-              <label style={styles.label}>Every</label>
-              <input
-                name="interval"
-                type="number"
-                min="1"
-                defaultValue="1"
-                style={styles.input}
-              />
-              <span style={styles.intervalText}>
-                {frequency === 'DAILY' && 'day(s)'}
-                {frequency === 'WEEKLY' && 'week(s)'}
-                {frequency === 'MONTHLY' && 'month(s)'}
-                {frequency === 'YEARLY' && 'year(s)'}
-              </span>
-
-              <label style={styles.label}>End Date (Optional)</label>
-              <input
-                name="endDate"
-                type="date"
-                style={styles.input}
-              />
+      {showAddModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
+          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2>Add a Manual Chore</h2>
+              <button
+                className={styles.closeButton}
+                onClick={() => setShowAddModal(false)}
+              >
+                ✕
+              </button>
             </div>
-          )}
 
-          <button type="submit" style={styles.button} disabled={loading || !selectedTemplate || selectedTemplate === ''}>
-            {loading ? 'Saving...' : 'Save Chore'}
-          </button>
-        </form>
-      </section>
-    </main>
+            <form onSubmit={handleAddChore} className={styles.modalForm}>
+              <div className={styles.formGroup}>
+                <label>Chore Title *</label>
+                <input
+                  name="title"
+                  type="text"
+                  placeholder="e.g., Water the plants"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Assign To</label>
+                <select name="assignedTo" defaultValue="">
+                  <option value="">— Available to all members</option>
+                  {members.map(m => (
+                    <option key={m.id} value={m.name}>{m.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Due Day</label>
+                <select name="dueDay" defaultValue="Friday">
+                  <option>Monday</option>
+                  <option>Tuesday</option>
+                  <option>Wednesday</option>
+                  <option>Thursday</option>
+                  <option>Friday</option>
+                  <option>Saturday</option>
+                  <option>Sunday</option>
+                </select>
+              </div>
+
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className={styles.submitButton}
+                  disabled={addLoading}
+                >
+                  {addLoading ? 'Adding...' : 'Add Chore'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
-const styles = {
-  main: {
-    minHeight: '100vh',
-    padding: '5rem 1.5rem 2rem 1.5rem',
-    backgroundColor: '#f4e3bf',
-    backgroundImage:
-      'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.22), transparent 45%)',
-    color: '#3f2d1d'
-  },
-  card: {
-    maxWidth: 560,
-    margin: '0 auto',
-    background: '#c9f7a5',
-    borderRadius: 10,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
-    boxShadow: '0 14px 24px rgba(70, 45, 11, 0.2)',
-    padding: '1.2rem'
-  },
-  title: {
-    marginBottom: '0.35rem'
-  },
-  titleBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: '1rem',
-    marginBottom: '0.5rem'
-  },
-  boardLink: {
-    display: 'inline-block',
-    padding: '0.475rem 0.9rem',
-    background: 'rgba(245, 158, 11, 0.15)',
-    border: '1px solid rgba(245, 158, 11, 0.35)',
-    borderRadius: 6,
-    color: '#b45309',
-    textDecoration: 'none',
-    fontSize: '0.9rem',
-    fontWeight: '600',
-    whiteSpace: 'nowrap',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    ':hover': {
-      background: 'rgba(245, 158, 11, 0.25)',
-      borderColor: 'rgba(245, 158, 11, 0.5)'
-    }
-  },
-  subtitle: {
-    marginBottom: '1rem'
-  },
-  success: {
-    marginBottom: '0.8rem',
-    padding: '0.5rem 0.6rem',
-    borderRadius: 6,
-    background: 'rgba(63, 152, 76, 0.15)',
-    border: '1px solid rgba(44, 121, 57, 0.35)',
-    color: '#1f602a'
-  },
-  error: {
-    marginBottom: '0.8rem',
-    padding: '0.5rem 0.6rem',
-    borderRadius: 6,
-    background: 'rgba(186, 62, 62, 0.12)',
-    border: '1px solid rgba(186, 62, 62, 0.35)',
-    color: '#8b1f1f'
-  },
-  label: {
-    fontSize: '0.8rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    marginBottom: '0.28rem',
-    display: 'block',
-    fontWeight: 700
-  },
-  input: {
-    width: '100%',
-    marginBottom: '0.8rem',
-    borderRadius: 6,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
-    padding: '0.55rem',
-    background: 'rgba(255,255,255,0.74)',
-    color: '#3f2d1d',
-    boxSizing: 'border-box'
-  },
-  button: {
-    width: '100%',
-    borderRadius: 9999,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    padding: '0.6rem 0.75rem',
-    background: '#e9ffd7',
-    color: '#2b4d1f',
-    fontWeight: 700,
-    cursor: 'pointer'
-  },
-  recurringSection: {
-    background: 'rgba(255,255,255,0.4)',
-    padding: '0.8rem',
-    borderRadius: 6,
-    marginBottom: '0.8rem',
-    border: '1px dashed rgba(98, 73, 24, 0.2)'
-  },
-  intervalText: {
-    fontSize: '0.85rem',
-    color: '#3f2d1d',
-    marginLeft: '0.3rem'
-  },
-  membersList: {
-    background: 'rgba(255,255,255,0.4)',
-    padding: '0.8rem',
-    borderRadius: 6,
-    marginBottom: '0.8rem',
-    border: '1px solid rgba(98, 73, 24, 0.2)',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.5rem'
-  },
-  checkboxLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.4rem',
-    cursor: 'pointer',
-    fontSize: '0.9rem'
-  },
-  checkbox: {
-    cursor: 'pointer',
-    width: '18px',
-    height: '18px'
-  }
-};
+function ChoreCard({
+  setting,
+  members,
+  expanded,
+  onToggleExpand,
+  onChange,
+  onFrequencyChange,
+  onEligibilityModeChange,
+  onToggleMember
+}) {
+  const rotation = getRotationAngle(setting.templateKey);
+  const statusStr = getStatusString(setting);
+
+  return (
+    <div
+      className={`${styles.card} ${expanded ? styles.expanded : ''}`}
+      style={{ '--rotation': `${rotation}deg` }}
+    >
+      <div className={styles.cardHeader} onClick={onToggleExpand}>
+        <h3>{setting.title}</h3>
+        <div className={styles.status}>{statusStr}</div>
+        <div className={styles.expandIcon}>{expanded ? '−' : '+'}</div>
+      </div>
+
+      {expanded && (
+        <div className={styles.cardContent}>
+          <div className={styles.section}>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={setting.isRecurring}
+                onChange={(e) => {
+                  const isRec = e.target.checked;
+                  onChange({
+                    isRecurring: isRec,
+                    frequencyType: isRec ? 'WEEKLY' : 'ONE_TIME'
+                  });
+                }}
+              />
+              Recurring
+            </label>
+
+            {setting.isRecurring && (
+              <div className={styles.frequencyGroup}>
+                <label>Frequency:</label>
+                <select
+                  value={setting.frequencyType}
+                  onChange={(e) => onFrequencyChange(e.target.value)}
+                >
+                  <option value="DAILY">Daily</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="BIWEEKLY">Biweekly</option>
+                  <option value="MONTHLY">Monthly</option>
+                  <option value="CUSTOM">Custom</option>
+                </select>
+
+                {setting.frequencyType === 'CUSTOM' && (
+                  <div className={styles.customDays}>
+                    <label>Every N days:</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={setting.customEveryDays || 1}
+                      onChange={(e) => onChange({ customEveryDays: parseInt(e.target.value) || 1 })}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className={styles.section}>
+            <label>Default Assignee:</label>
+            <select
+              value={setting.defaultAssigneeMemberId || ''}
+              onChange={(e) => onChange({ defaultAssigneeMemberId: e.target.value || null })}
+            >
+              <option value="">— No preference (AI decides)</option>
+              {members.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+            <small>AI is allowed to reassign later</small>
+          </div>
+
+          <div className={styles.section}>
+            <label>Eligible Members:</label>
+            <div className={styles.eligibilityMode}>
+              <label className={styles.radioLabel}>
+                <input
+                  type="radio"
+                  name={`eligibility_${setting.templateKey}`}
+                  value="ALL"
+                  checked={setting.eligibilityMode === 'ALL'}
+                  onChange={() => onEligibilityModeChange('ALL')}
+                />
+                All members
+              </label>
+              <label className={styles.radioLabel}>
+                <input
+                  type="radio"
+                  name={`eligibility_${setting.templateKey}`}
+                  value="SELECTED"
+                  checked={setting.eligibilityMode === 'SELECTED'}
+                  onChange={() => onEligibilityModeChange('SELECTED')}
+                />
+                Selected only
+              </label>
+            </div>
+
+            {setting.eligibilityMode === 'SELECTED' && (
+              <div className={styles.memberCheckboxes}>
+                {members.map(m => (
+                  <label key={m.id} className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={(setting.eligibleMemberIds || []).includes(m.id)}
+                      onChange={() => onToggleMember(m.id)}
+                    />
+                    {m.name}
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

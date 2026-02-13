@@ -14,42 +14,69 @@ export async function GET(request) {
     });
 
     // Fetch or create board settings for all predefined chores
-    const boardSettings = await Promise.all(
-      PREDEFINED_CHORES.map(async (chore) => {
-        let setting = await prisma.choreBoard.findUnique({
-          where: {
-            familyId_templateKey: {
-              familyId: family.id,
-              templateKey: chore.templateKey
-            }
-          }
-        });
-
-        // Auto-create default setting if missing
-        if (!setting) {
-          setting = await prisma.choreBoard.create({
-            data: {
-              familyId: family.id,
-              templateKey: chore.templateKey,
-              title: chore.title,
-              isRecurring: false,
-              frequencyType: 'ONE_TIME',
-              eligibilityMode: 'ALL',
-              eligibleMemberIds: [],
-              defaultAssigneeMemberId: null
+    let boardSettings = [];
+    
+    try {
+      boardSettings = await Promise.all(
+        PREDEFINED_CHORES.map(async (chore) => {
+          let setting = await prisma.choreBoard.findUnique({
+            where: {
+              familyId_templateKey: {
+                familyId: family.id,
+                templateKey: chore.templateKey
+              }
             }
           });
-        }
 
-        // Enrich with member labels
-        return {
-          ...setting,
-          defaultAssigneeLabel: members.find(m => m.id === setting.defaultAssigneeMemberId)?.name || null,
-          eligibleMemberLabels: (setting.eligibleMemberIds || [])
-            .map(id => members.find(m => m.id === id)?.name || id)
-        };
-      })
-    );
+          // Auto-create default setting if missing
+          if (!setting) {
+            setting = await prisma.choreBoard.create({
+              data: {
+                familyId: family.id,
+                templateKey: chore.templateKey,
+                title: chore.title,
+                isRecurring: false,
+                frequencyType: 'ONE_TIME',
+                eligibilityMode: 'ALL',
+                eligibleMemberIds: [],
+                defaultAssigneeMemberId: null
+              }
+            });
+          }
+
+          // Enrich with member labels
+          return {
+            ...setting,
+            defaultAssigneeLabel: members.find(m => m.id === setting.defaultAssigneeMemberId)?.name || null,
+            eligibleMemberLabels: (setting.eligibleMemberIds || [])
+              .map(id => members.find(m => m.id === id)?.name || id)
+          };
+        })
+      );
+    } catch (dbError) {
+      // If ChoreBoard table doesn't exist yet, return defaults
+      if (dbError.code === 'P2021') {
+        boardSettings = PREDEFINED_CHORES.map(chore => ({
+          id: `temp-${chore.templateKey}`,
+          familyId: family.id,
+          templateKey: chore.templateKey,
+          title: chore.title,
+          isRecurring: false,
+          frequencyType: 'ONE_TIME',
+          customEveryDays: null,
+          eligibilityMode: 'ALL',
+          eligibleMemberIds: [],
+          defaultAssigneeMemberId: null,
+          defaultAssigneeLabel: null,
+          eligibleMemberLabels: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          _tableNotCreated: true // Flag to indicate we're using defaults
+        }));
+      } else {
+        throw dbError;
+      }
+    }
 
     return NextResponse.json({
       settings: boardSettings,
