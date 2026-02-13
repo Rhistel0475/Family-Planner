@@ -494,9 +494,9 @@ export default function InteractiveWeekView() {
         </div>
       </section>
 
-      {loading ? (
-        <div style={styles.loading}>Loading...</div>
-      ) : (
+      {loading && <div style={styles.loading}>Loading...</div>}
+
+      {!loading && (
         <DndContext
           sensors={sensors}
           onDragStart={handleDragStart}
