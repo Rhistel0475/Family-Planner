@@ -78,13 +78,18 @@ export default function FamilyPage() {
         body: JSON.stringify(payload)
       });
 
-      if (!res.ok) throw new Error('Failed to save');
+      const data = await res.json();
+
+      if (!res.ok) {
+        const errorMsg = data.error || 'Failed to save member';
+        throw new Error(errorMsg);
+      }
 
       showToast(editingMember ? 'Member updated!' : 'Member added!');
       setModalOpen(false);
       fetchMembers();
     } catch (error) {
-      showToast('Failed to save member', 'error');
+      showToast(error.message || 'Failed to save member', 'error');
     }
   };
 
@@ -93,12 +98,17 @@ export default function FamilyPage() {
 
     try {
       const res = await fetch(`/api/family-members?id=${memberId}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Failed to delete');
+      const data = await res.json();
+      
+      if (!res.ok) {
+        const errorMsg = data.error || 'Failed to delete member';
+        throw new Error(errorMsg);
+      }
 
       showToast('Member deleted');
       fetchMembers();
     } catch (error) {
-      showToast('Failed to delete member', 'error');
+      showToast(error.message || 'Failed to delete member', 'error');
     }
   };
 

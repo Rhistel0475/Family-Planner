@@ -125,11 +125,12 @@ export default function ChoresPage() {
     try {
       const formData = new FormData(e.target);
       const title = formData.get('title')?.trim();
-      const assignedTo = formData.get('assignedTo');
+      const assignedTo = formData.get('assignedTo') || '';
       const dueDay = formData.get('dueDay');
 
       if (!title) {
         setMessage({ type: 'error', text: 'Please enter a chore title' });
+        setAddLoading(false);
         return;
       }
 
@@ -144,7 +145,12 @@ export default function ChoresPage() {
         })
       });
 
-      if (!res.ok) throw new Error('Failed to save chore');
+      const data = await res.json();
+
+      if (!res.ok) {
+        const errorMsg = data.error || data.message || 'Failed to save chore';
+        throw new Error(errorMsg);
+      }
 
       setMessage({ type: 'success', text: '✓ Chore added' });
       setShowAddModal(false);
@@ -152,7 +158,8 @@ export default function ChoresPage() {
 
       setTimeout(() => setMessage(null), 2000);
     } catch (error) {
-      setMessage({ type: 'error', text: error.message });
+      console.error('Add chore error:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to save chore' });
     } finally {
       setAddLoading(false);
     }
