@@ -5,9 +5,9 @@ import { useState } from 'react';
 
 const navItems = [
   { href: '/', label: 'Weekly View' },
-  { href: '/schedule', label: 'Add Schedule' },
-  { href: '/chores', label: 'Add Chores' },
-  { href: '/recipes', label: 'Add Recipes' },
+  { href: '/schedule', label: 'Schedule' },
+  { href: '/chores', label: 'Chores' },
+  { href: '/recipes', label: 'Recipes' },
   { href: '/family', label: 'Family Members' },
   { href: '/ai', label: 'AI Assistant' },
   { href: '/setup', label: 'Setup' },
