@@ -212,7 +212,7 @@ export default function FamilyPage() {
               </div>
             </article>
             );
-          })}}
+          })
         </section>
       )}
 
