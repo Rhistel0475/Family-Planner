@@ -20,6 +20,7 @@ const AVATAR_EMOJIS = ['👨', '👩', '👦', '👧', '🧑', '👴', '👵', '
 
 export default function FamilyPage() {
   const [members, setMembers] = useState([]);
+  const [memberStyles, setMemberStyles] = useState({});
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -27,8 +28,25 @@ export default function FamilyPage() {
   const [formData, setFormData] = useState({ name: '', color: PRESET_COLORS[0].value, avatar: AVATAR_EMOJIS[0] });
 
   useEffect(() => {
+    const saved = localStorage.getItem('memberStyles');
+    if (saved) {
+      try {
+        setMemberStyles(JSON.parse(saved));
+      } catch (e) {
+        console.error('Failed to load member styles:', e);
+      }
+    }
     fetchMembers();
   }, []);
+
+  const saveMemberStyles = (styles) => {
+    setMemberStyles(styles);
+    localStorage.setItem('memberStyles', JSON.stringify(styles));
+  };
+
+  const getMemberStyle = (memberId) => {
+    return memberStyles[memberId] || { color: PRESET_COLORS[0].value, avatar: AVATAR_EMOJIS[0] };
+  };
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -57,10 +75,11 @@ export default function FamilyPage() {
 
   const openEditModal = (member) => {
     setEditingMember(member);
+    const style = getMemberStyle(member.id);
     setFormData({ 
       name: member.name, 
-      color: member.color || PRESET_COLORS[0].value,
-      avatar: member.avatar || AVATAR_EMOJIS[0] 
+      color: style.color,
+      avatar: style.avatar
     });
     setModalOpen(true);
   };
@@ -74,7 +93,7 @@ export default function FamilyPage() {
     try {
       const url = editingMember ? '/api/family-members' : '/api/family-members';
       const method = editingMember ? 'PATCH' : 'POST';
-      const payload = editingMember ? { id: editingMember.id, ...formData } : formData;
+      const payload = editingMember ? { id: editingMember.id, name: formData.name } : { name: formData.name };
 
       const res = await fetch(url, {
         method,
@@ -88,6 +107,14 @@ export default function FamilyPage() {
         const errorMsg = data.error || 'Failed to save member';
         throw new Error(errorMsg);
       }
+
+      // Save color/avatar to localStorage
+      const memberId = editingMember ? editingMember.id : data.member.id;
+      const newStyles = {
+        ...memberStyles,
+        [memberId]: { color: formData.color, avatar: formData.avatar }
+      };
+      saveMemberStyles(newStyles);
 
       showToast(editingMember ? 'Member updated!' : 'Member added!');
       setModalOpen(false);
@@ -143,16 +170,18 @@ export default function FamilyPage() {
         </section>
       ) : (
         <section style={styles.grid}>
-          {members.map((member) => (
+          {members.map((member) => {
+            const style = getMemberStyle(member.id);
+            return (
             <article key={member.id} style={styles.card}>
               <div style={styles.cardHeader}>
                 <div
                   style={{
                     ...styles.avatar,
-                    background: member.color || PRESET_COLORS[0].value
+                    background: style.color
                   }}
                 >
-                  {member.avatar || AVATAR_EMOJIS[0]}
+                  {style.avatar}
                 </div>
               </div>
               <div style={styles.cardBody}>
@@ -162,7 +191,7 @@ export default function FamilyPage() {
                   <div
                     style={{
                       ...styles.colorSwatch,
-                      background: member.color || PRESET_COLORS[0].value
+                      background: style.color
                     }}
                   />
                 </div>
@@ -182,7 +211,8 @@ export default function FamilyPage() {
                 </button>
               </div>
             </article>
-          ))}
+            );
+          })}}
         </section>
       )}
 
