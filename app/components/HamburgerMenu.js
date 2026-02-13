@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { useTheme } from '../providers/ThemeProvider';
 
 const navItems = [
   { href: '/', label: 'Weekly View' },
@@ -16,18 +17,23 @@ const navItems = [
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
+  const { isDarkMode, toggleTheme, theme } = useTheme();
 
   return (
     <>
       <button
         type="button"
         aria-label="Open navigation menu"
-        style={styles.button}
+        style={{
+          ...styles.button,
+          background: theme.card.bg[0],
+          border: `1px solid ${theme.card.border}`
+        }}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span style={styles.line} />
-        <span style={styles.line} />
-        <span style={styles.line} />
+        <span style={{...styles.line, background: theme.card.text}} />
+        <span style={{...styles.line, background: theme.card.text}} />
+        <span style={{...styles.line, background: theme.card.text}} />
       </button>
 
       {open && <button type="button" aria-label="Close menu" style={styles.backdrop} onClick={() => setOpen(false)} />}
@@ -35,18 +41,49 @@ export default function HamburgerMenu() {
       <aside
         style={{
           ...styles.drawer,
-          transform: open ? 'translateX(0)' : 'translateX(-112%)'
+          transform: open ? 'translateX(0)' : 'translateX(-112%)',
+          background: theme.nav.bg,
+          borderRight: `1px solid ${theme.nav.border}`
         }}
       >
-        <h2 style={styles.title}>Family Planner</h2>
-        <p style={styles.subtitle}>Navigate input pages</p>
+        <h2 style={{...styles.title, color: theme.nav.text}}>Family Planner</h2>
+        <p style={{...styles.subtitle, color: theme.nav.text, opacity: 0.8}}>Navigate input pages</p>
 
         <nav style={styles.nav}>
           {navItems.map((item) => (
-            <Link key={item.href} href={item.href} style={styles.link} onClick={() => setOpen(false)}>
+            <Link
+              key={item.href}
+              href={item.href}
+              style={{
+                ...styles.link,
+                color: theme.nav.text,
+                background: theme.card.bg[0],
+                border: `1px solid ${theme.nav.border}`
+              }}
+              onClick={() => setOpen(false)}
+            >
               {item.label}
             </Link>
           ))}
+
+          <button
+            onClick={() => {
+              toggleTheme();
+            }}
+            style={{
+              ...styles.link,
+              color: theme.nav.text,
+              background: theme.card.bg[2],
+              border: `1px solid ${theme.nav.border}`,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
+            <span>Theme</span>
+            <span style={{ fontSize: '1.2rem' }}>{isDarkMode ? '☀️' : '🌙'}</span>
+          </button>
         </nav>
       </aside>
     </>

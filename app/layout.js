@@ -2,6 +2,7 @@ import './globals.css';
 import HamburgerMenu from './components/HamburgerMenu';
 import BottomNav from './components/BottomNav';
 import SetupCheck from './components/SetupCheck';
+import { ThemeProvider } from './providers/ThemeProvider';
 
 export const metadata = {
   title: 'Family Planner',
@@ -13,9 +14,11 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body>
         <SetupCheck>
-          <HamburgerMenu />
-          {children}
-          <BottomNav />
+          <ThemeProvider>
+            <HamburgerMenu />
+            {children}
+            <BottomNav />
+          </ThemeProvider>
         </SetupCheck>
       </body>
     </html>
