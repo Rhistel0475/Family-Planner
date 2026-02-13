@@ -60,7 +60,6 @@ model Event {
 model Chore {
   id                String             @id @default(cuid())
   familyId          String
-  choreTemplateId   String?
   title             String
   assignedTo        String
   dueDay            String
@@ -68,20 +67,16 @@ model Chore {
   recurrencePattern RecurrencePattern?
   recurrenceInterval Int?
   recurrenceEndDate DateTime?
-  frequency         String?            @default("once") // once, daily, weekly, biweekly, monthly
-  eligibleMemberIds String?            // JSON array of member IDs
   parentEventId     String?
   completed         Boolean            @default(false)
   completedAt       DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  choreTemplate     ChoreTemplate?     @relation(fields: [choreTemplateId], references: [id])
 
   @@index([familyId, dueDay])
   @@index([completed])
   @@index([parentEventId])
-  @@index([choreTemplateId])
 }
 
 model Recipe {
@@ -103,7 +98,6 @@ model ChoreTemplate {
   description String?
   isSystem    Boolean  @default(false)
   familyId    String?  // null for system templates
-  chores      Chore[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

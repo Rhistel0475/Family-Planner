@@ -4,7 +4,6 @@ import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
 import { getNextOccurrence } from '../../../lib/recurring';
 import { DAY_NAMES } from '../../../lib/constants';
 import { choreSchema, validateRequest } from '../../../lib/validators';
-import { stringifyEligibleMembers } from '../../../lib/choreTemplates';
 
 export async function GET(request) {
   try {
@@ -47,34 +46,9 @@ export async function POST(request) {
       );
     }
 
-    const { 
-      title, 
-      assignedTo, 
-      dueDay, 
-      choreTemplateId,
-      frequency,
-      eligibleMemberIds,
-      isRecurring, 
-      recurrencePattern, 
-      recurrenceInterval, 
-      recurrenceEndDate 
-    } = validation.data;
+    const { title, assignedTo, dueDay, isRecurring, recurrencePattern, recurrenceInterval, recurrenceEndDate } = validation.data;
 
     const family = await getOrCreateDefaultFamily();
-
-    // If eligibleMemberIds is provided, validate that assignedTo is in the list
-    if (eligibleMemberIds && eligibleMemberIds.length > 0) {
-      const assignedMember = await prisma.familyMember.findFirst({
-        where: { familyId: family.id, name: assignedTo }
-      });
-
-      if (assignedMember && !eligibleMemberIds.includes(assignedMember.id)) {
-        return NextResponse.json(
-          { error: 'Assigned member is not in eligible members list' },
-          { status: 400 }
-        );
-      }
-    }
 
     // Create a date for the due day (Monday-Sunday of current week)
     const dayIndex = DAY_NAMES.indexOf(dueDay);
@@ -89,9 +63,6 @@ export async function POST(request) {
     const dueDate = new Date(monday);
     dueDate.setDate(monday.getDate() + (dayIndex >= 0 ? dayIndex : 0));
 
-    // Serialize eligible member IDs
-    const eligibleMembersJson = stringifyEligibleMembers(eligibleMemberIds);
-
     let createdCount = 0;
 
     if (isRecurring && recurrencePattern) {
@@ -99,12 +70,9 @@ export async function POST(request) {
       const parentChore = await prisma.chore.create({
         data: {
           familyId: family.id,
-          choreTemplateId: choreTemplateId || null,
           title,
           assignedTo,
           dueDay,
-          frequency: frequency || 'once',
-          eligibleMemberIds: eligibleMembersJson,
           isRecurring: true,
           recurrencePattern,
           recurrenceInterval: recurrenceInterval || 1,
@@ -122,12 +90,9 @@ export async function POST(request) {
         await prisma.chore.create({
           data: {
             familyId: family.id,
-            choreTemplateId: choreTemplateId || null,
             title,
             assignedTo,
             dueDay: DAY_NAMES[(instanceDate.getDay() + 6) % 7],
-            frequency: frequency || 'once',
-            eligibleMemberIds: eligibleMembersJson,
             completed: false,
             parentEventId: parentChore.id,
             isRecurring: false
@@ -145,12 +110,9 @@ export async function POST(request) {
       await prisma.chore.create({
         data: {
           familyId: family.id,
-          choreTemplateId: choreTemplateId || null,
           title,
           assignedTo,
           dueDay,
-          frequency: frequency || 'once',
-          eligibleMemberIds: eligibleMembersJson,
           completed: false,
           isRecurring: false
         }
