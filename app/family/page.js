@@ -146,7 +146,7 @@ export default function FamilyPage() {
         </div>
       </section>
 
-      {loading ? (
+      {loading && members.length === 0 ? (
         <div style={styles.loading}>Loading family members...</div>
       ) : members.length === 0 ? (
         <section style={styles.emptyState}>
