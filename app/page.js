@@ -1,7 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { getOrCreateDefaultFamily } from '../lib/defaultFamily';
-
-const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+import { DAY_NAMES } from '../lib/constants';
 
 function getWeekDates() {
   const now = new Date();
