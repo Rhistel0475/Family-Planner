@@ -904,8 +904,9 @@ export default function InteractiveWeekView() {
 
 const styles = {
   main: {
-    minHeight: '100vh',
-    padding: '3rem 1.5rem 5rem 1.5rem',
+    height: '100vh',
+    padding: '1.5rem 1.5rem 1rem 1.5rem',
+    overflow: 'auto',
     backgroundColor: '#f4e3bf',
     backgroundImage:
       'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.22), transparent 45%)',
@@ -913,10 +914,10 @@ const styles = {
   },
   hero: {
     maxWidth: 780,
-    margin: '0 auto 2rem auto',
+    margin: '0 auto 1rem auto',
     textAlign: 'center',
     background: '#ffef7d',
-    padding: '1.5rem 1.25rem',
+    padding: '1rem 1rem',
     borderRadius: 10,
     boxShadow: '0 14px 24px rgba(102, 68, 18, 0.2)',
     border: '1px solid rgba(105, 67, 16, 0.18)',
@@ -933,18 +934,18 @@ const styles = {
   },
   title: {
     margin: 0,
-    fontSize: 'clamp(2rem, 7vw, 3rem)',
+    fontSize: 'clamp(1.4rem, 5vw, 2rem)',
     letterSpacing: '0.01em'
   },
   subtitle: {
-    marginTop: '0.75rem',
+    marginTop: '0.4rem',
     lineHeight: 1.5,
     maxWidth: 620,
     marginInline: 'auto'
   },
   controls: {
     maxWidth: 980,
-    margin: '0 auto 1.5rem auto',
+    margin: '0 auto 0.75rem auto',
     display: 'flex',
     flexDirection: 'column',
     gap: '1rem'
@@ -1051,9 +1052,8 @@ const styles = {
   },
   weekGrid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(7, minmax(180px, 1fr))',
-    gap: '1rem',
-    minWidth: 1280
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: '1rem'
   },
   card: {
     padding: '1.2rem',
@@ -1063,7 +1063,7 @@ const styles = {
     transition: 'transform 120ms ease',
     transformOrigin: 'center top',
     minHeight: 380
-  },
+  },'auto'
   dayHeader: {
     marginBottom: '0.85rem',
     paddingBottom: '0.5rem',
