@@ -1,13 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function ChoresPage({ searchParams }) {
   const router = useRouter();
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrencePattern, setRecurrencePattern] = useState('WEEKLY');
+  const [frequency, setFrequency] = useState('ONCE');
+  const [assignmentScope, setAssignmentScope] = useState('all');
   const [loading, setLoading] = useState(false);
+
+  const defaultChores = useMemo(() => ([
+    'Clean Bedroom',
+    'Clean Kitchen',
+    'Clean Living Room',
+    'Take Out Trash',
+    'Wash Dishes',
+    'Do Laundry',
+    'Vacuum Floors',
+    'Clean Bathroom',
+    'Mop Floors'
+  ]), []);
   const saved = searchParams?.saved === '1';
   const error = searchParams?.error === '1';
 
@@ -16,14 +28,18 @@ export default function ChoresPage({ searchParams }) {
     setLoading(true);
 
     const formData = new FormData(e.target);
+    const selectedTemplate = formData.get('choreTemplate');
+    const customTitle = (formData.get('title') || '').trim();
+    const title = selectedTemplate === 'CUSTOM' ? customTitle : selectedTemplate;
+
     const data = {
-      title: formData.get('title'),
-      assignedTo: formData.get('assignedTo'),
+      title,
+      assignedTo: assignmentScope === 'all' ? 'All Members' : formData.get('assignedTo'),
       dueDay: formData.get('dueDay'),
-      isRecurring,
-      recurrencePattern: isRecurring ? recurrencePattern : null,
-      recurrenceInterval: isRecurring ? parseInt(formData.get('interval')) || 1 : null,
-      recurrenceEndDate: isRecurring && formData.get('endDate') ? formData.get('endDate') : null
+      isRecurring: frequency !== 'ONCE',
+      recurrencePattern: frequency !== 'ONCE' ? frequency : null,
+      recurrenceInterval: frequency !== 'ONCE' ? parseInt(formData.get('interval')) || 1 : null,
+      recurrenceEndDate: frequency !== 'ONCE' && formData.get('endDate') ? formData.get('endDate') : null
     };
 
     try {
@@ -38,7 +54,8 @@ export default function ChoresPage({ searchParams }) {
       if (res.ok) {
         router.push('/chores?saved=1');
         e.target.reset();
-        setIsRecurring(false);
+        setFrequency('ONCE');
+        setAssignmentScope('all');
       } else {
         console.error('Error response:', result);
         router.push('/chores?error=1');
@@ -60,11 +77,33 @@ export default function ChoresPage({ searchParams }) {
         {error && <p style={styles.error}>Please complete all fields.</p>}
 
         <form onSubmit={handleSubmit}>
-          <label style={styles.label}>Chore</label>
-          <input name="title" style={styles.input} placeholder="Take out trash" />
+          <label style={styles.label}>Standard Chore</label>
+          <select name="choreTemplate" style={styles.input} defaultValue="Clean Bedroom">
+            {defaultChores.map((chore) => (
+              <option key={chore} value={chore}>{chore}</option>
+            ))}
+            <option value="CUSTOM">Custom chore...</option>
+          </select>
 
-          <label style={styles.label}>Assigned To</label>
-          <input name="assignedTo" style={styles.input} placeholder="Alex" />
+          <label style={styles.label}>Custom Chore (optional)</label>
+          <input name="title" style={styles.input} placeholder="Enter custom chore only if needed" />
+
+          <label style={styles.label}>Availability</label>
+          <select
+            style={styles.input}
+            value={assignmentScope}
+            onChange={(e) => setAssignmentScope(e.target.value)}
+          >
+            <option value="all">Available to all members</option>
+            <option value="one">Assign to one member</option>
+          </select>
+
+          {assignmentScope === 'one' && (
+            <>
+              <label style={styles.label}>Assigned To</label>
+              <input name="assignedTo" style={styles.input} placeholder="Alex" />
+            </>
+          )}
 
           <label style={styles.label}>Due Day</label>
           <select name="dueDay" style={styles.input} defaultValue="Friday">
@@ -77,50 +116,39 @@ export default function ChoresPage({ searchParams }) {
             <option>Sunday</option>
           </select>
 
-          <div style={styles.checkboxContainer}>
-            <input 
-              id="recurringChore"
-              type="checkbox" 
-              checked={isRecurring}
-              onChange={(e) => setIsRecurring(e.target.checked)}
-              style={styles.checkbox}
-            />
-            <label htmlFor="recurringChore" style={styles.checkboxText}>🔄 Recurring Chore</label>
-          </div>
+          <label style={styles.label}>Frequency</label>
+          <select
+            value={frequency}
+            onChange={(e) => setFrequency(e.target.value)}
+            style={styles.input}
+          >
+            <option value="ONCE">One-time</option>
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly</option>
+            <option value="MONTHLY">Monthly</option>
+            <option value="YEARLY">Yearly</option>
+          </select>
 
-          {isRecurring && (
+          {frequency !== 'ONCE' && (
             <div style={styles.recurringSection}>
-              <label style={styles.label}>Repeat</label>
-              <select 
-                name="pattern" 
-                value={recurrencePattern}
-                onChange={(e) => setRecurrencePattern(e.target.value)}
-                style={styles.input}
-              >
-                <option value="DAILY">Daily</option>
-                <option value="WEEKLY">Weekly</option>
-                <option value="MONTHLY">Monthly</option>
-                <option value="YEARLY">Yearly</option>
-              </select>
-
               <label style={styles.label}>Every</label>
-              <input 
-                name="interval" 
-                type="number" 
-                min="1" 
+              <input
+                name="interval"
+                type="number"
+                min="1"
                 defaultValue="1"
                 style={styles.input}
               />
               <span style={styles.intervalText}>
-                {recurrencePattern === 'DAILY' && 'day(s)'}
-                {recurrencePattern === 'WEEKLY' && 'week(s)'}
-                {recurrencePattern === 'MONTHLY' && 'month(s)'}
-                {recurrencePattern === 'YEARLY' && 'year(s)'}
+                {frequency === 'DAILY' && 'day(s)'}
+                {frequency === 'WEEKLY' && 'week(s)'}
+                {frequency === 'MONTHLY' && 'month(s)'}
+                {frequency === 'YEARLY' && 'year(s)'}
               </span>
 
               <label style={styles.label}>End Date (Optional)</label>
-              <input 
-                name="endDate" 
+              <input
+                name="endDate"
                 type="date"
                 style={styles.input}
               />
@@ -202,21 +230,6 @@ const styles = {
     color: '#2b4d1f',
     fontWeight: 700,
     cursor: 'pointer'
-  },
-  checkboxContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    marginBottom: '0.8rem',
-    gap: '0.5rem'
-  },
-  checkbox: {
-    width: '18px',
-    height: '18px',
-    cursor: 'pointer'
-  },
-  checkboxText: {
-    cursor: 'pointer',
-    fontSize: '0.95rem'
   },
   recurringSection: {
     background: 'rgba(255,255,255,0.4)',
