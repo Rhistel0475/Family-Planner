@@ -11,17 +11,24 @@ export async function GET() {
       where: { familyId: family.id }
     });
 
+    if (members.length === 0) {
+      return NextResponse.json({
+        suggestions: [],
+        message: 'No family members found. Please add family members in the Family page first.'
+      });
+    }
+
     const unassignedChores = await prisma.chore.findMany({
       where: {
         familyId: family.id,
-        assignedTo: null
+        completed: false
       }
     });
 
     if (unassignedChores.length === 0) {
       return NextResponse.json({
         suggestions: [],
-        message: 'All chores are already assigned!'
+        message: 'No incomplete chores found. All chores are done!'
       });
     }
 
@@ -29,6 +36,7 @@ export async function GET() {
 
     return NextResponse.json(suggestions);
   } catch (error) {
+    console.error('AI chore assignment error:', error);
     return NextResponse.json(
       {
         error: 'Failed to generate chore assignments',

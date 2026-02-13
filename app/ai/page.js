@@ -1,20 +1,31 @@
 'use client';
 
 import { useState } from 'react';
+import HamburgerMenu from '../components/HamburgerMenu';
 
 export default function AIAssistantPage() {
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
   const [selectedTab, setSelectedTab] = useState('chores');
 
   async function generateChoreAssignments() {
     setLoading(true);
+    setMessage('');
     try {
       const res = await fetch('/api/ai/chores');
       const data = await res.json();
+      
+      if (data.error) {
+        setMessage(data.error);
+      } else if (data.message) {
+        setMessage(data.message);
+      }
+      
       setSuggestions(data.suggestions || []);
     } catch (error) {
       console.error('Failed to generate suggestions:', error);
+      setMessage('Failed to connect to AI service');
     } finally {
       setLoading(false);
     }
@@ -30,17 +41,33 @@ export default function AIAssistantPage() {
 
       if (res.ok) {
         setSuggestions(suggestions.filter((s) => s.choreId !== choreId));
+        setMessage('✅ Chore assigned successfully!');
       }
     } catch (error) {
       console.error('Failed to apply suggestion:', error);
+      setMessage('Failed to assign chore');
     }
   }
 
   return (
     <main style={styles.main}>
+      <HamburgerMenu />
       <section style={styles.card}>
-        <h1 style={styles.title}>AI Assistant</h1>
-        <p style={styles.subtitle}>Let AI help assign chores and plan meals fairly.</p>
+        <h1 style={styles.title}>🤖 AI Assistant</h1>
+        <p style={styles.subtitle}>Let AI help assign chores and plan your family schedule intelligently.</p>
+
+        {message && (
+          <div style={{
+            padding: '0.8rem',
+            marginBottom: '1rem',
+            borderRadius: 6,
+            background: message.includes('✅') ? 'rgba(40,167,69,0.2)' : 'rgba(255,193,7,0.2)',
+            border: `1px solid ${message.includes('✅') ? 'rgba(40,167,69,0.4)' : 'rgba(255,193,7,0.4)'}`,
+            fontSize: '0.9rem'
+          }}>
+            {message}
+          </div>
+        )}
 
         <div style={styles.tabs}>
           <button
