@@ -74,9 +74,30 @@ export default function ChoresPage({ searchParams }) {
       const templateId = formData.get('choreTemplate');
       const customTitle = (formData.get('title') || '').trim();
       
+      // Validate template selection
+      if (!templateId || templateId === '') {
+        alert('Please select a chore template');
+        setLoading(false);
+        return;
+      }
+
       // Get template info
       const template = templates.find(t => t.id === templateId);
       const title = templateId === 'CUSTOM' ? customTitle : (template?.name || customTitle);
+
+      // Validate custom title
+      if (templateId === 'CUSTOM' && !customTitle) {
+        alert('Please enter a custom chore title');
+        setLoading(false);
+        return;
+      }
+
+      // Validate assignment scope
+      if (assignmentScope === 'one' && !formData.get('assignedTo')) {
+        alert('Please select a member to assign to');
+        setLoading(false);
+        return;
+      }
 
       // Validate eligibility
       if (assignmentScope === 'eligible' && eligibleMemberIds.length === 0) {
