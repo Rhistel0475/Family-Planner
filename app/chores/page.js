@@ -159,7 +159,12 @@ export default function ChoresPage({ searchParams }) {
   return (
     <main style={styles.main}>
       <section style={styles.card}>
-        <h1 style={styles.title}>Add Chore</h1>
+        <div style={styles.titleBar}>
+          <h1 style={styles.title}>Add Chore</h1>
+          <a href="/chores/board" style={styles.boardLink}>
+            📋 Chore Board Setup
+          </a>
+        </div>
         <p style={styles.subtitle}>Capture chores so your family task plan stays organized.</p>
         {saved && <p style={styles.success}>✓ Chore saved.</p>}
         {error && <p style={styles.error}>Please complete all fields.</p>}
@@ -345,6 +350,31 @@ const styles = {
   },
   title: {
     marginBottom: '0.35rem'
+  },
+  titleBar: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: '1rem',
+    marginBottom: '0.5rem'
+  },
+  boardLink: {
+    display: 'inline-block',
+    padding: '0.475rem 0.9rem',
+    background: 'rgba(245, 158, 11, 0.15)',
+    border: '1px solid rgba(245, 158, 11, 0.35)',
+    borderRadius: 6,
+    color: '#b45309',
+    textDecoration: 'none',
+    fontSize: '0.9rem',
+    fontWeight: '600',
+    whiteSpace: 'nowrap',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    ':hover': {
+      background: 'rgba(245, 158, 11, 0.25)',
+      borderColor: 'rgba(245, 158, 11, 0.5)'
+    }
   },
   subtitle: {
     marginBottom: '1rem'

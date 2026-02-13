@@ -17,6 +17,7 @@ model Family {
   chores    Chore[]
   recipes   Recipe[]
   members   FamilyMember[]
+  choreBoards ChoreBoard[]
 
   @@index([createdAt])
 }
@@ -106,6 +107,26 @@ model ChoreTemplate {
   @@index([familyId])
 }
 
+model ChoreBoard {
+  id                    String   @id @default(cuid())
+  familyId              String
+  templateKey           String   // e.g., "clean_kitchen"
+  title                 String   // Display title
+  isRecurring           Boolean  @default(false)
+  frequencyType         FrequencyType @default(ONE_TIME)
+  customEveryDays       Int?     // Only used when frequencyType = CUSTOM
+  eligibilityMode       EligibilityMode @default(ALL)
+  eligibleMemberIds     String[] @default([]) // JSON array of member IDs
+  defaultAssigneeMemberId String? // Optional default assignee
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  family                Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, templateKey])
+  @@index([familyId])
+  @@index([templateKey])
+}
+
 enum EventType {
   WORK
   EVENT
@@ -116,4 +137,18 @@ enum RecurrencePattern {
   WEEKLY
   MONTHLY
   YEARLY
+}
+
+enum FrequencyType {
+  ONE_TIME
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum EligibilityMode {
+  ALL
+  SELECTED
 }

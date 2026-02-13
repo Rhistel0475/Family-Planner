@@ -1,0 +1,345 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #8b6f47 0%, #a0826d 100%);
+  padding: 2rem 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.header {
+  max-width: 1200px;
+  margin: 0 auto 2rem;
+  color: white;
+  text-align: center;
+}
+
+.header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 2.5rem;
+  font-weight: 700;
+}
+
+.header p {
+  margin: 0;
+  font-size: 1.1rem;
+  opacity: 0.95;
+}
+
+.message {
+  max-width: 1200px;
+  margin: 0 auto 1.5rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  animation: slideDown 0.3s ease-out;
+}
+
+.message_success {
+  background: #10b981;
+  color: white;
+}
+
+.message_error {
+  background: #ef4444;
+  color: white;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-1rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.board {
+  max-width: 1200px;
+  margin: 0 auto 3rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+  perspective: 1000px;
+}
+
+@media (max-width: 768px) {
+  .board {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: #fef3c7;
+  border-radius: 0.25rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15);
+  transform: rotate(var(--rotation, 0deg));
+  transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.card:hover {
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3), 0 3px 6px rgba(0, 0, 0, 0.2);
+  transform: rotate(var(--rotation, 0deg)) translateY(-2px);
+}
+
+.card.expanded {
+  grid-column: span 1;
+  transform: rotate(0deg) scale(1);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  background: #fef9e7;
+}
+
+.cardHeader {
+  padding: 1.25rem;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+}
+
+.cardHeader h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1f2937;
+  line-height: 1.3;
+}
+
+.status {
+  font-size: 0.8rem;
+  color: #6b7280;
+  line-height: 1.4;
+  margin-bottom: 0.5rem;
+  flex-grow: 1;
+}
+
+.expandIcon {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: #9ca3af;
+  user-select: none;
+}
+
+.cardContent {
+  padding: 1rem 1.25rem 1.25rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background: #fffbf0;
+  border-radius: 0 0 0.25rem 0.25rem;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.section {
+  margin-bottom: 1.25rem;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.section label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.section small {
+  display: block;
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin-top: 0.25rem;
+}
+
+.section select,
+.section input[type="number"] {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.95rem;
+  background: white;
+  color: #1f2937;
+  transition: border-color 0.2s;
+}
+
+.section select:hover,
+.section input[type="number"]:hover {
+  border-color: #9ca3af;
+}
+
+.section select:focus,
+.section input[type="number"]:focus {
+  outline: none;
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.checkboxLabel {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+}
+
+.checkboxLabel input {
+  margin-right: 0.5rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+  accent-color: #f59e0b;
+}
+
+.frequencyGroup {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+}
+
+.frequencyGroup label {
+  font-size: 0.85rem;
+  margin-bottom: 0.4rem;
+}
+
+.frequencyGroup select {
+  margin-bottom: 0.75rem;
+}
+
+.customDays {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.customDays label {
+  font-size: 0.85rem;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.customDays input {
+  width: 80px;
+  margin: 0;
+}
+
+.eligibilityMode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+}
+
+.radioLabel input {
+  margin-right: 0.5rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  cursor: pointer;
+  accent-color: #f59e0b;
+}
+
+.memberCheckboxes {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.footer {
+  max-width: 1200px;
+  margin: 2rem auto;
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.saveButton {
+  padding: 0.875rem 2rem;
+  background: white;
+  color: #1f2937;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+}
+
+.saveButton:hover:not(:disabled) {
+  background: #f9fafb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transform: translateY(-2px);
+}
+
+.saveButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.saveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+  text-align: center;
+  color: white;
+  font-size: 1.1rem;
+}
+
+/* Accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .saveButton,
+  .message {
+    transition: none;
+    animation: none;
+  }
+
+  .card:hover {
+    transform: none;
+  }
+}
+
+/* Focus visible for keyboard navigation */
+.cardHeader:focus-visible {
+  outline: 2px solid white;
+  outline-offset: -2px;
+}
+
+.section select:focus-visible,
+.section input:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
+
+.saveButton:focus-visible {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+}
