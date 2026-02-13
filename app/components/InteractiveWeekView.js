@@ -1062,8 +1062,8 @@ const styles = {
     boxShadow: '0 10px 20px rgba(70, 45, 11, 0.2)',
     transition: 'transform 120ms ease',
     transformOrigin: 'center top',
-    minHeight: 380
-  },'auto'
+    minHeight: 'auto'
+  },
   dayHeader: {
     marginBottom: '0.85rem',
     paddingBottom: '0.5rem',
