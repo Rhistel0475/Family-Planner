@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../../lib/defaultFamily';
 import { generateChoreAssignments } from '../../../../lib/ai';
+import { assignChoresRuleBased } from '../../../../lib/choreAssignment';
 
 export async function GET() {
   try {
@@ -32,11 +33,18 @@ export async function GET() {
       });
     }
 
-    const suggestions = await generateChoreAssignments(members, unassignedChores);
-
-    return NextResponse.json(suggestions);
+    // Try AI first, fallback to rule-based on error
+    try {
+      const suggestions = await generateChoreAssignments(members, unassignedChores);
+      return NextResponse.json(suggestions);
+    } catch (aiError) {
+      console.log('AI unavailable, using rule-based assignment:', aiError.message);
+      // Use rule-based fallback
+      const suggestions = assignChoresRuleBased(members, unassignedChores);
+      return NextResponse.json(suggestions);
+    }
   } catch (error) {
-    console.error('AI chore assignment error:', error);
+    console.error('Chore assignment error:', error);
     return NextResponse.json(
       {
         error: 'Failed to generate chore assignments',
