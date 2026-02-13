@@ -19,8 +19,26 @@ export default function InteractiveWeekView() {
   const [toast, setToast] = useState(null);
   const [quickAddModal, setQuickAddModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
-  const [newItem, setNewItem] = useState({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
+  const [newItem, setNewItem] = useState({
+    title: '',
+    assignedTo: '',
+    day: 'Monday',
+    type: 'EVENT',
+    choreTemplate: 'Clean Bedroom',
+    availableToAll: true,
+    frequency: 'ONCE'
+  });
   const [activeItem, setActiveItem] = useState(null);
+
+  const defaultChoreTemplates = [
+    'Clean Bedroom',
+    'Clean Kitchen',
+    'Clean Living Room',
+    'Take Out Trash',
+    'Do Laundry',
+    'Wash Dishes',
+    'Vacuum Floors'
+  ];
 
   const noteColors = ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7'];
   const noteRotations = ['rotate(-1deg)', 'rotate(0.8deg)', 'rotate(-0.6deg)', 'rotate(0.6deg)'];
@@ -181,16 +199,28 @@ export default function InteractiveWeekView() {
   };
 
   const handleQuickAdd = async () => {
-    if (!newItem.title.trim()) {
+    const choreTitle = newItem.choreTemplate === 'CUSTOM' ? newItem.title.trim() : newItem.choreTemplate;
+    const itemTitle = quickAddModal === 'chore' ? choreTitle : newItem.title.trim();
+
+    if (!itemTitle) {
       showToast('Please enter a title', 'error');
       return;
     }
 
     try {
       const endpoint = quickAddModal === 'chore' ? '/api/chores' : '/api/schedule';
+      const chorePayload = {
+        title: itemTitle,
+        assignedTo: newItem.availableToAll ? 'All Members' : (newItem.assignedTo || 'Unassigned'),
+        dueDay: newItem.day,
+        isRecurring: newItem.frequency !== 'ONCE',
+        recurrencePattern: newItem.frequency !== 'ONCE' ? newItem.frequency : null,
+        recurrenceInterval: newItem.frequency !== 'ONCE' ? 1 : null
+      };
+
       const payload = quickAddModal === 'chore'
-        ? { title: newItem.title, assignedTo: newItem.assignedTo || 'Unassigned', dueDay: newItem.day }
-        : { title: newItem.title, type: newItem.type, startsAt: new Date(), day: newItem.day, event: newItem.title };
+        ? chorePayload
+        : { title: itemTitle, type: newItem.type, startsAt: new Date(), day: newItem.day, event: itemTitle };
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -202,7 +232,15 @@ export default function InteractiveWeekView() {
 
       showToast(`${quickAddModal === 'chore' ? 'Chore' : 'Event'} added!`);
       setQuickAddModal(null);
-      setNewItem({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
+      setNewItem({
+        title: '',
+        assignedTo: '',
+        day: 'Monday',
+        type: 'EVENT',
+        choreTemplate: 'Clean Bedroom',
+        availableToAll: true,
+        frequency: 'ONCE'
+      });
       fetchData();
     } catch (error) {
       showToast(`Failed to add ${quickAddModal}`, 'error');
@@ -688,41 +726,92 @@ export default function InteractiveWeekView() {
           size="small"
         >
           <div style={styles.modalForm}>
-            <label style={styles.modalLabel}>
-              {quickAddModal === 'chore' ? 'Chore' : 'Event'} Title
-            </label>
-            <input
-              style={styles.modalInput}
-              placeholder={`Enter ${quickAddModal} title...`}
-              value={newItem.title}
-              onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
-              autoFocus
-            />
-
-            {quickAddModal === 'chore' && (
+            {quickAddModal === 'chore' ? (
               <>
-                <label style={styles.modalLabel}>Assign To</label>
-                {members.length > 0 ? (
-                  <select
-                    style={styles.modalInput}
-                    value={newItem.assignedTo}
-                    onChange={(e) => setNewItem({ ...newItem, assignedTo: e.target.value })}
-                  >
-                    <option value="">Select member...</option>
-                    {members.map(member => (
-                      <option key={member.id} value={member.name}>
-                        {member.avatar} {member.name}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    style={styles.modalInput}
-                    placeholder="Name"
-                    value={newItem.assignedTo}
-                    onChange={(e) => setNewItem({ ...newItem, assignedTo: e.target.value })}
-                  />
+                <label style={styles.modalLabel}>Standard Chore</label>
+                <select
+                  style={styles.modalInput}
+                  value={newItem.choreTemplate}
+                  onChange={(e) => setNewItem({ ...newItem, choreTemplate: e.target.value })}
+                >
+                  {defaultChoreTemplates.map((chore) => (
+                    <option key={chore} value={chore}>{chore}</option>
+                  ))}
+                  <option value="CUSTOM">Custom chore...</option>
+                </select>
+
+                {newItem.choreTemplate === 'CUSTOM' && (
+                  <>
+                    <label style={styles.modalLabel}>Custom Chore Title</label>
+                    <input
+                      style={styles.modalInput}
+                      placeholder="Enter custom chore title..."
+                      value={newItem.title}
+                      onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
+                      autoFocus
+                    />
+                  </>
                 )}
+
+                <label style={styles.modalLabel}>Availability</label>
+                <select
+                  style={styles.modalInput}
+                  value={newItem.availableToAll ? 'all' : 'one'}
+                  onChange={(e) => setNewItem({ ...newItem, availableToAll: e.target.value === 'all' })}
+                >
+                  <option value="all">Available to all members</option>
+                  <option value="one">Assign to one member</option>
+                </select>
+
+                {!newItem.availableToAll && (
+                  <>
+                    <label style={styles.modalLabel}>Assign To</label>
+                    {members.length > 0 ? (
+                      <select
+                        style={styles.modalInput}
+                        value={newItem.assignedTo}
+                        onChange={(e) => setNewItem({ ...newItem, assignedTo: e.target.value })}
+                      >
+                        <option value="">Select member...</option>
+                        {members.map(member => (
+                          <option key={member.id} value={member.name}>
+                            {member.avatar} {member.name}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        style={styles.modalInput}
+                        placeholder="Name"
+                        value={newItem.assignedTo}
+                        onChange={(e) => setNewItem({ ...newItem, assignedTo: e.target.value })}
+                      />
+                    )}
+                  </>
+                )}
+
+                <label style={styles.modalLabel}>Frequency</label>
+                <select
+                  style={styles.modalInput}
+                  value={newItem.frequency}
+                  onChange={(e) => setNewItem({ ...newItem, frequency: e.target.value })}
+                >
+                  <option value="ONCE">One-time</option>
+                  <option value="DAILY">Daily</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="MONTHLY">Monthly</option>
+                </select>
+              </>
+            ) : (
+              <>
+                <label style={styles.modalLabel}>Event Title</label>
+                <input
+                  style={styles.modalInput}
+                  placeholder="Enter event title..."
+                  value={newItem.title}
+                  onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
+                  autoFocus
+                />
               </>
             )}
 
