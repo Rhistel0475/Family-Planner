@@ -2,38 +2,36 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
 import { getNextOccurrence } from '../../../lib/recurring';
+import { DAY_NAMES } from '../../../lib/constants';
+import { choreSchema, validateRequest } from '../../../lib/validators';
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const title = String(body.title || '').trim();
-    const assignedTo = String(body.assignedTo || '').trim();
-    const dueDay = String(body.dueDay || '').trim();
-    const isRecurring = body.isRecurring === true;
-    const recurrencePattern = body.recurrencePattern || null;
-    const recurrenceInterval = parseInt(body.recurrenceInterval) || 1;
-    const recurrenceEndDate = body.recurrenceEndDate ? new Date(body.recurrenceEndDate) : null;
 
-    if (!title || !assignedTo || !dueDay) {
+    // Validate input
+    const validation = validateRequest(choreSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'Please provide title, assignee, and due day.' },
+        { error: validation.error, errors: validation.errors },
         { status: 400 }
       );
     }
 
+    const { title, assignedTo, dueDay, isRecurring, recurrencePattern, recurrenceInterval, recurrenceEndDate } = validation.data;
+
     const family = await getOrCreateDefaultFamily();
 
     // Create a date for the due day (Monday-Sunday of current week)
-    const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const dayIndex = DAY_NAMES.indexOf(dueDay);
     const now = new Date();
     const currentDay = now.getDay();
     const daysFromMonday = (currentDay + 6) % 7;
-    
+
     const monday = new Date(now);
     monday.setHours(9, 0, 0, 0);
     monday.setDate(now.getDate() - daysFromMonday);
-    
+
     const dueDate = new Date(monday);
     dueDate.setDate(monday.getDate() + (dayIndex >= 0 ? dayIndex : 0));
 
@@ -49,18 +47,18 @@ export async function POST(request) {
           dueDay,
           isRecurring: true,
           recurrencePattern,
-          recurrenceInterval,
-          recurrenceEndDate
+          recurrenceInterval: recurrenceInterval || 1,
+          recurrenceEndDate: recurrenceEndDate ? new Date(recurrenceEndDate) : null
         }
       });
 
       // Generate instances for the next 12 months (or until recurrence end)
-      const endOfRange = recurrenceEndDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1));
+      const endOfRange = recurrenceEndDate ? new Date(recurrenceEndDate) : new Date(new Date().setFullYear(new Date().getFullYear() + 1));
       let currentDate = new Date(dueDate);
-      
+
       while (currentDate <= endOfRange) {
         const instanceDate = new Date(currentDate);
-        
+
         await prisma.chore.create({
           data: {
             familyId: family.id,
@@ -72,10 +70,10 @@ export async function POST(request) {
             isRecurring: false
           }
         });
-        
+
         createdCount++;
-        currentDate = getNextOccurrence(currentDate, recurrencePattern, recurrenceInterval);
-        
+        currentDate = getNextOccurrence(currentDate, recurrencePattern, recurrenceInterval || 1);
+
         // Safety limit to prevent too many instances
         if (createdCount >= 100) break;
       }
@@ -99,9 +97,12 @@ export async function POST(request) {
       { status: 200 }
     );
   } catch (error) {
-    console.error('Chores POST error:', error.message || error);
+    console.error('Chores POST error:', error);
     return NextResponse.json(
-      { error: 'Failed to save chore', details: error.message },
+      {
+        error: 'Failed to save chore',
+        details: error.message || 'Unknown error'
+      },
       { status: 500 }
     );
   }

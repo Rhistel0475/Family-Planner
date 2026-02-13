@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { DAY_NAMES } from '../../lib/constants';
 
 export default function SetupPage() {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function SetupPage() {
       
       // Save family members
       for (const member of members) {
-        const res = await fetch('/api/family/members', {
+        const res = await fetch('/api/family-members', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: member.name, role: member.role })
@@ -113,8 +114,6 @@ export default function SetupPage() {
       setLoading(false);
     }
   };
-
-  const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   return (
     <main style={styles.main}>
@@ -209,7 +208,7 @@ export default function SetupPage() {
               {members.map((member) => (
                 <div key={member.id} style={styles.scheduleCard}>
                   <h4>{member.name}</h4>
-                  {days.map((day) => (
+                  {DAY_NAMES.map((day) => (
                     <div key={day} style={styles.dayInput}>
                       <label style={styles.dayLabel}>{day}</label>
                       <input
