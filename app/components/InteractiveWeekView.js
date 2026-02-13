@@ -1,10 +1,13 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { DAY_NAMES } from '../../lib/constants';
 import Toast from './Toast';
 import Modal from './Modal';
 import QuickAddButton from './QuickAddButton';
+import DraggableItem from './DraggableItem';
+import DroppableDay from './DroppableDay';
 
 export default function InteractiveWeekView() {
   const [weekOffset, setWeekOffset] = useState(0);
@@ -17,9 +20,24 @@ export default function InteractiveWeekView() {
   const [quickAddModal, setQuickAddModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
   const [newItem, setNewItem] = useState({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
+  const [activeItem, setActiveItem] = useState(null);
 
   const noteColors = ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7'];
   const noteRotations = ['rotate(-1deg)', 'rotate(0.8deg)', 'rotate(-0.6deg)', 'rotate(0.6deg)'];
+
+  // Configure drag & drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 }
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5
+      }
+    }),
+    useSensor(KeyboardSensor)
+  );
 
   const getWeekDates = useCallback((offset = 0) => {
     const now = new Date();
@@ -87,8 +105,19 @@ export default function InteractiveWeekView() {
     fetchData();
   }, [fetchData]);
 
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
+  const showToast = (message, type = 'success', action = null) => {
+    setToast({ message, type, action });
+  };
+
+  const showToastWithUndo = (message, undoAction) => {
+    setToast({
+      message,
+      type: 'success',
+      action: {
+        label: 'Undo',
+        onClick: undoAction
+      }
+    });
   };
 
   const getMemberColor = (assignedTo) => {
@@ -205,6 +234,125 @@ export default function InteractiveWeekView() {
       fetchData();
     } catch (error) {
       showToast('Failed to update event', 'error');
+    }
+  };
+
+  // Drag & Drop Handlers
+  const vibrate = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+  };
+
+  const handleDragStart = (event) => {
+    vibrate();
+    setActiveItem(event.active.data.current);
+  };
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+
+    vibrate();
+    setActiveItem(null);
+
+    if (!over) return;
+
+    const item = active.data.current;
+    const newDay = over.id;
+
+    if (item.originalDay === newDay) return;
+
+    if (item.type === 'chore') {
+      await handleChoreDrop(item.id, newDay, item.originalChore);
+    } else if (item.type === 'event' || item.type === 'work') {
+      await handleEventDrop(item.id, newDay, item.originalEvent);
+    }
+  };
+
+  const handleChoreDrop = async (choreId, newDay, originalChore) => {
+    const originalDay = originalChore.dueDay;
+
+    setChores(chores.map(c =>
+      c.id === choreId ? { ...c, dueDay: newDay } : c
+    ));
+
+    try {
+      const res = await fetch('/api/chores', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: choreId, dueDay: newDay })
+      });
+
+      if (!res.ok) throw new Error('Update failed');
+
+      showToastWithUndo(
+        `Chore moved to ${newDay}`,
+        async () => {
+          setChores(chores.map(c =>
+            c.id === choreId ? { ...c, dueDay: originalDay } : c
+          ));
+
+          await fetch('/api/chores', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: choreId, dueDay: originalDay })
+          });
+
+          showToast('Move undone', 'info');
+        }
+      );
+    } catch (error) {
+      setChores(chores.map(c =>
+        c.id === choreId ? originalChore : c
+      ));
+      showToast('Failed to move chore', 'error');
+    }
+  };
+
+  const handleEventDrop = async (eventId, newDay, originalEvent) => {
+    const weekDates = getWeekDates(weekOffset);
+    const newDayData = weekDates.find(d => d.day === newDay);
+
+    if (!newDayData) return;
+
+    const oldDate = new Date(originalEvent.startsAt);
+    const newDate = new Date(newDayData.date);
+    newDate.setHours(oldDate.getHours(), oldDate.getMinutes(), 0, 0);
+
+    setEvents(events.map(e =>
+      e.id === eventId ? { ...e, startsAt: newDate } : e
+    ));
+
+    try {
+      const res = await fetch('/api/schedule', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: eventId, startsAt: newDate.toISOString() })
+      });
+
+      if (!res.ok) throw new Error('Update failed');
+
+      showToastWithUndo(
+        `Event moved to ${newDay}`,
+        async () => {
+          setEvents(events.map(e =>
+            e.id === eventId ? { ...e, startsAt: originalEvent.startsAt } : e
+          ));
+
+          await fetch('/api/schedule', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: eventId, startsAt: originalEvent.startsAt })
+          });
+
+          showToast('Move undone', 'info');
+        }
+      );
+    } catch (error) {
+      setEvents(events.map(e =>
+        e.id === eventId ? originalEvent : e
+      ));
+      showToast('Failed to move event', 'error');
     }
   };
 
@@ -349,133 +497,186 @@ export default function InteractiveWeekView() {
       {loading ? (
         <div style={styles.loading}>Loading...</div>
       ) : (
-        <section style={styles.weekWrapper}>
-          <div style={styles.weekGrid} className="week-grid">
-            {boardDays.map((day, index) => (
-              <article
-                key={day.day}
-                style={{
-                  ...styles.card,
-                  background: noteColors[index % noteColors.length],
-                  transform: noteRotations[index % noteRotations.length]
-                }}
-              >
-                <div style={styles.dayHeader}>
-                  <h2 style={styles.dayTitle}>{day.day}</h2>
-                  <p style={styles.dayDate}>{day.date}</p>
-                  {day.totalCount > 0 && (
-                    <div style={styles.progressBadge}>
-                      {day.completedCount}/{day.totalCount} done
-                    </div>
-                  )}
-                </div>
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <section style={styles.weekWrapper}>
+            <div style={styles.weekGrid} className="week-grid">
+              {boardDays.map((day, index) => (
+                <DroppableDay
+                  key={day.day}
+                  id={day.day}
+                  style={{
+                    ...styles.card,
+                    background: noteColors[index % noteColors.length],
+                    transform: noteRotations[index % noteRotations.length]
+                  }}
+                >
+                  <div style={styles.dayHeader}>
+                    <h2 style={styles.dayTitle}>{day.day}</h2>
+                    <p style={styles.dayDate}>{day.date}</p>
+                    {day.totalCount > 0 && (
+                      <div style={styles.progressBadge}>
+                        {day.completedCount}/{day.totalCount} done
+                      </div>
+                    )}
+                  </div>
 
-                <div style={styles.sectionBlock}>
-                  <p style={styles.label}>Work</p>
-                  {day.workEvents.length > 0 ? (
-                    <ul style={styles.eventList}>
-                      {day.workEvents.map((work) => (
-                        <li key={work.id} style={styles.eventItem}>
-                          <div style={styles.eventContent}>
-                            <span>{work.title}</span>
-                            <button
-                              onClick={() => deleteEvent(work.id)}
-                              style={styles.miniDeleteBtn}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p style={styles.noItems}>Not set</p>
-                  )}
-                </div>
+                  <div style={styles.sectionBlock}>
+                    <p style={styles.label}>Work</p>
+                    {day.workEvents.length > 0 ? (
+                      <ul style={styles.eventList}>
+                        {day.workEvents.map((work) => (
+                          <DraggableItem
+                            key={work.id}
+                            id={work.id}
+                            type="work"
+                            data={{
+                              originalDay: day.day,
+                              originalEvent: work
+                            }}
+                            style={styles.eventItem}
+                          >
+                            <div style={styles.eventContent}>
+                              <span>{work.title}</span>
+                              <button
+                                onClick={() => deleteEvent(work.id)}
+                                style={styles.miniDeleteBtn}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </DraggableItem>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p style={styles.noItems}>Not set</p>
+                    )}
+                  </div>
 
-                <div style={styles.sectionBlock}>
-                  <p style={styles.label}>Events</p>
-                  {day.events.length > 0 ? (
-                    <ul style={styles.eventList}>
-                      {day.events.map((event) => (
-                        <li key={event.id} style={styles.eventItem}>
-                          <div style={styles.eventContent}>
-                            <span 
-                              style={styles.eventTitle}
-                              onClick={() => setEditModal(event)}
-                            >
-                              {event.title}
-                            </span>
-                            <button
-                              onClick={() => deleteEvent(event.id)}
-                              style={styles.miniDeleteBtn}
-                            >
-                              ×
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p style={styles.noItems}>No events</p>
-                  )}
-                </div>
+                  <div style={styles.sectionBlock}>
+                    <p style={styles.label}>Events</p>
+                    {day.events.length > 0 ? (
+                      <ul style={styles.eventList}>
+                        {day.events.map((event) => (
+                          <DraggableItem
+                            key={event.id}
+                            id={event.id}
+                            type="event"
+                            data={{
+                              originalDay: day.day,
+                              originalEvent: event
+                            }}
+                            style={styles.eventItem}
+                          >
+                            <div style={styles.eventContent}>
+                              <span
+                                style={styles.eventTitle}
+                                onClick={() => setEditModal(event)}
+                              >
+                                {event.title}
+                              </span>
+                              <button
+                                onClick={() => deleteEvent(event.id)}
+                                style={styles.miniDeleteBtn}
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </DraggableItem>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p style={styles.noItems}>No events</p>
+                    )}
+                  </div>
 
-                <div style={styles.sectionBlock}>
-                  <p style={styles.label}>Chores ({day.chores.length})</p>
-                  {day.chores.length > 0 ? (
-                    <ul style={styles.choreList}>
-                      {day.chores.map((chore) => (
-                        <li key={chore.id} style={styles.choreItem}>
-                          <label style={styles.choreLabel}>
-                            <input
-                              type="checkbox"
-                              checked={chore.completed}
-                              onChange={() => toggleChoreCompletion(chore)}
-                              style={styles.checkbox}
-                            />
-                            <span style={{
-                              ...styles.choreText,
-                              textDecoration: chore.completed ? 'line-through' : 'none',
-                              opacity: chore.completed ? 0.6 : 1
-                            }}>
-                              {chore.title}
-                            </span>
-                          </label>
-                          <div style={styles.choreActions}>
-                            <span
-                              style={{
-                                ...styles.assignee,
-                                background: `${getMemberColor(chore.assignedTo)}33`,
-                                color: getMemberColor(chore.assignedTo),
-                                border: `1px solid ${getMemberColor(chore.assignedTo)}`,
-                                padding: '0.15rem 0.4rem',
-                                borderRadius: 4,
-                                fontSize: '0.7rem',
-                                fontWeight: 700
-                              }}
-                            >
-                              {chore.assignedTo}
-                            </span>
-                            <button
-                              onClick={() => deleteChore(chore.id)}
-                              style={styles.deleteBtn}
-                              aria-label="Delete chore"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p style={styles.noChores}>No chores</p>
-                  )}
+                  <div style={styles.sectionBlock}>
+                    <p style={styles.label}>Chores ({day.chores.length})</p>
+                    {day.chores.length > 0 ? (
+                      <ul style={styles.choreList}>
+                        {day.chores.map((chore) => (
+                          <DraggableItem
+                            key={chore.id}
+                            id={chore.id}
+                            type="chore"
+                            data={{
+                              originalDay: day.day,
+                              originalChore: chore
+                            }}
+                            style={styles.choreItem}
+                          >
+                            <label style={styles.choreLabel}>
+                              <input
+                                type="checkbox"
+                                checked={chore.completed}
+                                onChange={() => toggleChoreCompletion(chore)}
+                                style={styles.checkbox}
+                              />
+                              <span style={{
+                                ...styles.choreText,
+                                textDecoration: chore.completed ? 'line-through' : 'none',
+                                opacity: chore.completed ? 0.6 : 1
+                              }}>
+                                {chore.title}
+                              </span>
+                            </label>
+                            <div style={styles.choreActions}>
+                              <span
+                                style={{
+                                  ...styles.assignee,
+                                  background: `${getMemberColor(chore.assignedTo)}33`,
+                                  color: getMemberColor(chore.assignedTo),
+                                  border: `1px solid ${getMemberColor(chore.assignedTo)}`,
+                                  padding: '0.15rem 0.4rem',
+                                  borderRadius: 4,
+                                  fontSize: '0.7rem',
+                                  fontWeight: 700
+                                }}
+                              >
+                                {chore.assignedTo}
+                              </span>
+                              <button
+                                onClick={() => deleteChore(chore.id)}
+                                style={styles.deleteBtn}
+                                aria-label="Delete chore"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          </DraggableItem>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p style={styles.noChores}>No chores</p>
+                    )}
+                  </div>
+                </DroppableDay>
+              ))}
+            </div>
+          </section>
+
+          <DragOverlay>
+            {activeItem && (
+              <div style={{
+                ...styles.card,
+                background: noteColors[0],
+                transform: 'rotate(2deg)',
+                opacity: 0.9,
+                cursor: 'grabbing',
+                boxShadow: '0 20px 40px rgba(70, 45, 11, 0.4)',
+                padding: '0.75rem',
+                minHeight: 'auto'
+              }}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                  {activeItem.originalChore?.title || activeItem.originalEvent?.title || 'Moving...'}
                 </div>
-              </article>
-            ))}
-          </div>
-        </section>
+              </div>
+            )}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {/* Quick Add Modal */}
@@ -603,7 +804,9 @@ export default function InteractiveWeekView() {
         <Toast
           message={toast.message}
           type={toast.type}
+          action={toast.action}
           onClose={() => setToast(null)}
+          duration={toast.action ? 5000 : 3000}
         />
       )}
     </main>

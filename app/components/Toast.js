@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 
-export default function Toast({ message, type = 'success', onClose, duration = 3000 }) {
+export default function Toast({ message, type = 'success', onClose, action, duration = 3000 }) {
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(onClose, duration);
@@ -34,6 +34,18 @@ export default function Toast({ message, type = 'success', onClose, duration = 3
       borderColor: color.border
     }}>
       <span style={styles.message}>{message}</span>
+      {action && (
+        <button
+          onClick={() => {
+            action.onClick();
+            onClose();
+          }}
+          style={styles.actionButton}
+          aria-label={action.label}
+        >
+          {action.label}
+        </button>
+      )}
       <button
         onClick={onClose}
         style={styles.closeButton}
@@ -77,5 +89,19 @@ const styles = {
     padding: '0 0.25rem',
     lineHeight: 1,
     opacity: 0.8
+  },
+  actionButton: {
+    background: 'rgba(255, 255, 255, 0.2)',
+    border: '1px solid rgba(255, 255, 255, 0.4)',
+    color: 'white',
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    padding: '0.375rem 0.75rem',
+    borderRadius: 4,
+    transition: 'all 150ms ease',
+    ':hover': {
+      background: 'rgba(255, 255, 255, 0.3)'
+    }
   }
 };
