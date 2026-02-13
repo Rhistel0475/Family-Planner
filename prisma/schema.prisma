@@ -28,6 +28,8 @@ model FamilyMember {
   name         String
   role         String?  @default("member") // member, parent, kid
   workingHours String?  // e.g., "9-5", "8-4", or "Not working"
+  color        String?  @default("#3b82f6") // Hex color code for avatar background
+  avatar       String?  @default("👤") // Emoji for avatar
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)

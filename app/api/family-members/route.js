@@ -53,7 +53,7 @@ export async function POST(request) {
       member = await prisma.familyMember.create({ data: createData });
     } catch (dbError) {
       // If color/avatar fields don't exist in DB, try without them
-      if (dbError.code === 'P2022' && (dbError.message.includes('color') || dbError.message.includes('avatar'))) {
+      if (dbError.message && (dbError.message.includes('Unknown argument `color`') || dbError.message.includes('Unknown argument `avatar`') || dbError.message.includes('does not exist'))) {
         member = await prisma.familyMember.create({
           data: {
             familyId: family.id,
@@ -103,7 +103,7 @@ export async function PATCH(request) {
       });
     } catch (dbError) {
       // If color/avatar fields don't exist in DB, try without them
-      if (dbError.code === 'P2022' && (dbError.message.includes('color') || dbError.message.includes('avatar'))) {
+      if (dbError.message && (dbError.message.includes('Unknown argument `color`') || dbError.message.includes('Unknown argument `avatar`') || dbError.message.includes('does not exist'))) {
         const fallbackData = { ...updateData };
         delete fallbackData.color;
         delete fallbackData.avatar;
