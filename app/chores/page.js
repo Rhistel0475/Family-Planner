@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function ChoresPage({ searchParams }) {
@@ -8,41 +8,96 @@ export default function ChoresPage({ searchParams }) {
   const [frequency, setFrequency] = useState('ONCE');
   const [assignmentScope, setAssignmentScope] = useState('all');
   const [loading, setLoading] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [eligibleMemberIds, setEligibleMemberIds] = useState([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
 
-  const defaultChores = useMemo(() => ([
-    'Clean Bedroom',
-    'Clean Kitchen',
-    'Clean Living Room',
-    'Take Out Trash',
-    'Wash Dishes',
-    'Do Laundry',
-    'Vacuum Floors',
-    'Clean Bathroom',
-    'Mop Floors'
-  ]), []);
   const saved = searchParams?.saved === '1';
   const error = searchParams?.error === '1';
+
+  // Fetch templates and family members on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoadingTemplates(true);
+        
+        // Fetch templates
+        const templatesRes = await fetch('/api/chore-templates');
+        const templatesData = await templatesRes.json();
+        setTemplates(templatesData.templates || []);
+
+        // Fetch family members
+        const membersRes = await fetch('/api/family-members');
+        const membersData = await membersRes.json();
+        setMembers(membersData.members || []);
+
+        // Set default template
+        if (templatesData.templates && templatesData.templates.length > 0) {
+          setSelectedTemplate(templatesData.templates[0].id);
+        }
+      } catch (err) {
+        console.error('Failed to fetch templates/members:', err);
+      } finally {
+        setLoadingTemplates(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  const systemTemplates = useMemo(() => 
+    templates.filter(t => t.isSystem),
+    [templates]
+  );
+
+  const customTemplates = useMemo(() => 
+    templates.filter(t => !t.isSystem),
+    [templates]
+  );
+
+  const toggleEligibleMember = (memberId) => {
+    setEligibleMemberIds(prev => 
+      prev.includes(memberId)
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
-    const formData = new FormData(e.target);
-    const selectedTemplate = formData.get('choreTemplate');
-    const customTitle = (formData.get('title') || '').trim();
-    const title = selectedTemplate === 'CUSTOM' ? customTitle : selectedTemplate;
-
-    const data = {
-      title,
-      assignedTo: assignmentScope === 'all' ? 'All Members' : formData.get('assignedTo'),
-      dueDay: formData.get('dueDay'),
-      isRecurring: frequency !== 'ONCE',
-      recurrencePattern: frequency !== 'ONCE' ? frequency : null,
-      recurrenceInterval: frequency !== 'ONCE' ? parseInt(formData.get('interval')) || 1 : null,
-      recurrenceEndDate: frequency !== 'ONCE' && formData.get('endDate') ? formData.get('endDate') : null
-    };
-
     try {
+      const formData = new FormData(e.target);
+      const templateId = formData.get('choreTemplate');
+      const customTitle = (formData.get('title') || '').trim();
+      
+      // Get template info
+      const template = templates.find(t => t.id === templateId);
+      const title = templateId === 'CUSTOM' ? customTitle : (template?.name || customTitle);
+
+      // Validate eligibility
+      if (assignmentScope === 'eligible' && eligibleMemberIds.length === 0) {
+        alert('Please select at least one eligible member');
+        setLoading(false);
+        return;
+      }
+
+      const data = {
+        title,
+        choreTemplateId: templateId !== 'CUSTOM' ? templateId : null,
+        assignedTo: assignmentScope === 'all' ? 'All Members' : formData.get('assignedTo'),
+        dueDay: formData.get('dueDay'),
+        frequency: frequency.toLowerCase(),
+        eligibleMemberIds: assignmentScope === 'eligible' ? eligibleMemberIds : null,
+        isRecurring: frequency !== 'ONCE',
+        recurrencePattern: frequency !== 'ONCE' ? frequency : null,
+        recurrenceInterval: frequency !== 'ONCE' ? parseInt(formData.get('interval')) || 1 : null,
+        recurrenceEndDate: frequency !== 'ONCE' && formData.get('endDate') ? formData.get('endDate') : null
+      };
+
       const res = await fetch('/api/chores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -56,6 +111,7 @@ export default function ChoresPage({ searchParams }) {
         e.target.reset();
         setFrequency('ONCE');
         setAssignmentScope('all');
+        setEligibleMemberIds([]);
       } else {
         console.error('Error response:', result);
         router.push('/chores?error=1');
@@ -68,6 +124,17 @@ export default function ChoresPage({ searchParams }) {
     }
   };
 
+  if (loadingTemplates) {
+    return (
+      <main style={styles.main}>
+        <section style={styles.card}>
+          <h1 style={styles.title}>Add Chore</h1>
+          <p>Loading templates...</p>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main style={styles.main}>
       <section style={styles.card}>
@@ -77,34 +144,105 @@ export default function ChoresPage({ searchParams }) {
         {error && <p style={styles.error}>Please complete all fields.</p>}
 
         <form onSubmit={handleSubmit}>
+          {/* Template Selection */}
           <label style={styles.label}>Standard Chore</label>
-          <select name="choreTemplate" style={styles.input} defaultValue="Clean Bedroom">
-            {defaultChores.map((chore) => (
-              <option key={chore} value={chore}>{chore}</option>
-            ))}
-            <option value="CUSTOM">Custom chore...</option>
+          <select 
+            name="choreTemplate" 
+            style={styles.input} 
+            value={selectedTemplate}
+            onChange={(e) => setSelectedTemplate(e.target.value)}
+          >
+            <option value="">-- Select a chore --</option>
+            
+            {systemTemplates.length > 0 && (
+              <optgroup label="System Templates">
+                {systemTemplates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            
+            {customTemplates.length > 0 && (
+              <optgroup label="Custom Templates">
+                {customTemplates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            
+            <option value="CUSTOM">→ Create custom chore...</option>
           </select>
 
-          <label style={styles.label}>Custom Chore (optional)</label>
-          <input name="title" style={styles.input} placeholder="Enter custom chore only if needed" />
+          {/* Custom Chore */}
+          {selectedTemplate === 'CUSTOM' && (
+            <>
+              <label style={styles.label}>Custom Chore Title</label>
+              <input 
+                name="title" 
+                style={styles.input} 
+                placeholder="Enter custom chore name"
+                required
+              />
+            </>
+          )}
 
-          <label style={styles.label}>Availability</label>
+          {/* Assignment Scope */}
+          <label style={styles.label}>Assignment</label>
           <select
             style={styles.input}
             value={assignmentScope}
             onChange={(e) => setAssignmentScope(e.target.value)}
           >
             <option value="all">Available to all members</option>
-            <option value="one">Assign to one member</option>
+            <option value="one">Assign to one specific member</option>
+            <option value="eligible">Eligible members only</option>
           </select>
 
+          {/* Assign To One */}
           {assignmentScope === 'one' && (
             <>
               <label style={styles.label}>Assigned To</label>
-              <input name="assignedTo" style={styles.input} placeholder="Alex" />
+              <select name="assignedTo" style={styles.input} required>
+                <option value="">-- Select member --</option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.name}>
+                    {member.name}
+                  </option>
+                ))}
+              </select>
             </>
           )}
 
+          {/* Eligible Members Multi-Select */}
+          {assignmentScope === 'eligible' && (
+            <>
+              <label style={styles.label}>Eligible Members</label>
+              <div style={styles.membersList}>
+                {members.map((member) => (
+                  <label key={member.id} style={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={eligibleMemberIds.includes(member.id)}
+                      onChange={() => toggleEligibleMember(member.id)}
+                      style={styles.checkbox}
+                    />
+                    <span>{member.name}</span>
+                  </label>
+                ))}
+              </div>
+              <input 
+                name="assignedTo" 
+                type="hidden"
+                value={eligibleMemberIds[0] || ''}
+              />
+            </>
+          )}
+
+          {/* Due Day */}
           <label style={styles.label}>Due Day</label>
           <select name="dueDay" style={styles.input} defaultValue="Friday">
             <option>Monday</option>
@@ -116,6 +254,7 @@ export default function ChoresPage({ searchParams }) {
             <option>Sunday</option>
           </select>
 
+          {/* Frequency */}
           <label style={styles.label}>Frequency</label>
           <select
             value={frequency}
@@ -129,6 +268,7 @@ export default function ChoresPage({ searchParams }) {
             <option value="YEARLY">Yearly</option>
           </select>
 
+          {/* Recurrence Options */}
           {frequency !== 'ONCE' && (
             <div style={styles.recurringSection}>
               <label style={styles.label}>Every</label>
@@ -155,7 +295,7 @@ export default function ChoresPage({ searchParams }) {
             </div>
           )}
 
-          <button type="submit" style={styles.button} disabled={loading}>
+          <button type="submit" style={styles.button} disabled={loading || !selectedTemplate || selectedTemplate === ''}>
             {loading ? 'Saving...' : 'Save Chore'}
           </button>
         </form>
@@ -219,7 +359,8 @@ const styles = {
     border: '1px solid rgba(98, 73, 24, 0.24)',
     padding: '0.55rem',
     background: 'rgba(255,255,255,0.74)',
-    color: '#3f2d1d'
+    color: '#3f2d1d',
+    boxSizing: 'border-box'
   },
   button: {
     width: '100%',
@@ -242,5 +383,27 @@ const styles = {
     fontSize: '0.85rem',
     color: '#3f2d1d',
     marginLeft: '0.3rem'
+  },
+  membersList: {
+    background: 'rgba(255,255,255,0.4)',
+    padding: '0.8rem',
+    borderRadius: 6,
+    marginBottom: '0.8rem',
+    border: '1px solid rgba(98, 73, 24, 0.2)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem'
+  },
+  checkboxLabel: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.4rem',
+    cursor: 'pointer',
+    fontSize: '0.9rem'
+  },
+  checkbox: {
+    cursor: 'pointer',
+    width: '18px',
+    height: '18px'
   }
 };
