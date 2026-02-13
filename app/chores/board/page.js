@@ -12,16 +12,20 @@ export default function ChoreBoardPage() {
   const [expandedKey, setExpandedKey] = useState(null);
   const [message, setMessage] = useState(null);
 
-  useEffect(() => {
-    fetchBoardSettings();
-  }, []);
+  const [shouldRefetch, setShouldRefetch] = useState(0);
 
-  const fetchBoardSettings = async () => {
+  const fetchBoardSettings = async (fromMount = true) => {
     try {
       setLoading(true);
-      const res = await fetch('/api/chore-board');
+      
+      const res = await Promise.race([
+        fetch('/api/chore-board'),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+      ]);
+      
       const data = await res.json();
       if (data.error) throw new Error(data.error);
+      
       setSettings(data.settings || []);
       setMembers(data.members || []);
     } catch (error) {
@@ -31,6 +35,10 @@ export default function ChoreBoardPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchBoardSettings();
+  }, []);
 
   const handleSettingChange = (templateKey, updates) => {
     setSettings(prev =>
