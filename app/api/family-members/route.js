@@ -44,7 +44,7 @@ export async function POST(request) {
         familyId: family.id,
         name: name.trim(),
         color: color || '#3b82f6',
-        avatar: avatar || null
+        avatar: avatar || '👤'
       }
     });
 
