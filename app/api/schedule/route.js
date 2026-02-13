@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
+import { getNextOccurrence } from '../../../lib/recurring';
 
 const dayToIndex = {
   Monday: 0,
@@ -50,31 +51,122 @@ export async function POST(request) {
     let createdCount = 0;
 
     if (workHours) {
-      // For now, create single event (recurring support comes after DB migration)
-      await prisma.event.create({
-        data: {
-          familyId: family.id,
-          type: 'WORK',
-          title: workHours,
-          description: `${day} work schedule${isRecurring ? ' (recurring)' : ''}`,
-          startsAt
+      if (isRecurring && recurrencePattern) {
+        // Create parent recurring event
+        const parentEvent = await prisma.event.create({
+          data: {
+            familyId: family.id,
+            type: 'WORK',
+            title: workHours,
+            description: `${day} work schedule (recurring)`,
+            startsAt,
+            isRecurring: true,
+            recurrencePattern,
+            recurrenceInterval,
+            recurrenceEndDate
+          }
+        });
+
+        // Generate instances for the next 12 months (or until recurrence end)
+        const endOfRange = recurrenceEndDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1));
+        let currentDate = new Date(startsAt);
+        
+        while (currentDate <= endOfRange) {
+          const instanceDate = new Date(currentDate);
+          
+          await prisma.event.create({
+            data: {
+              familyId: family.id,
+              type: 'WORK',
+              title: workHours,
+              description: `${day} work schedule (instance)`,
+              startsAt: instanceDate,
+              parentEventId: parentEvent.id,
+              isRecurring: false
+            }
+          });
+          
+          createdCount++;
+          currentDate = getNextOccurrence(currentDate, recurrencePattern, recurrenceInterval);
+          
+          // Safety limit to prevent too many instances
+          if (createdCount >= 100) break;
         }
-      });
-      createdCount = 1;
+      } else {
+        // Single event
+        await prisma.event.create({
+          data: {
+            familyId: family.id,
+            type: 'WORK',
+            title: workHours,
+            description: `${day} work schedule`,
+            startsAt,
+            isRecurring: false
+          }
+        });
+        createdCount = 1;
+      }
     }
 
     if (event) {
-      // For now, create single event (recurring support comes after DB migration)
-      await prisma.event.create({
-        data: {
-          familyId: family.id,
-          type: 'EVENT',
-          title: event,
-          description: `${day} event${isRecurring ? ' (recurring)' : ''}`,
-          startsAt
+      if (isRecurring && recurrencePattern) {
+        // Create parent recurring event
+        const parentEvent = await prisma.event.create({
+          data: {
+            familyId: family.id,
+            type: 'EVENT',
+            title: event,
+            description: `${day} event (recurring)`,
+            startsAt,
+            isRecurring: true,
+            recurrencePattern,
+            recurrenceInterval,
+            recurrenceEndDate
+          }
+        });
+
+        // Generate instances for the next 12 months (or until recurrence end)
+        const endOfRange = recurrenceEndDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1));
+        let currentDate = new Date(startsAt);
+        let eventCount = 0;
+        
+        while (currentDate <= endOfRange) {
+          const instanceDate = new Date(currentDate);
+          
+          await prisma.event.create({
+            data: {
+              familyId: family.id,
+              type: 'EVENT',
+              title: event,
+              description: `${day} event (instance)`,
+              startsAt: instanceDate,
+              parentEventId: parentEvent.id,
+              isRecurring: false
+            }
+          });
+          
+          eventCount++;
+          currentDate = getNextOccurrence(currentDate, recurrencePattern, recurrenceInterval);
+          
+          // Safety limit to prevent too many instances
+          if (eventCount >= 100) break;
         }
-      });
-      createdCount += 1;
+        
+        createdCount += eventCount;
+      } else {
+        // Single event
+        await prisma.event.create({
+          data: {
+            familyId: family.id,
+            type: 'EVENT',
+            title: event,
+            description: `${day} event`,
+            startsAt,
+            isRecurring: false
+          }
+        });
+        createdCount += 1;
+      }
     }
 
     return NextResponse.json(
