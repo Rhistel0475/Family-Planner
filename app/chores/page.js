@@ -1,16 +1,65 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+
 export default function ChoresPage({ searchParams }) {
+  const router = useRouter();
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrencePattern, setRecurrencePattern] = useState('WEEKLY');
+  const [loading, setLoading] = useState(false);
   const saved = searchParams?.saved === '1';
   const error = searchParams?.error === '1';
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    const formData = new FormData(e.target);
+    const data = {
+      title: formData.get('title'),
+      assignedTo: formData.get('assignedTo'),
+      dueDay: formData.get('dueDay'),
+      isRecurring,
+      recurrencePattern: isRecurring ? recurrencePattern : null,
+      recurrenceInterval: isRecurring ? parseInt(formData.get('interval')) || 1 : null,
+      recurrenceEndDate: isRecurring && formData.get('endDate') ? formData.get('endDate') : null
+    };
+
+    try {
+      const res = await fetch('/api/chores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+
+      const result = await res.json();
+
+      if (res.ok) {
+        router.push('/chores?saved=1');
+        e.target.reset();
+        setIsRecurring(false);
+      } else {
+        console.error('Error response:', result);
+        router.push('/chores?error=1');
+      }
+    } catch (err) {
+      console.error('Request error:', err);
+      router.push('/chores?error=1');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <main style={styles.main}>
       <section style={styles.card}>
         <h1 style={styles.title}>Add Chore</h1>
         <p style={styles.subtitle}>Capture chores so your family task plan stays organized.</p>
-        {saved && <p style={styles.success}>Chore saved.</p>}
+        {saved && <p style={styles.success}>✓ Chore saved.</p>}
         {error && <p style={styles.error}>Please complete all fields.</p>}
 
-        <form action="/api/chores" method="POST">
+        <form onSubmit={handleSubmit}>
           <label style={styles.label}>Chore</label>
           <input name="title" style={styles.input} placeholder="Take out trash" />
 
@@ -28,8 +77,58 @@ export default function ChoresPage({ searchParams }) {
             <option>Sunday</option>
           </select>
 
-          <button type="submit" style={styles.button}>
-            Save Chore
+          <div style={styles.checkboxContainer}>
+            <input 
+              id="recurringChore"
+              type="checkbox" 
+              checked={isRecurring}
+              onChange={(e) => setIsRecurring(e.target.checked)}
+              style={styles.checkbox}
+            />
+            <label htmlFor="recurringChore" style={styles.checkboxText}>🔄 Recurring Chore</label>
+          </div>
+
+          {isRecurring && (
+            <div style={styles.recurringSection}>
+              <label style={styles.label}>Repeat</label>
+              <select 
+                name="pattern" 
+                value={recurrencePattern}
+                onChange={(e) => setRecurrencePattern(e.target.value)}
+                style={styles.input}
+              >
+                <option value="DAILY">Daily</option>
+                <option value="WEEKLY">Weekly</option>
+                <option value="MONTHLY">Monthly</option>
+                <option value="YEARLY">Yearly</option>
+              </select>
+
+              <label style={styles.label}>Every</label>
+              <input 
+                name="interval" 
+                type="number" 
+                min="1" 
+                defaultValue="1"
+                style={styles.input}
+              />
+              <span style={styles.intervalText}>
+                {recurrencePattern === 'DAILY' && 'day(s)'}
+                {recurrencePattern === 'WEEKLY' && 'week(s)'}
+                {recurrencePattern === 'MONTHLY' && 'month(s)'}
+                {recurrencePattern === 'YEARLY' && 'year(s)'}
+              </span>
+
+              <label style={styles.label}>End Date (Optional)</label>
+              <input 
+                name="endDate" 
+                type="date"
+                style={styles.input}
+              />
+            </div>
+          )}
+
+          <button type="submit" style={styles.button} disabled={loading}>
+            {loading ? 'Saving...' : 'Save Chore'}
           </button>
         </form>
       </section>
@@ -103,5 +202,32 @@ const styles = {
     color: '#2b4d1f',
     fontWeight: 700,
     cursor: 'pointer'
+  },
+  checkboxContainer: {
+    display: 'flex',
+    alignItems: 'center',
+    marginBottom: '0.8rem',
+    gap: '0.5rem'
+  },
+  checkbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer'
+  },
+  checkboxText: {
+    cursor: 'pointer',
+    fontSize: '0.95rem'
+  },
+  recurringSection: {
+    background: 'rgba(255,255,255,0.4)',
+    padding: '0.8rem',
+    borderRadius: 6,
+    marginBottom: '0.8rem',
+    border: '1px dashed rgba(98, 73, 24, 0.2)'
+  },
+  intervalText: {
+    fontSize: '0.85rem',
+    color: '#3f2d1d',
+    marginLeft: '0.3rem'
   }
 };

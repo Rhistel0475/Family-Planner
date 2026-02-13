@@ -27,41 +27,66 @@ function getDateForDay(dayName) {
 }
 
 export async function POST(request) {
-  const formData = await request.formData();
-  const day = String(formData.get('day') || '').trim();
-  const workHours = String(formData.get('workHours') || '').trim();
-  const event = String(formData.get('event') || '').trim();
+  try {
+    const body = await request.json();
+    const day = String(body.day || '').trim();
+    const workHours = String(body.workHours || '').trim();
+    const event = String(body.event || '').trim();
+    const isRecurring = body.isRecurring === true;
+    const recurrencePattern = body.recurrencePattern || null;
+    const recurrenceInterval = parseInt(body.recurrenceInterval) || 1;
+    const recurrenceEndDate = body.recurrenceEndDate ? new Date(body.recurrenceEndDate) : null;
 
-  if (!day || (!workHours && !event)) {
-    return NextResponse.redirect(new URL('/schedule?error=1', request.url));
+    if (!day || (!workHours && !event)) {
+      return NextResponse.json(
+        { error: 'Please add a day and at least one field.' },
+        { status: 400 }
+      );
+    }
+
+    const family = await getOrCreateDefaultFamily();
+    const startsAt = getDateForDay(day);
+
+    let createdCount = 0;
+
+    if (workHours) {
+      // For now, create single event (recurring support comes after DB migration)
+      await prisma.event.create({
+        data: {
+          familyId: family.id,
+          type: 'WORK',
+          title: workHours,
+          description: `${day} work schedule${isRecurring ? ' (recurring)' : ''}`,
+          startsAt
+        }
+      });
+      createdCount = 1;
+    }
+
+    if (event) {
+      // For now, create single event (recurring support comes after DB migration)
+      await prisma.event.create({
+        data: {
+          familyId: family.id,
+          type: 'EVENT',
+          title: event,
+          description: `${day} event${isRecurring ? ' (recurring)' : ''}`,
+          startsAt
+        }
+      });
+      createdCount += 1;
+    }
+
+    return NextResponse.json(
+      { success: true, message: `Created ${createdCount} event(s)` },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('Schedule POST error:', error.message || error);
+    console.error('Error details:', error);
+    return NextResponse.json(
+      { error: 'Failed to save schedule item', details: error.message },
+      { status: 500 }
+    );
   }
-
-  const family = await getOrCreateDefaultFamily();
-  const startsAt = getDateForDay(day);
-
-  if (workHours) {
-    await prisma.event.create({
-      data: {
-        familyId: family.id,
-        type: 'WORK',
-        title: workHours,
-        description: `${day} work schedule`,
-        startsAt
-      }
-    });
-  }
-
-  if (event) {
-    await prisma.event.create({
-      data: {
-        familyId: family.id,
-        type: 'EVENT',
-        title: event,
-        description: `${day} event`,
-        startsAt
-      }
-    });
-  }
-
-  return NextResponse.redirect(new URL('/schedule?saved=1', request.url));
 }
