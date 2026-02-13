@@ -33,9 +33,10 @@ export default function FamilyPage() {
     setLoading(true);
     setMessage('');
     try {
-      const endpoint = editingId ? '/api/family-members' : '/api/family-members';
-      const method = editingId ? 'PATCH' : 'POST';
-      const body = editingId 
+      const isEditing = !!editingId;
+      const endpoint = '/api/family-members';
+      const method = isEditing ? 'PATCH' : 'POST';
+      const body = isEditing 
         ? { id: editingId, name, role, workingHours }
         : { name, role, workingHours };
 
@@ -47,10 +48,11 @@ export default function FamilyPage() {
 
       if (res.ok) {
         setName('');
+        setRole('member');
         setWorkingHours('');
         setEditingId(null);
-        setMessage(editingId ? 'Member updated!' : 'Member added!');
-        fetchMembers();
+        setMessage(isEditing ? 'Member updated!' : 'Member added!');
+        await fetchMembers();
       } else {
         setMessage('Failed to save member');
       }
@@ -72,14 +74,20 @@ export default function FamilyPage() {
 
   function cancelEdit() {
     setName('');
+    setRole('member');
     setWorkingHours('');
     setEditingId(null);
     setMessage('');
   }
 
   async function handleDelete(id) {
-    if (!confirm('Remove this family member?')) return;
+    console.log('Delete clicked for ID:', id);
+    if (!confirm('Remove this family member?')) {
+      console.log('User cancelled delete');
+      return;
+    }
 
+    setLoading(true);
     try {
       const res = await fetch(`/api/family-members?id=${id}`, {
         method: 'DELETE'
@@ -87,13 +95,17 @@ export default function FamilyPage() {
 
       if (res.ok) {
         setMessage('Member removed!');
-        fetchMembers();
+        await fetchMembers();
       } else {
+        const data = await res.json();
+        console.error('Delete failed:', data);
         setMessage('Failed to remove member');
       }
     } catch (error) {
       console.error('Failed to delete member:', error);
       setMessage('An error occurred');
+    } finally {
+      setLoading(false);
     }
   }
 
