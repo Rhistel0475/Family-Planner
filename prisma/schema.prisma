@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+model Family {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  setupComplete Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events    Event[]
+  chores    Chore[]
+  recipes   Recipe[]
+  members   FamilyMember[]
+
+  @@index([createdAt])
+}
+
+model FamilyMember {
+  id        String   @id @default(cuid())
+  familyId  String
+  name      String
+  role      String?  @default("member") // member, parent, kid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  familyId    String
+  type        EventType @default(EVENT)
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  location    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, startsAt])
+  @@index([startsAt])
+}
+
+model Chore {
+  id         String   @id @default(cuid())
+  familyId   String
+  title      String
+  assignedTo String
+  dueDay     String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  family     Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, dueDay])
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  familyId    String
+  name        String
+  ingredients String
+  cookDay     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, cookDay])
+}
+
+enum EventType {
+  WORK
+  EVENT
+}
