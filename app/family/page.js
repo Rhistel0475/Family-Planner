@@ -1,12 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import HamburgerMenu from '../components/HamburgerMenu';
 
 export default function FamilyPage() {
   const [members, setMembers] = useState([]);
   const [name, setName] = useState('');
   const [role, setRole] = useState('member');
+  const [workingHours, setWorkingHours] = useState('');
   const [loading, setLoading] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [message, setMessage] = useState('');
 
   useEffect(() => {
     fetchMembers();
@@ -14,9 +18,9 @@ export default function FamilyPage() {
 
   async function fetchMembers() {
     try {
-      const res = await fetch('/api/family/members');
+      const res = await fetch('/api/family-members');
       const data = await res.json();
-      setMembers(data);
+      setMembers(data.members || []);
     } catch (error) {
       console.error('Failed to fetch members:', error);
     }
@@ -27,38 +31,101 @@ export default function FamilyPage() {
     if (!name.trim()) return;
 
     setLoading(true);
+    setMessage('');
     try {
-      const res = await fetch('/api/family/members', {
-        method: 'POST',
+      const endpoint = editingId ? '/api/family-members' : '/api/family-members';
+      const method = editingId ? 'PATCH' : 'POST';
+      const body = editingId 
+        ? { id: editingId, name, role, workingHours }
+        : { name, role, workingHours };
+
+      const res = await fetch(endpoint, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, role })
+        body: JSON.stringify(body)
       });
 
       if (res.ok) {
         setName('');
+        setWorkingHours('');
+        setEditingId(null);
+        setMessage(editingId ? 'Member updated!' : 'Member added!');
         fetchMembers();
+      } else {
+        setMessage('Failed to save member');
       }
     } catch (error) {
-      console.error('Failed to add member:', error);
+      console.error('Failed to save member:', error);
+      setMessage('An error occurred');
     } finally {
       setLoading(false);
     }
   }
 
+  function handleEdit(member) {
+    setName(member.name);
+    setRole(member.role);
+    setWorkingHours(member.workingHours || '');
+    setEditingId(member.id);
+    setMessage('');
+  }
+
+  function cancelEdit() {
+    setName('');
+    setWorkingHours('');
+    setEditingId(null);
+    setMessage('');
+  }
+
+  async function handleDelete(id) {
+    if (!confirm('Remove this family member?')) return;
+
+    try {
+      const res = await fetch(`/api/family-members?id=${id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setMessage('Member removed!');
+        fetchMembers();
+      } else {
+        setMessage('Failed to remove member');
+      }
+    } catch (error) {
+      console.error('Failed to delete member:', error);
+      setMessage('An error occurred');
+    }
+  }
+
   return (
     <main style={styles.main}>
+      <HamburgerMenu />
       <section style={styles.card}>
-        <h1 style={styles.title}>Family Members</h1>
-        <p style={styles.subtitle}>Add family members to enable smart assignments.</p>
+        <h1 style={styles.title}>👨‍👩‍👧‍👦 Family Members</h1>
+        <p style={styles.subtitle}>Add family members and their working hours to help the AI planner optimize your schedule.</p>
+
+        {message && (
+          <div style={{
+            padding: '0.8rem',
+            marginBottom: '1rem',
+            borderRadius: 6,
+            background: message.includes('!') ? 'rgba(40,167,69,0.2)' : 'rgba(220,53,69,0.2)',
+            border: `1px solid ${message.includes('!') ? 'rgba(40,167,69,0.4)' : 'rgba(220,53,69,0.4)'}`,
+            fontSize: '0.9rem'
+          }}>
+            {message}
+          </div>
+        )}
 
         <form onSubmit={handleAddMember} style={styles.form}>
-          <label style={styles.label}>Name</label>
+          <label style={styles.label}>Name *</label>
           <input
             name="name"
             style={styles.input}
-            placeholder="Alex"
+            placeholder="Enter name"
             value={name}
             onChange={(e) => setName(e.target.value)}
+            required
           />
 
           <label style={styles.label}>Role</label>
@@ -68,14 +135,37 @@ export default function FamilyPage() {
             value={role}
             onChange={(e) => setRole(e.target.value)}
           >
-            <option>member</option>
-            <option>parent</option>
-            <option>kid</option>
+            <option value="parent">👨‍👩‍ Parent</option>
+            <option value="kid">🧒 Kid</option>
+            <option value="member">👤 Member</option>
           </select>
 
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Adding...' : 'Add Member'}
-          </button>
+          <label style={styles.label}>Working Hours (optional)</label>
+          <input
+            name="workingHours"
+            style={styles.input}
+            placeholder="e.g., 9-5, 8am-4pm, or Not working"
+            value={workingHours}
+            onChange={(e) => setWorkingHours(e.target.value)}
+          />
+          <small style={{ display: 'block', marginBottom: '0.8rem', fontSize: '0.75rem', color: '#5f2b4b' }}>
+            For kids or non-working members, leave blank or write "Not working"
+          </small>
+
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button type="submit" style={styles.button} disabled={loading}>
+              {loading ? 'Saving...' : editingId ? 'Update Member' : 'Add Member'}
+            </button>
+            {editingId && (
+              <button 
+                type="button" 
+                onClick={cancelEdit}
+                style={{...styles.button, background: '#ddd', color: '#333', flex: '0 0 auto'}}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </form>
 
         <div style={styles.membersList}>
@@ -86,7 +176,32 @@ export default function FamilyPage() {
             <ul style={styles.list}>
               {members.map((member) => (
                 <li key={member.id} style={styles.listItem}>
-                  <strong>{member.name}</strong> <span style={styles.badge}>{member.role}</span>
+                  <div>
+                    <div>
+                      <strong>{member.name}</strong> <span style={styles.badge}>{member.role}</span>
+                    </div>
+                    {member.workingHours && (
+                      <div style={{ fontSize: '0.8rem', color: '#5f2b4b', marginTop: '0.2rem' }}>
+                        ⏰ {member.workingHours}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.3rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(member)}
+                      style={{...styles.actionButton, background: '#ffc107', color: '#000'}}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(member.id)}
+                      style={{...styles.actionButton, background: '#dc3545', color: '#fff'}}
+                    >
+                      🗑️
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
@@ -176,5 +291,12 @@ const styles = {
     background: 'rgba(98, 73, 24, 0.2)',
     padding: '0.2rem 0.5rem',
     borderRadius: 4
+  },
+  actionButton: {
+    border: 'none',
+    borderRadius: 4,
+    padding: '0.4rem 0.6rem',
+    cursor: 'pointer',
+    fontSize: '0.9rem'
   }
 };

@@ -22,13 +22,14 @@ model Family {
 }
 
 model FamilyMember {
-  id        String   @id @default(cuid())
-  familyId  String
-  name      String
-  role      String?  @default("member") // member, parent, kid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  family    Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  familyId     String
+  name         String
+  role         String?  @default("member") // member, parent, kid
+  workingHours String?  // e.g., "9-5", "8-4", or "Not working"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
 }
