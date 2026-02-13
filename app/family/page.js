@@ -27,7 +27,20 @@ export default function FamilyPage() {
   const [formData, setFormData] = useState({ name: '', color: PRESET_COLORS[0].value, avatar: AVATAR_EMOJIS[0] });
 
   useEffect(() => {
-    fetchMembers();
+    const load = async () => {
+      setLoading(true);
+      try {
+        const res = await fetch('/api/family-members');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setMembers(Array.isArray(data.members) ? data.members : []);
+      } catch (error) {
+        console.error('Fetch failed:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const fetchMembers = async () => {

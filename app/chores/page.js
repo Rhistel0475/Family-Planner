@@ -15,7 +15,23 @@ export default function ChoresPage() {
   const [addLoading, setAddLoading] = useState(false);
 
   useEffect(() => {
-    fetchBoardSettings();
+    const load = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/chore-board');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.error && !data.settings) throw new Error(data.error);
+        setSettings(Array.isArray(data.settings) ? data.settings : []);
+        setMembers(Array.isArray(data.members) ? data.members : []);
+      } catch (error) {
+        console.error('Failed to fetch:', error);
+        setMessage({ type: 'error', text: 'Failed to load chore board' });
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const fetchBoardSettings = async () => {
