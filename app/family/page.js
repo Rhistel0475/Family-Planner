@@ -57,7 +57,11 @@ export default function FamilyPage() {
 
   const openEditModal = (member) => {
     setEditingMember(member);
-    setFormData({ name: member.name, color: member.color, avatar: member.avatar || AVATAR_EMOJIS[0] });
+    setFormData({ 
+      name: member.name, 
+      color: member.color || PRESET_COLORS[0].value,
+      avatar: member.avatar || AVATAR_EMOJIS[0] 
+    });
     setModalOpen(true);
   };
 
@@ -145,10 +149,10 @@ export default function FamilyPage() {
                 <div
                   style={{
                     ...styles.avatar,
-                    background: member.color
+                    background: member.color || PRESET_COLORS[0].value
                   }}
                 >
-                  {member.avatar || '👤'}
+                  {member.avatar || AVATAR_EMOJIS[0]}
                 </div>
               </div>
               <div style={styles.cardBody}>
@@ -158,7 +162,7 @@ export default function FamilyPage() {
                   <div
                     style={{
                       ...styles.colorSwatch,
-                      background: member.color
+                      background: member.color || PRESET_COLORS[0].value
                     }}
                   />
                 </div>

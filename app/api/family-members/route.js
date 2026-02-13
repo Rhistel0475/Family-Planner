@@ -15,7 +15,14 @@ export async function GET(request) {
       }
     });
 
-    return NextResponse.json({ members });
+    // Ensure color and avatar fields exist (with defaults if missing from DB)
+    const enrichedMembers = members.map(member => ({
+      ...member,
+      color: member.color || '#3b82f6',
+      avatar: member.avatar || '👤'
+    }));
+
+    return NextResponse.json({ members: enrichedMembers });
   } catch (error) {
     console.error('Family members GET error:', error);
     return NextResponse.json(
