@@ -1,225 +1,242 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import HamburgerMenu from '../components/HamburgerMenu';
+import Modal from '../components/Modal';
+import Toast from '../components/Toast';
+import QuickAddButton from '../components/QuickAddButton';
+
+const PRESET_COLORS = [
+  { name: 'Blue', value: '#3b82f6' },
+  { name: 'Purple', value: '#a855f7' },
+  { name: 'Pink', value: '#ec4899' },
+  { name: 'Red', value: '#ef4444' },
+  { name: 'Orange', value: '#f97316' },
+  { name: 'Yellow', value: '#eab308' },
+  { name: 'Green', value: '#22c55e' },
+  { name: 'Teal', value: '#14b8a6' }
+];
+
+const AVATAR_EMOJIS = ['👨', '👩', '👦', '👧', '🧑', '👴', '👵', '👶'];
 
 export default function FamilyPage() {
   const [members, setMembers] = useState([]);
-  const [name, setName] = useState('');
-  const [role, setRole] = useState('member');
-  const [workingHours, setWorkingHours] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingMember, setEditingMember] = useState(null);
+  const [formData, setFormData] = useState({ name: '', color: PRESET_COLORS[0].value, avatar: AVATAR_EMOJIS[0] });
 
   useEffect(() => {
     fetchMembers();
   }, []);
 
-  async function fetchMembers() {
+  const fetchMembers = async () => {
+    setLoading(true);
     try {
       const res = await fetch('/api/family-members');
-      const data = await res.json();
-      setMembers(data.members || []);
-    } catch (error) {
-      console.error('Failed to fetch members:', error);
-    }
-  }
-
-  async function handleAddMember(e) {
-    e.preventDefault();
-    if (!name.trim()) return;
-
-    setLoading(true);
-    setMessage('');
-    try {
-      const isEditing = !!editingId;
-      const endpoint = '/api/family-members';
-      const method = isEditing ? 'PATCH' : 'POST';
-      const body = isEditing 
-        ? { id: editingId, name, role, workingHours }
-        : { name, role, workingHours };
-
-      const res = await fetch(endpoint, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
-
       if (res.ok) {
-        setName('');
-        setRole('member');
-        setWorkingHours('');
-        setEditingId(null);
-        setMessage(isEditing ? 'Member updated!' : 'Member added!');
-        await fetchMembers();
-      } else {
-        setMessage('Failed to save member');
+        const data = await res.json();
+        setMembers(data.members || []);
       }
     } catch (error) {
-      console.error('Failed to save member:', error);
-      setMessage('An error occurred');
+      showToast('Failed to load family members', 'error');
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  function handleEdit(member) {
-    setName(member.name);
-    setRole(member.role);
-    setWorkingHours(member.workingHours || '');
-    setEditingId(member.id);
-    setMessage('');
-  }
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+  };
 
-  function cancelEdit() {
-    setName('');
-    setRole('member');
-    setWorkingHours('');
-    setEditingId(null);
-    setMessage('');
-  }
+  const openAddModal = () => {
+    setEditingMember(null);
+    setFormData({ name: '', color: PRESET_COLORS[0].value, avatar: AVATAR_EMOJIS[0] });
+    setModalOpen(true);
+  };
 
-  async function handleDelete(id) {
-    console.log('Delete clicked for ID:', id);
-    if (!confirm('Remove this family member?')) {
-      console.log('User cancelled delete');
+  const openEditModal = (member) => {
+    setEditingMember(member);
+    setFormData({ name: member.name, color: member.color, avatar: member.avatar || AVATAR_EMOJIS[0] });
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.name.trim()) {
+      showToast('Please enter a name', 'error');
       return;
     }
 
-    setLoading(true);
     try {
-      const res = await fetch(`/api/family-members?id=${id}`, {
-        method: 'DELETE'
+      const url = editingMember ? '/api/family-members' : '/api/family-members';
+      const method = editingMember ? 'PATCH' : 'POST';
+      const payload = editingMember ? { id: editingMember.id, ...formData } : formData;
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
       });
 
-      if (res.ok) {
-        setMessage('Member removed!');
-        await fetchMembers();
-      } else {
-        const data = await res.json();
-        console.error('Delete failed:', data);
-        setMessage('Failed to remove member');
-      }
+      if (!res.ok) throw new Error('Failed to save');
+
+      showToast(editingMember ? 'Member updated!' : 'Member added!');
+      setModalOpen(false);
+      fetchMembers();
     } catch (error) {
-      console.error('Failed to delete member:', error);
-      setMessage('An error occurred');
-    } finally {
-      setLoading(false);
+      showToast('Failed to save member', 'error');
     }
-  }
+  };
+
+  const handleDelete = async (memberId) => {
+    if (!confirm('Delete this family member? This cannot be undone.')) return;
+
+    try {
+      const res = await fetch(`/api/family-members?id=${memberId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
+
+      showToast('Member deleted');
+      fetchMembers();
+    } catch (error) {
+      showToast('Failed to delete member', 'error');
+    }
+  };
 
   return (
     <main style={styles.main}>
-      <HamburgerMenu />
-      <section style={styles.card}>
-        <h1 style={styles.title}>👨‍👩‍👧‍👦 Family Members</h1>
-        <p style={styles.subtitle}>Add family members and their working hours to help the AI planner optimize your schedule.</p>
-
-        {message && (
-          <div style={{
-            padding: '0.8rem',
-            marginBottom: '1rem',
-            borderRadius: 6,
-            background: message.includes('!') ? 'rgba(40,167,69,0.2)' : 'rgba(220,53,69,0.2)',
-            border: `1px solid ${message.includes('!') ? 'rgba(40,167,69,0.4)' : 'rgba(220,53,69,0.4)'}`,
-            fontSize: '0.9rem'
-          }}>
-            {message}
-          </div>
-        )}
-
-        <form onSubmit={handleAddMember} style={styles.form}>
-          <label style={styles.label}>Name *</label>
-          <input
-            name="name"
-            style={styles.input}
-            placeholder="Enter name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            required
+      <section style={styles.hero}>
+        <h1 style={styles.title}>Family Members</h1>
+        <p style={styles.subtitle}>
+          Manage your family members to assign chores and track completion.
+        </p>
+        <div style={styles.addButtonContainer}>
+          <QuickAddButton
+            onClick={openAddModal}
+            icon="+"
+            label="Add Member"
+            color="#c9f7a5"
           />
-
-          <label style={styles.label}>Role</label>
-          <select
-            name="role"
-            style={styles.input}
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-          >
-            <option value="parent">👨‍👩‍ Parent</option>
-            <option value="kid">🧒 Kid</option>
-            <option value="member">👤 Member</option>
-          </select>
-
-          <label style={styles.label}>Working Hours (optional)</label>
-          <input
-            name="workingHours"
-            style={styles.input}
-            placeholder="e.g., 9-5, 8am-4pm, or Not working"
-            value={workingHours}
-            onChange={(e) => setWorkingHours(e.target.value)}
-          />
-          <small style={{ display: 'block', marginBottom: '0.8rem', fontSize: '0.75rem', color: '#5f2b4b' }}>
-            For kids or non-working members, leave blank or write "Not working"
-          </small>
-
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button type="submit" style={styles.button} disabled={loading}>
-              {loading ? 'Saving...' : editingId ? 'Update Member' : 'Add Member'}
-            </button>
-            {editingId && (
-              <button 
-                type="button" 
-                onClick={cancelEdit}
-                style={{...styles.button, background: '#ddd', color: '#333', flex: '0 0 auto'}}
-              >
-                Cancel
-              </button>
-            )}
-          </div>
-        </form>
-
-        <div style={styles.membersList}>
-          <h2 style={styles.subtitle}>Current Members</h2>
-          {members.length === 0 ? (
-            <p>No family members added yet.</p>
-          ) : (
-            <ul style={styles.list}>
-              {members.map((member) => (
-                <li key={member.id} style={styles.listItem}>
-                  <div>
-                    <div>
-                      <strong>{member.name}</strong> <span style={styles.badge}>{member.role}</span>
-                    </div>
-                    {member.workingHours && (
-                      <div style={{ fontSize: '0.8rem', color: '#5f2b4b', marginTop: '0.2rem' }}>
-                        ⏰ {member.workingHours}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.3rem' }}>
-                    <button
-                      type="button"
-                      onClick={() => handleEdit(member)}
-                      style={{...styles.actionButton, background: '#ffc107', color: '#000'}}
-                    >
-                      ✏️
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(member.id)}
-                      style={{...styles.actionButton, background: '#dc3545', color: '#fff'}}
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       </section>
+
+      {loading ? (
+        <div style={styles.loading}>Loading family members...</div>
+      ) : members.length === 0 ? (
+        <section style={styles.emptyState}>
+          <p style={styles.emptyIcon}>👥</p>
+          <p style={styles.emptyText}>No family members yet</p>
+          <p style={styles.emptySubtext}>Add your first family member to get started!</p>
+        </section>
+      ) : (
+        <section style={styles.grid}>
+          {members.map((member) => (
+            <article key={member.id} style={styles.card}>
+              <div style={styles.cardHeader}>
+                <div
+                  style={{
+                    ...styles.avatar,
+                    background: member.color
+                  }}
+                >
+                  {member.avatar || '👤'}
+                </div>
+              </div>
+              <div style={styles.cardBody}>
+                <h2 style={styles.memberName}>{member.name}</h2>
+                <div style={styles.colorPreview}>
+                  <span style={styles.colorLabel}>Color:</span>
+                  <div
+                    style={{
+                      ...styles.colorSwatch,
+                      background: member.color
+                    }}
+                  />
+                </div>
+              </div>
+              <div style={styles.cardActions}>
+                <button
+                  onClick={() => openEditModal(member)}
+                  style={styles.editBtn}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDelete(member.id)}
+                  style={styles.deleteBtn}
+                >
+                  Delete
+                </button>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
+      {/* Add/Edit Modal */}
+      {modalOpen && (
+        <Modal
+          isOpen={true}
+          onClose={() => setModalOpen(false)}
+          title={editingMember ? 'Edit Member' : 'Add Member'}
+          size="small"
+        >
+          <div style={styles.modalForm}>
+            <label style={styles.modalLabel}>Name</label>
+            <input
+              style={styles.modalInput}
+              placeholder="Enter name..."
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              autoFocus
+            />
+
+            <label style={styles.modalLabel}>Avatar</label>
+            <div style={styles.avatarGrid}>
+              {AVATAR_EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  onClick={() => setFormData({ ...formData, avatar: emoji })}
+                  style={{
+                    ...styles.avatarOption,
+                    border: formData.avatar === emoji ? '3px solid #3b82f6' : '1px solid rgba(98, 73, 24, 0.2)'
+                  }}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+
+            <label style={styles.modalLabel}>Color</label>
+            <div style={styles.colorGrid}>
+              {PRESET_COLORS.map((color) => (
+                <button
+                  key={color.value}
+                  onClick={() => setFormData({ ...formData, color: color.value })}
+                  style={{
+                    ...styles.colorOption,
+                    background: color.value,
+                    border: formData.color === color.value ? '3px solid #3f2d1d' : 'none'
+                  }}
+                  title={color.name}
+                />
+              ))}
+            </div>
+
+            <button onClick={handleSubmit} style={styles.modalButton}>
+              {editingMember ? 'Update Member' : 'Add Member'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </main>
   );
 }
@@ -227,88 +244,207 @@ export default function FamilyPage() {
 const styles = {
   main: {
     minHeight: '100vh',
-    padding: '5rem 1.5rem 2rem 1.5rem',
+    padding: '3rem 1.5rem 5rem 1.5rem',
     backgroundColor: '#f4e3bf',
     backgroundImage:
       'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.22), transparent 45%)',
     color: '#3f2d1d'
   },
-  card: {
-    maxWidth: 560,
-    margin: '0 auto',
-    background: '#ffd6e7',
+  hero: {
+    maxWidth: 780,
+    margin: '0 auto 2rem auto',
+    textAlign: 'center',
+    background: '#ffef7d',
+    padding: '1.5rem 1.25rem',
     borderRadius: 10,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
-    boxShadow: '0 14px 24px rgba(70, 45, 11, 0.2)',
-    padding: '1.2rem'
+    boxShadow: '0 14px 24px rgba(102, 68, 18, 0.2)',
+    border: '1px solid rgba(105, 67, 16, 0.18)',
+    transform: 'rotate(-1deg)'
   },
   title: {
-    marginBottom: '0.35rem'
+    margin: 0,
+    fontSize: 'clamp(2rem, 7vw, 2.5rem)',
+    letterSpacing: '0.01em'
   },
   subtitle: {
-    marginBottom: '1rem'
+    marginTop: '0.75rem',
+    lineHeight: 1.5,
+    maxWidth: 620,
+    marginInline: 'auto'
   },
-  form: {
-    marginBottom: '1.5rem'
+  addButtonContainer: {
+    marginTop: '1.5rem',
+    display: 'flex',
+    justifyContent: 'center'
   },
-  label: {
+  loading: {
+    textAlign: 'center',
+    padding: '3rem',
+    fontSize: '1.2rem',
+    color: '#5b4228'
+  },
+  emptyState: {
+    maxWidth: 500,
+    margin: '3rem auto',
+    textAlign: 'center',
+    padding: '3rem 2rem',
+    background: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 12,
+    border: '2px dashed rgba(98, 73, 24, 0.3)'
+  },
+  emptyIcon: {
+    fontSize: '4rem',
+    margin: '0 0 1rem 0'
+  },
+  emptyText: {
+    fontSize: '1.5rem',
+    fontWeight: 700,
+    margin: '0 0 0.5rem 0'
+  },
+  emptySubtext: {
+    fontSize: '1rem',
+    opacity: 0.8,
+    margin: 0
+  },
+  grid: {
+    maxWidth: 980,
+    margin: '0 auto',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+    gap: '1.5rem'
+  },
+  card: {
+    background: '#fff59d',
+    borderRadius: 10,
+    border: '1px solid rgba(98, 73, 24, 0.2)',
+    boxShadow: '0 10px 20px rgba(70, 45, 11, 0.2)',
+    overflow: 'hidden',
+    transition: 'transform 0.2s ease'
+  },
+  cardHeader: {
+    padding: '2rem',
+    display: 'flex',
+    justifyContent: 'center',
+    background: 'rgba(255, 255, 255, 0.4)'
+  },
+  avatar: {
+    width: '80px',
+    height: '80px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '2.5rem',
+    border: '3px solid rgba(255, 255, 255, 0.8)',
+    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+  },
+  cardBody: {
+    padding: '1.5rem',
+    textAlign: 'center'
+  },
+  memberName: {
+    margin: '0 0 1rem 0',
+    fontSize: '1.5rem'
+  },
+  colorPreview: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem'
+  },
+  colorLabel: {
+    fontSize: '0.9rem',
+    opacity: 0.8
+  },
+  colorSwatch: {
+    width: '30px',
+    height: '30px',
+    borderRadius: '50%',
+    border: '2px solid rgba(255, 255, 255, 0.9)',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.15)'
+  },
+  cardActions: {
+    display: 'flex',
+    borderTop: '1px solid rgba(98, 73, 24, 0.2)',
+    background: 'rgba(255, 255, 255, 0.3)'
+  },
+  editBtn: {
+    flex: 1,
+    padding: '0.75rem',
+    border: 'none',
+    borderRight: '1px solid rgba(98, 73, 24, 0.2)',
+    background: 'transparent',
+    color: '#3f2d1d',
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontSize: '0.9rem'
+  },
+  deleteBtn: {
+    flex: 1,
+    padding: '0.75rem',
+    border: 'none',
+    background: 'transparent',
+    color: '#ba3e3e',
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontSize: '0.9rem'
+  },
+  modalForm: {
+    display: 'grid',
+    gap: '0.75rem'
+  },
+  modalLabel: {
     fontSize: '0.8rem',
     textTransform: 'uppercase',
     letterSpacing: '0.06em',
-    marginBottom: '0.28rem',
-    display: 'block',
-    fontWeight: 700
+    fontWeight: 700,
+    color: '#3f2d1d',
+    marginTop: '0.5rem'
   },
-  input: {
+  modalInput: {
     width: '100%',
-    marginBottom: '0.8rem',
+    padding: '0.7rem',
     borderRadius: 6,
     border: '1px solid rgba(98, 73, 24, 0.24)',
-    padding: '0.55rem',
-    background: 'rgba(255,255,255,0.74)',
-    color: '#3f2d1d'
+    background: 'rgba(255,255,255,0.9)',
+    color: '#3f2d1d',
+    fontSize: '0.95rem'
   },
-  button: {
-    width: '100%',
-    borderRadius: 9999,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    padding: '0.6rem 0.75rem',
-    background: '#ffe7f0',
-    color: '#5f2b4b',
-    fontWeight: 700,
-    cursor: 'pointer'
+  avatarGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '0.5rem'
   },
-  membersList: {
-    borderTop: '1px solid rgba(98, 73, 24, 0.2)',
-    paddingTop: '1rem'
-  },
-  list: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0
-  },
-  listItem: {
-    background: 'rgba(255,255,255,0.5)',
-    border: '1px solid rgba(98, 73, 24, 0.18)',
-    borderRadius: 6,
-    padding: '0.6rem 0.8rem',
-    marginBottom: '0.5rem',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  badge: {
-    fontSize: '0.75rem',
-    textTransform: 'uppercase',
-    background: 'rgba(98, 73, 24, 0.2)',
-    padding: '0.2rem 0.5rem',
-    borderRadius: 4
-  },
-  actionButton: {
-    border: 'none',
-    borderRadius: 4,
-    padding: '0.4rem 0.6rem',
+  avatarOption: {
+    padding: '0.75rem',
+    fontSize: '2rem',
+    borderRadius: 8,
+    background: 'rgba(255, 255, 255, 0.6)',
     cursor: 'pointer',
-    fontSize: '0.9rem'
+    transition: 'all 0.2s ease'
+  },
+  colorGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '0.5rem'
+  },
+  colorOption: {
+    width: '100%',
+    height: '50px',
+    borderRadius: 8,
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  modalButton: {
+    width: '100%',
+    padding: '0.75rem',
+    borderRadius: 8,
+    border: '1px solid rgba(98, 73, 24, 0.32)',
+    background: '#c9f7a5',
+    color: '#2b4d1f',
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontSize: '0.95rem',
+    marginTop: '0.5rem'
   }
 };

@@ -10,10 +10,13 @@ export default function InteractiveWeekView() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [events, setEvents] = useState([]);
   const [chores, setChores] = useState([]);
+  const [members, setMembers] = useState([]);
+  const [selectedMember, setSelectedMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
   const [quickAddModal, setQuickAddModal] = useState(null);
-  const [newItem, setNewItem] = useState({ title: '', assignedTo: '', day: 'Monday' });
+  const [editModal, setEditModal] = useState(null);
+  const [newItem, setNewItem] = useState({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
 
   const noteColors = ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7'];
   const noteRotations = ['rotate(-1deg)', 'rotate(0.8deg)', 'rotate(-0.6deg)', 'rotate(0.6deg)'];
@@ -48,9 +51,10 @@ export default function InteractiveWeekView() {
       const weekEnd = new Date(weekDates[6].date);
       weekEnd.setHours(23, 59, 59, 999);
 
-      const [eventsRes, choresRes] = await Promise.all([
+      const [eventsRes, choresRes, membersRes] = await Promise.all([
         fetch('/api/schedule'),
-        fetch('/api/chores')
+        fetch('/api/chores'),
+        fetch('/api/family-members')
       ]);
 
       if (eventsRes.ok) {
@@ -66,6 +70,11 @@ export default function InteractiveWeekView() {
         const choresData = await choresRes.json();
         setChores(choresData.chores || []);
       }
+
+      if (membersRes.ok) {
+        const membersData = await membersRes.json();
+        setMembers(membersData.members || []);
+      }
     } catch (error) {
       console.error('Failed to fetch data:', error);
       showToast('Failed to load data', 'error');
@@ -80,6 +89,11 @@ export default function InteractiveWeekView() {
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
+  };
+
+  const getMemberColor = (assignedTo) => {
+    const member = members.find(m => m.name === assignedTo);
+    return member ? member.color : '#94a3b8';
   };
 
   const toggleChoreCompletion = async (chore) => {
@@ -123,6 +137,20 @@ export default function InteractiveWeekView() {
     }
   };
 
+  const deleteEvent = async (eventId) => {
+    if (!confirm('Delete this event?')) return;
+
+    try {
+      const res = await fetch(`/api/schedule?id=${eventId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete');
+
+      setEvents(events.filter(e => e.id !== eventId));
+      showToast('Event deleted');
+    } catch (error) {
+      showToast('Failed to delete event', 'error');
+    }
+  };
+
   const handleQuickAdd = async () => {
     if (!newItem.title.trim()) {
       showToast('Please enter a title', 'error');
@@ -133,7 +161,7 @@ export default function InteractiveWeekView() {
       const endpoint = quickAddModal === 'chore' ? '/api/chores' : '/api/schedule';
       const payload = quickAddModal === 'chore'
         ? { title: newItem.title, assignedTo: newItem.assignedTo || 'Unassigned', dueDay: newItem.day }
-        : { title: newItem.title, type: 'EVENT', startsAt: new Date(), day: newItem.day };
+        : { title: newItem.title, type: newItem.type, startsAt: new Date(), day: newItem.day, event: newItem.title };
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -145,10 +173,38 @@ export default function InteractiveWeekView() {
 
       showToast(`${quickAddModal === 'chore' ? 'Chore' : 'Event'} added!`);
       setQuickAddModal(null);
-      setNewItem({ title: '', assignedTo: '', day: 'Monday' });
+      setNewItem({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
       fetchData();
     } catch (error) {
       showToast(`Failed to add ${quickAddModal}`, 'error');
+    }
+  };
+
+  const handleEventEdit = async () => {
+    if (!editModal || !editModal.title.trim()) {
+      showToast('Please enter a title', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/schedule', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editModal.id,
+          title: editModal.title,
+          type: editModal.type,
+          description: editModal.description
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to update');
+
+      showToast('Event updated!');
+      setEditModal(null);
+      fetchData();
+    } catch (error) {
+      showToast('Failed to update event', 'error');
     }
   };
 
@@ -158,11 +214,16 @@ export default function InteractiveWeekView() {
     return DAY_NAMES[(dayIndex + 6) % 7];
   };
 
+  // Filter chores by selected member
+  const filteredChores = selectedMember 
+    ? chores.filter(c => c.assignedTo === selectedMember)
+    : chores;
+
   const boardDays = weekDates.map((day) => {
     const dayEvents = events.filter((item) => toDayName(item.startsAt) === day.day);
-    const dayChores = chores.filter((item) => item.dueDay === day.day);
-    const workItems = dayEvents.filter((item) => item.type === 'WORK').map((item) => item.title);
-    const eventItems = dayEvents.filter((item) => item.type === 'EVENT').map((item) => item.title);
+    const dayChores = filteredChores.filter((item) => item.dueDay === day.day);
+    const workItems = dayEvents.filter((item) => item.type === 'WORK');
+    const eventItems = dayEvents.filter((item) => item.type === 'EVENT');
 
     const completedCount = dayChores.filter(c => c.completed).length;
     const totalCount = dayChores.length;
@@ -170,12 +231,25 @@ export default function InteractiveWeekView() {
     return {
       day: day.day,
       date: day.dateLabel,
-      workSchedule: workItems[0] || 'Not set',
-      events: eventItems.length > 0 ? eventItems : ['No events'],
+      workEvents: workItems,
+      events: eventItems,
       chores: dayChores,
       progress: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
       completedCount,
       totalCount
+    };
+  });
+
+  // Calculate member statistics
+  const memberStats = members.map(member => {
+    const memberChores = chores.filter(c => c.assignedTo === member.name);
+    const completed = memberChores.filter(c => c.completed).length;
+    const total = memberChores.length;
+    return {
+      ...member,
+      completed,
+      total,
+      percentage: total > 0 ? Math.round((completed / total) * 100) : 0
     };
   });
 
@@ -207,6 +281,55 @@ export default function InteractiveWeekView() {
           </button>
         </div>
 
+        {/* Member Filter */}
+        {members.length > 0 && (
+          <div style={styles.memberFilter}>
+            <button
+              onClick={() => setSelectedMember(null)}
+              style={{
+                ...styles.memberFilterBtn,
+                background: !selectedMember ? '#3f2d1d' : 'rgba(255, 255, 255, 0.6)',
+                color: !selectedMember ? 'white' : '#3f2d1d'
+              }}
+            >
+              All
+            </button>
+            {members.map(member => (
+              <button
+                key={member.id}
+                onClick={() => setSelectedMember(member.name)}
+                style={{
+                  ...styles.memberFilterBtn,
+                  background: selectedMember === member.name ? member.color : 'rgba(255, 255, 255, 0.6)',
+                  color: selectedMember === member.name ? 'white' : '#3f2d1d',
+                  border: `2px solid ${member.color}`
+                }}
+              >
+                {member.avatar} {member.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Member Stats */}
+        {members.length > 0 && !selectedMember && (
+          <div style={styles.statsGrid}>
+            {memberStats.map(stat => (
+              <div key={stat.id} style={styles.statCard}>
+                <div style={{...styles.statAvatar, background: stat.color}}>
+                  {stat.avatar}
+                </div>
+                <div style={styles.statInfo}>
+                  <div style={styles.statName}>{stat.name}</div>
+                  <div style={styles.statProgress}>
+                    {stat.completed}/{stat.total} done ({stat.percentage}%)
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div style={styles.quickActions}>
           <QuickAddButton
             onClick={() => setQuickAddModal('chore')}
@@ -227,7 +350,7 @@ export default function InteractiveWeekView() {
         <div style={styles.loading}>Loading...</div>
       ) : (
         <section style={styles.weekWrapper}>
-          <div style={styles.weekGrid}>
+          <div style={styles.weekGrid} className="week-grid">
             {boardDays.map((day, index) => (
               <article
                 key={day.day}
@@ -249,18 +372,53 @@ export default function InteractiveWeekView() {
 
                 <div style={styles.sectionBlock}>
                   <p style={styles.label}>Work</p>
-                  <p>{day.workSchedule}</p>
+                  {day.workEvents.length > 0 ? (
+                    <ul style={styles.eventList}>
+                      {day.workEvents.map((work) => (
+                        <li key={work.id} style={styles.eventItem}>
+                          <div style={styles.eventContent}>
+                            <span>{work.title}</span>
+                            <button
+                              onClick={() => deleteEvent(work.id)}
+                              style={styles.miniDeleteBtn}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p style={styles.noItems}>Not set</p>
+                  )}
                 </div>
 
                 <div style={styles.sectionBlock}>
                   <p style={styles.label}>Events</p>
-                  <ul style={styles.eventList}>
-                    {day.events.map((event, i) => (
-                      <li key={i} style={styles.eventItem}>
-                        {event}
-                      </li>
-                    ))}
-                  </ul>
+                  {day.events.length > 0 ? (
+                    <ul style={styles.eventList}>
+                      {day.events.map((event) => (
+                        <li key={event.id} style={styles.eventItem}>
+                          <div style={styles.eventContent}>
+                            <span 
+                              style={styles.eventTitle}
+                              onClick={() => setEditModal(event)}
+                            >
+                              {event.title}
+                            </span>
+                            <button
+                              onClick={() => deleteEvent(event.id)}
+                              style={styles.miniDeleteBtn}
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p style={styles.noItems}>No events</p>
+                  )}
                 </div>
 
                 <div style={styles.sectionBlock}>
@@ -285,7 +443,20 @@ export default function InteractiveWeekView() {
                             </span>
                           </label>
                           <div style={styles.choreActions}>
-                            <span style={styles.assignee}>{chore.assignedTo}</span>
+                            <span
+                              style={{
+                                ...styles.assignee,
+                                background: `${getMemberColor(chore.assignedTo)}33`,
+                                color: getMemberColor(chore.assignedTo),
+                                border: `1px solid ${getMemberColor(chore.assignedTo)}`,
+                                padding: '0.15rem 0.4rem',
+                                borderRadius: 4,
+                                fontSize: '0.7rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              {chore.assignedTo}
+                            </span>
                             <button
                               onClick={() => deleteChore(chore.id)}
                               style={styles.deleteBtn}
@@ -329,13 +500,42 @@ export default function InteractiveWeekView() {
 
             {quickAddModal === 'chore' && (
               <>
-                <label style={styles.modalLabel}>Assigned To</label>
-                <input
+                <label style={styles.modalLabel}>Assign To</label>
+                {members.length > 0 ? (
+                  <select
+                    style={styles.modalInput}
+                    value={newItem.assignedTo}
+                    onChange={(e) => setNewItem({ ...newItem, assignedTo: e.target.value })}
+                  >
+                    <option value="">Select member...</option>
+                    {members.map(member => (
+                      <option key={member.id} value={member.name}>
+                        {member.avatar} {member.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    style={styles.modalInput}
+                    placeholder="Name"
+                    value={newItem.assignedTo}
+                    onChange={(e) => setNewItem({ ...newItem, assignedTo: e.target.value })}
+                  />
+                )}
+              </>
+            )}
+
+            {quickAddModal === 'event' && (
+              <>
+                <label style={styles.modalLabel}>Event Type</label>
+                <select
                   style={styles.modalInput}
-                  placeholder="Name"
-                  value={newItem.assignedTo}
-                  onChange={(e) => setNewItem({ ...newItem, assignedTo: e.target.value })}
-                />
+                  value={newItem.type}
+                  onChange={(e) => setNewItem({ ...newItem, type: e.target.value })}
+                >
+                  <option value="EVENT">Personal Event</option>
+                  <option value="WORK">Work</option>
+                </select>
               </>
             )}
 
@@ -352,6 +552,47 @@ export default function InteractiveWeekView() {
 
             <button onClick={handleQuickAdd} style={styles.modalButton}>
               Add {quickAddModal === 'chore' ? 'Chore' : 'Event'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Event Edit Modal */}
+      {editModal && (
+        <Modal
+          isOpen={true}
+          onClose={() => setEditModal(null)}
+          title="Edit Event"
+          size="small"
+        >
+          <div style={styles.modalForm}>
+            <label style={styles.modalLabel}>Event Title</label>
+            <input
+              style={styles.modalInput}
+              value={editModal.title}
+              onChange={(e) => setEditModal({ ...editModal, title: e.target.value })}
+            />
+
+            <label style={styles.modalLabel}>Type</label>
+            <select
+              style={styles.modalInput}
+              value={editModal.type}
+              onChange={(e) => setEditModal({ ...editModal, type: e.target.value })}
+            >
+              <option value="EVENT">Personal Event</option>
+              <option value="WORK">Work</option>
+            </select>
+
+            <label style={styles.modalLabel}>Description</label>
+            <textarea
+              style={{...styles.modalInput, minHeight: '80px'}}
+              value={editModal.description || ''}
+              onChange={(e) => setEditModal({ ...editModal, description: e.target.value })}
+              placeholder="Optional description..."
+            />
+
+            <button onClick={handleEventEdit} style={styles.modalButton}>
+              Update Event
             </button>
           </div>
         </Modal>
@@ -442,6 +683,68 @@ const styles = {
     minWidth: '150px',
     textAlign: 'center'
   },
+  memberFilter: {
+    display: 'flex',
+    gap: '0.5rem',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    padding: '0.75rem',
+    background: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 10,
+    border: '1px solid rgba(98, 73, 24, 0.2)'
+  },
+  memberFilterBtn: {
+    padding: '0.5rem 1rem',
+    borderRadius: 9999,
+    border: 'none',
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.3rem',
+    transition: 'all 0.2s ease'
+  },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: '0.75rem',
+    padding: '0.75rem',
+    background: 'rgba(255, 255, 255, 0.4)',
+    borderRadius: 10,
+    border: '1px solid rgba(98, 73, 24, 0.2)'
+  },
+  statCard: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
+    padding: '0.75rem',
+    background: 'rgba(255, 255, 255, 0.6)',
+    borderRadius: 8,
+    border: '1px solid rgba(98, 73, 24, 0.15)'
+  },
+  statAvatar: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '1.3rem',
+    border: '2px solid rgba(255, 255, 255, 0.8)'
+  },
+  statInfo: {
+    flex: 1
+  },
+  statName: {
+    fontWeight: 700,
+    fontSize: '0.9rem',
+    marginBottom: '0.2rem'
+  },
+  statProgress: {
+    fontSize: '0.75rem',
+    opacity: 0.8
+  },
   quickActions: {
     display: 'flex',
     gap: '0.75rem',
@@ -516,6 +819,36 @@ const styles = {
     padding: '0.45rem 0.5rem',
     fontSize: '0.92rem'
   },
+  eventContent: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.5rem'
+  },
+  eventTitle: {
+    flex: 1,
+    cursor: 'pointer',
+    textDecoration: 'underline',
+    textDecorationStyle: 'dotted'
+  },
+  miniDeleteBtn: {
+    background: 'rgba(186, 62, 62, 0.15)',
+    border: '1px solid rgba(186, 62, 62, 0.3)',
+    borderRadius: 3,
+    color: '#8b1f1f',
+    cursor: 'pointer',
+    fontSize: '1rem',
+    lineHeight: 1,
+    padding: '0 0.25rem',
+    width: '18px',
+    height: '18px'
+  },
+  noItems: {
+    fontSize: '0.85rem',
+    opacity: 0.6,
+    fontStyle: 'italic',
+    margin: 0
+  },
   choreList: {
     listStyle: 'none',
     padding: 0,
@@ -551,12 +884,12 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     marginTop: '0.2rem',
-    paddingLeft: '1.5rem'
+    paddingLeft: '1.5rem',
+    gap: '0.5rem'
   },
   assignee: {
-    fontSize: '0.75rem',
-    opacity: 0.7,
-    fontStyle: 'italic'
+    fontSize: '0.7rem',
+    fontWeight: 700
   },
   deleteBtn: {
     background: 'rgba(186, 62, 62, 0.15)',
@@ -573,7 +906,8 @@ const styles = {
   noChores: {
     fontSize: '0.85rem',
     opacity: 0.6,
-    fontStyle: 'italic'
+    fontStyle: 'italic',
+    margin: 0
   },
   loading: {
     textAlign: 'center',

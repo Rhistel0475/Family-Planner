@@ -3,6 +3,34 @@ import { prisma } from '../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
 import { getNextOccurrence } from '../../../lib/recurring';
 
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const weekOffset = parseInt(searchParams.get('weekOffset') || '0');
+
+    const family = await getOrCreateDefaultFamily();
+
+    // Get all events for the family
+    const events = await prisma.event.findMany({
+      where: {
+        familyId: family.id,
+        parentEventId: null // Only get actual instances, not parent patterns
+      },
+      orderBy: {
+        startsAt: 'asc'
+      }
+    });
+
+    return NextResponse.json({ events });
+  } catch (error) {
+    console.error('Schedule GET error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch events', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 const dayToIndex = {
   Monday: 0,
   Tuesday: 1,
@@ -178,6 +206,85 @@ export async function POST(request) {
     console.error('Error details:', error);
     return NextResponse.json(
       { error: 'Failed to save schedule item', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+    const { id, title, type, description, startsAt, attended } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Event ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (type !== undefined) updateData.type = type;
+    if (description !== undefined) updateData.description = description;
+    if (startsAt !== undefined) updateData.startsAt = new Date(startsAt);
+    if (attended !== undefined) {
+      updateData.attended = attended;
+      updateData.attendedAt = attended ? new Date() : null;
+    }
+
+    const event = await prisma.event.update({
+      where: { id },
+      data: updateData
+    });
+
+    return NextResponse.json({ success: true, event });
+  } catch (error) {
+    console.error('Event PATCH error:', error);
+
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Event not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to update event', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Event ID is required' },
+        { status: 400 }
+      );
+    }
+
+    await prisma.event.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Event DELETE error:', error);
+
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Event not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to delete event', details: error.message },
       { status: 500 }
     );
   }
