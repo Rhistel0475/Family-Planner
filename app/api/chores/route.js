@@ -5,6 +5,34 @@ import { getNextOccurrence } from '../../../lib/recurring';
 import { DAY_NAMES } from '../../../lib/constants';
 import { choreSchema, validateRequest } from '../../../lib/validators';
 
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const weekOffset = parseInt(searchParams.get('weekOffset') || '0');
+
+    const family = await getOrCreateDefaultFamily();
+
+    // Get all chores for the family
+    const chores = await prisma.chore.findMany({
+      where: {
+        familyId: family.id,
+        parentEventId: null // Only get actual instances, not parent patterns
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+
+    return NextResponse.json({ chores });
+  } catch (error) {
+    console.error('Chores GET error:', error);
+    return NextResponse.json(
+      { error: 'Failed to fetch chores', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -103,6 +131,84 @@ export async function POST(request) {
         error: 'Failed to save chore',
         details: error.message || 'Unknown error'
       },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+    const { id, completed, title, assignedTo, dueDay } = body;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Chore ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const updateData = {};
+    if (completed !== undefined) {
+      updateData.completed = completed;
+      updateData.completedAt = completed ? new Date() : null;
+    }
+    if (title) updateData.title = title;
+    if (assignedTo) updateData.assignedTo = assignedTo;
+    if (dueDay) updateData.dueDay = dueDay;
+
+    const chore = await prisma.chore.update({
+      where: { id },
+      data: updateData
+    });
+
+    return NextResponse.json({ success: true, chore });
+  } catch (error) {
+    console.error('Chore PATCH error:', error);
+
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Chore not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to update chore', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Chore ID is required' },
+        { status: 400 }
+      );
+    }
+
+    await prisma.chore.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Chore DELETE error:', error);
+
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Chore not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      { error: 'Failed to delete chore', details: error.message },
       { status: 500 }
     );
   }

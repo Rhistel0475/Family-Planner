@@ -1,5 +1,6 @@
 import './globals.css';
 import HamburgerMenu from './components/HamburgerMenu';
+import BottomNav from './components/BottomNav';
 import SetupCheck from './components/SetupCheck';
 
 export const metadata = {
@@ -14,6 +15,7 @@ export default function RootLayout({ children }) {
         <SetupCheck>
           <HamburgerMenu />
           {children}
+          <BottomNav />
         </SetupCheck>
       </body>
     </html>
