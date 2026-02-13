@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
 import { initializeSystemTemplates, getTemplates } from '../../../lib/choreTemplates';
@@ -14,10 +14,35 @@ export async function GET(req) {
     const family = await getOrCreateDefaultFamily();
     
     // Initialize system templates on first call
-    await initializeSystemTemplates(prisma);
+    try {
+      await initializeSystemTemplates(prisma);
+    } catch (initError) {
+      console.error('Failed to initialize templates:', initError);
+      // Continue - return in-memory templates as fallback
+    }
 
     // Get all templates (system + family custom)
-    const templates = await getTemplates(prisma, family.id);
+    let templates = [];
+    try {
+      templates = await getTemplates(prisma, family.id);
+    } catch (getError) {
+      console.error('Failed to get templates from DB:', getError);
+      // Return in-memory system templates as fallback
+      templates = [
+        { id: 'system-1', name: 'Clean Bedroom', description: 'Tidy and vacuum bedroom', isSystem: true, familyId: null },
+        { id: 'system-2', name: 'Clean Kitchen', description: 'Wipe counters, clean sink, sweep floor', isSystem: true, familyId: null },
+        { id: 'system-3', name: 'Clean Living Room', description: 'Dust furniture, pick up items, vacuum', isSystem: true, familyId: null },
+        { id: 'system-4', name: 'Take Out Trash', description: 'Empty trash cans and take to curb', isSystem: true, familyId: null },
+        { id: 'system-5', name: 'Wash Dishes', description: 'Wash or load dishes into dishwasher', isSystem: true, familyId: null },
+        { id: 'system-6', name: 'Do Laundry', description: 'Wash, dry, and fold laundry', isSystem: true, familyId: null },
+        { id: 'system-7', name: 'Vacuum Floors', description: 'Vacuum all carpeted areas', isSystem: true, familyId: null },
+        { id: 'system-8', name: 'Clean Bathroom', description: 'Clean toilet, sink, and shower', isSystem: true, familyId: null },
+        { id: 'system-9', name: 'Mop Floors', description: 'Mop kitchen and bathroom floors', isSystem: true, familyId: null },
+        { id: 'system-10', name: 'Grocery Shopping', description: 'Shop for weekly groceries', isSystem: true, familyId: null },
+        { id: 'system-11', name: 'Yard Work', description: 'Mow lawn and trim edges', isSystem: true, familyId: null },
+        { id: 'system-12', name: 'Organize Closet', description: 'Sort and organize closet', isSystem: true, familyId: null }
+      ];
+    }
 
     return NextResponse.json({
       success: true,
@@ -70,11 +95,10 @@ export async function POST(req) {
       );
     }
 
-    // Create custom template
     const template = await prisma.choreTemplate.create({
       data: {
         name,
-        description: description || null,
+        description,
         isSystem: false,
         familyId: family.id
       }
@@ -83,7 +107,7 @@ export async function POST(req) {
     return NextResponse.json({
       success: true,
       template
-    }, { status: 201 });
+    });
   } catch (error) {
     console.error('Failed to create template:', error);
     return NextResponse.json(
