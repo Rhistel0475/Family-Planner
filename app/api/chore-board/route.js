@@ -7,18 +7,20 @@ export async function GET(request) {
   try {
     const family = await getOrCreateDefaultFamily();
 
-    // Fetch all members
+    // Fetch family members (required for enriching the data)
     const members = await prisma.familyMember.findMany({
       where: { familyId: family.id },
       orderBy: { createdAt: 'asc' }
     });
 
-    // Fetch or create board settings for all predefined chores
+    // Try to fetch board settings from the database
+    // If the ChoreBoard table doesn't exist, return predefined defaults
     let boardSettings = [];
     
     try {
-      boardSettings = await Promise.all(
-        PREDEFINED_CHORES.map(async (chore) => {
+      // Try to fetch existing board settings sequentially with timeout to avoid hanging
+      for (const chore of PREDEFINED_CHORES) {
+        try {
           let setting = await prisma.choreBoard.findUnique({
             where: {
               familyId_templateKey: {
@@ -44,18 +46,39 @@ export async function GET(request) {
             });
           }
 
-          // Enrich with member labels
-          return {
+          boardSettings.push({
             ...setting,
             defaultAssigneeLabel: members.find(m => m.id === setting.defaultAssigneeMemberId)?.name || null,
-            eligibleMemberLabels: (setting.eligibleMemberIds || [])
-              .map(id => members.find(m => m.id === id)?.name || id)
-          };
-        })
-      );
+            eligibleMemberLabels: (setting.eligibleMemberIds || []).map(id => members.find(m => m.id === id)?.name || id)
+          });
+        } catch (choreError) {
+          // If this specific chore fails, add the default
+          if (choreError.code === 'P2021' || choreError.message?.includes('does not exist')) {
+            boardSettings.push({
+              id: `temp-${chore.templateKey}`,
+              familyId: family.id,
+              templateKey: chore.templateKey,
+              title: chore.title,
+              isRecurring: false,
+              frequencyType: 'ONE_TIME',
+              customEveryDays: null,
+              eligibilityMode: 'ALL',
+              eligibleMemberIds: [],
+              defaultAssigneeMemberId: null,
+              defaultAssigneeLabel: null,
+              eligibleMemberLabels: [],
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              _tableNotCreated: true
+            });
+          } else {
+            throw choreError;
+          }
+        }
+      }
     } catch (dbError) {
-      // If ChoreBoard table doesn't exist yet, return defaults
-      if (dbError.code === 'P2021') {
+      // If all queries fail (table doesn't exist), return all defaults
+      if (dbError.code === 'P2021' || dbError.message?.includes('does not exist')) {
         boardSettings = PREDEFINED_CHORES.map(chore => ({
           id: `temp-${chore.templateKey}`,
           familyId: family.id,
@@ -71,7 +94,7 @@ export async function GET(request) {
           eligibleMemberLabels: [],
           createdAt: new Date(),
           updatedAt: new Date(),
-          _tableNotCreated: true // Flag to indicate we're using defaults
+          _tableNotCreated: true
         }));
       } else {
         throw dbError;
