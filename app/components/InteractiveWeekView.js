@@ -6,6 +6,7 @@ import { DAY_NAMES } from '../../lib/constants';
 import { useTheme } from '../providers/ThemeProvider';
 import { calculateWeeklyStats } from '../../lib/statsUtils';
 import { applyAllFilters } from '../../lib/filterUtils';
+import { createSmartTaskInstances } from '../../lib/smartAssignment';
 import Toast from './Toast';
 import Modal from './Modal';
 import QuickAddButton from './QuickAddButton';
@@ -13,6 +14,7 @@ import DraggableItem from './DraggableItem';
 import DroppableDay from './DroppableDay';
 import StatsWidget from './StatsWidget';
 import FilterBar from './FilterBar';
+import SmartTaskModal from './SmartTaskModal';
 
 export default function InteractiveWeekView() {
   const { theme } = useTheme();
@@ -28,6 +30,7 @@ export default function InteractiveWeekView() {
   const [newItem, setNewItem] = useState({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
   const [activeItem, setActiveItem] = useState(null);
   const [statsExpanded, setStatsExpanded] = useState(false);
+  const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [filters, setFilters] = useState({
     searchQuery: '',
     statusFilter: 'all',
@@ -218,6 +221,60 @@ export default function InteractiveWeekView() {
       fetchData();
     } catch (error) {
       showToast(`Failed to add ${quickAddModal}`, 'error');
+    }
+  };
+
+  const handleSmartTaskSubmit = async (taskData) => {
+    try {
+      // Create smart task instances using AI assignment
+      const taskInstances = createSmartTaskInstances(taskData, members, chores);
+
+      if (taskInstances.length === 0) {
+        showToast('No tasks created', 'error');
+        return;
+      }
+
+      // Create all instances
+      const promises = taskInstances.map(async (instance) => {
+        if (taskData.type === 'CHORE' || instance.type === 'CHORE') {
+          return fetch('/api/chores', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(instance)
+          });
+        } else {
+          // For events/work
+          const startsAt = new Date();
+          // Find the next occurrence of the dueDay
+          const dayIndex = DAY_NAMES.indexOf(instance.dueDay);
+          const today = startsAt.getDay();
+          const daysUntil = (dayIndex + 6 - today) % 7;
+          startsAt.setDate(startsAt.getDate() + daysUntil);
+
+          return fetch('/api/schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: instance.title,
+              type: instance.type || 'EVENT',
+              startsAt: startsAt.toISOString(),
+              event: instance.title
+            })
+          });
+        }
+      });
+
+      await Promise.all(promises);
+
+      showToast(
+        `✨ ${taskInstances.length} smart task${taskInstances.length > 1 ? 's' : ''} created!`,
+        'success'
+      );
+      setQuickAddModal(null);
+      fetchData();
+    } catch (error) {
+      console.error('Failed to create smart tasks:', error);
+      showToast('Failed to create tasks', 'error');
     }
   };
 
@@ -437,106 +494,92 @@ export default function InteractiveWeekView() {
     weekOffset > 0 ? `${weekOffset} weeks ahead` : `${Math.abs(weekOffset)} weeks ago`;
 
   return (
-    <main style={{...styles.main, color: theme.card.text}}>
-      <section style={{...styles.hero, background: theme.hero.bg, border: `1px solid ${theme.hero.border}`}}>
-        <p style={{...styles.badge, background: theme.hero.badge, color: theme.hero.badgeText}}>Deployed with Vercel</p>
-        <h1 style={{...styles.title, color: theme.hero.text}}>Family Planner</h1>
-        <p style={{...styles.subtitle, color: theme.hero.text}}>
-          Your smart family organizer - track chores, events, and schedules all in one place.
-        </p>
-      </section>
+    <main style={{...styles.main, color: theme.card.text, padding: '1rem 1rem 4rem 1rem', minHeight: '100vh', maxHeight: '100vh', overflow: 'hidden', display: 'flex', flexDirection: 'column'}}>
+      {/* Compact Header: Week Nav + Add Button */}
+      <div style={{...styles.compactHeader, background: theme.controls.bg, border: `1px solid ${theme.controls.border}`}}>
+        <button onClick={() => setWeekOffset(weekOffset - 1)} style={{...styles.navButtonCompact, background: theme.card.bg[0], color: theme.card.text, border: `1px solid ${theme.card.border}`}}>
+          ←
+        </button>
+        <span style={{...styles.weekLabelCompact, color: theme.card.text}}>{weekLabel}</span>
+        <button onClick={() => setWeekOffset(weekOffset + 1)} style={{...styles.navButtonCompact, background: theme.card.bg[0], color: theme.card.text, border: `1px solid ${theme.card.border}`}}>
+          →
+        </button>
+        <div style={{width: '1px', height: '24px', background: theme.card.border, margin: '0 0.5rem'}} />
+        <QuickAddButton
+          onClick={() => setQuickAddModal('unified')}
+          icon="+"
+          label="Add Task"
+          color={theme.button.primary}
+        />
+      </div>
 
-      {/* Week Navigation */}
-      <section style={styles.controls}>
-        <div style={{...styles.weekNav, background: theme.controls.bg, border: `1px solid ${theme.controls.border}`}}>
-          <button onClick={() => setWeekOffset(weekOffset - 1)} style={{...styles.navButton, background: theme.card.bg[0], color: theme.card.text, border: `1px solid ${theme.card.border}`}}>
-            ← Previous
+      {/* Member Filter - Compact */}
+      {members.length > 0 && (
+        <div style={{...styles.memberFilterCompact, background: theme.controls.bg, border: `1px solid ${theme.controls.border}`}}>
+          <button
+            onClick={() => setSelectedMember(null)}
+            style={{
+              ...styles.memberFilterBtnCompact,
+              background: !selectedMember ? theme.card.text : theme.button.secondary,
+              color: !selectedMember ? theme.main : theme.card.text
+            }}
+          >
+            All
           </button>
-          <span style={{...styles.weekLabel, color: theme.card.text}}>{weekLabel}</span>
-          <button onClick={() => setWeekOffset(weekOffset + 1)} style={{...styles.navButton, background: theme.card.bg[0], color: theme.card.text, border: `1px solid ${theme.card.border}`}}>
-            Next →
-          </button>
-        </div>
-
-        {/* Member Filter */}
-        {members.length > 0 && (
-          <div style={{...styles.memberFilter, background: theme.controls.bg, border: `1px solid ${theme.controls.border}`}}>
+          {members.map(member => (
             <button
-              onClick={() => setSelectedMember(null)}
+              key={member.id}
+              onClick={() => setSelectedMember(member.name)}
               style={{
-                ...styles.memberFilterBtn,
-                background: !selectedMember ? theme.card.text : theme.button.secondary,
-                color: !selectedMember ? theme.main : theme.card.text
+                ...styles.memberFilterBtnCompact,
+                background: selectedMember === member.name ? member.color : theme.button.secondary,
+                color: selectedMember === member.name ? 'white' : theme.card.text,
+                border: `2px solid ${member.color}`
               }}
             >
-              All
+              {member.avatar}
             </button>
-            {members.map(member => (
-              <button
-                key={member.id}
-                onClick={() => setSelectedMember(member.name)}
-                style={{
-                  ...styles.memberFilterBtn,
-                  background: selectedMember === member.name ? member.color : theme.button.secondary,
-                  color: selectedMember === member.name ? 'white' : theme.card.text,
-                  border: `2px solid ${member.color}`
-                }}
-              >
-                {member.avatar} {member.name}
-              </button>
-            ))}
+          ))}
+          <div style={{marginLeft: 'auto', display: 'flex', gap: '0.25rem'}}>
+            <button
+              onClick={() => setStatsExpanded(!statsExpanded)}
+              style={{...styles.iconBtn, background: theme.button.secondary, color: theme.card.text}}
+              title="Toggle Stats"
+            >
+              📊
+            </button>
+            <button
+              onClick={() => setFiltersExpanded(!filtersExpanded)}
+              style={{...styles.iconBtn, background: theme.button.secondary, color: theme.card.text}}
+              title="Toggle Filters"
+            >
+              🔍
+            </button>
           </div>
-        )}
-
-        {/* Member Stats */}
-        {members.length > 0 && !selectedMember && (
-          <div style={{...styles.statsGrid, background: theme.controls.bg, border: `1px solid ${theme.controls.border}`}}>
-            {memberStats.map(stat => (
-              <div key={stat.id} style={{...styles.statCard, background: theme.button.secondary, border: `1px solid ${theme.card.border}`}}>
-                <div style={{...styles.statAvatar, background: stat.color}}>
-                  {stat.avatar}
-                </div>
-                <div style={styles.statInfo}>
-                  <div style={{...styles.statName, color: theme.card.text}}>{stat.name}</div>
-                  <div style={{...styles.statProgress, color: theme.card.text}}>
-                    {stat.completed}/{stat.total} done ({stat.percentage}%)
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Stats Widget */}
-        {members.length > 0 && !selectedMember && (
-          <StatsWidget
-            stats={weeklyStats}
-            isExpanded={statsExpanded}
-            onToggle={() => setStatsExpanded(!statsExpanded)}
-          />
-        )}
-
-        {/* Filter Bar */}
-        <FilterBar
-          onFilterChange={setFilters}
-          initialFilters={filters}
-        />
-
-        <div style={styles.quickActions}>
-          <QuickAddButton
-            onClick={() => setQuickAddModal('chore')}
-            icon="+"
-            label="Add Chore"
-            color={theme.card.bg[2]}
-          />
-          <QuickAddButton
-            onClick={() => setQuickAddModal('event')}
-            icon="+"
-            label="Add Event"
-            color={theme.card.bg[1]}
-          />
         </div>
-      </section>
+      )}
+
+        {/* Stats Widget - Collapsible */}
+        {statsExpanded && members.length > 0 && !selectedMember && (
+          <div style={{marginTop: '0.5rem'}}>
+            <StatsWidget
+              stats={weeklyStats}
+              isExpanded={true}
+              onToggle={() => setStatsExpanded(false)}
+            />
+          </div>
+        )}
+
+        {/* Filter Bar - Collapsible */}
+        {filtersExpanded && (
+          <div style={{marginTop: '0.5rem'}}>
+            <FilterBar
+              onFilterChange={setFilters}
+              initialFilters={filters}
+            />
+          </div>
+        )}
+      </div>
 
       {loading ? (
         <div style={{...styles.loading, color: theme.loading.text}}>Loading...</div>
@@ -546,7 +589,7 @@ export default function InteractiveWeekView() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <section style={styles.weekWrapper}>
+          <section style={{...styles.weekWrapper, flex: 1, overflowY: 'auto', overflowX: 'auto', paddingBottom: '0'}}>
             <div style={styles.weekGrid} className="week-grid">
               {boardDays.map((day, index) => (
                 <DroppableDay
@@ -723,8 +766,18 @@ export default function InteractiveWeekView() {
         </DndContext>
       )}
 
-      {/* Quick Add Modal */}
-      {quickAddModal && (
+      {/* Smart Task Modal */}
+      {quickAddModal === 'unified' && (
+        <SmartTaskModal
+          isOpen={true}
+          onClose={() => setQuickAddModal(null)}
+          onSubmit={handleSmartTaskSubmit}
+          members={members}
+        />
+      )}
+
+      {/* Legacy Quick Add Modal (for backward compatibility) */}
+      {quickAddModal && quickAddModal !== 'unified' && (
         <Modal
           isOpen={true}
           onClose={() => setQuickAddModal(null)}
@@ -1011,13 +1064,14 @@ const styles = {
     minWidth: 1280
   },
   card: {
-    padding: '1.2rem',
+    padding: '0.75rem',
     borderRadius: 6,
     border: '1px solid rgba(98, 73, 24, 0.2)',
     boxShadow: '0 10px 20px rgba(70, 45, 11, 0.2)',
     transition: 'transform 120ms ease',
     transformOrigin: 'center top',
-    minHeight: 380
+    minHeight: 'auto',
+    height: 'fit-content'
   },
   dayHeader: {
     marginBottom: '0.85rem',
@@ -1193,5 +1247,54 @@ const styles = {
     cursor: 'pointer',
     fontSize: '0.95rem',
     marginTop: '0.5rem'
+  },
+  // Compact layout styles
+  compactHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.5rem 0.75rem',
+    borderRadius: 8,
+    marginBottom: '0.5rem'
+  },
+  navButtonCompact: {
+    padding: '0.4rem 0.75rem',
+    borderRadius: 6,
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontSize: '1rem',
+    minWidth: '36px'
+  },
+  weekLabelCompact: {
+    fontWeight: 700,
+    fontSize: '0.95rem',
+    flex: 1,
+    textAlign: 'center'
+  },
+  memberFilterCompact: {
+    display: 'flex',
+    gap: '0.4rem',
+    padding: '0.5rem 0.75rem',
+    borderRadius: 8,
+    marginBottom: '0.5rem',
+    flexWrap: 'wrap',
+    alignItems: 'center'
+  },
+  memberFilterBtnCompact: {
+    padding: '0.35rem 0.6rem',
+    borderRadius: 9999,
+    border: 'none',
+    fontWeight: 700,
+    cursor: 'pointer',
+    fontSize: '0.85rem',
+    transition: 'all 0.2s ease'
+  },
+  iconBtn: {
+    padding: '0.35rem 0.6rem',
+    borderRadius: 6,
+    border: 'none',
+    cursor: 'pointer',
+    fontSize: '0.9rem',
+    transition: 'all 0.2s ease'
   }
 };
