@@ -28,7 +28,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name } = body;  // Note: color and avatar are client-side only
+    const { name, color, avatar } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -39,12 +39,34 @@ export async function POST(request) {
 
     const family = await getOrCreateDefaultFamily();
 
-    const member = await prisma.familyMember.create({
-      data: {
-        familyId: family.id,
-        name: name.trim()
+    const createData = {
+      familyId: family.id,
+      name: name.trim()
+    };
+
+    // Try to add color and avatar if provided
+    if (color) createData.color = color;
+    if (avatar) createData.avatar = avatar;
+
+    let member;
+    try {
+      member = await prisma.familyMember.create({ data: createData });
+    } catch (dbError) {
+      // If color/avatar fields don't exist in DB, try without them
+      if (dbError.code === 'P2022' && (dbError.message.includes('color') || dbError.message.includes('avatar'))) {
+        member = await prisma.familyMember.create({
+          data: {
+            familyId: family.id,
+            name: name.trim()
+          }
+        });
+        // Add color and avatar to response if provided
+        if (color) member.color = color;
+        if (avatar) member.avatar = avatar;
+      } else {
+        throw dbError;
       }
-    });
+    }
 
     return NextResponse.json({ success: true, member });
   } catch (error) {
@@ -59,7 +81,7 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { id, name } = body;  // Note: color and avatar are client-side only
+    const { id, name, color, avatar } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -70,23 +92,43 @@ export async function PATCH(request) {
 
     const updateData = {};
     if (name !== undefined) updateData.name = name.trim();
+    if (color !== undefined) updateData.color = color;
+    if (avatar !== undefined) updateData.avatar = avatar;
 
-    const member = await prisma.familyMember.update({
-      where: { id },
-      data: updateData
-    });
+    let member;
+    try {
+      member = await prisma.familyMember.update({
+        where: { id },
+        data: updateData
+      });
+    } catch (dbError) {
+      // If color/avatar fields don't exist in DB, try without them
+      if (dbError.code === 'P2022' && (dbError.message.includes('color') || dbError.message.includes('avatar'))) {
+        const fallbackData = { ...updateData };
+        delete fallbackData.color;
+        delete fallbackData.avatar;
+        
+        member = await prisma.familyMember.update({
+          where: { id },
+          data: fallbackData
+        });
+
+        // Add color and avatar to response if provided
+        if (color) member.color = color;
+        if (avatar) member.avatar = avatar;
+      } else if (dbError.code === 'P2025') {
+        return NextResponse.json(
+          { error: 'Family member not found' },
+          { status: 404 }
+        );
+      } else {
+        throw dbError;
+      }
+    }
 
     return NextResponse.json({ success: true, member });
   } catch (error) {
     console.error('Family member PATCH error:', error);
-
-    if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Family member not found' },
-        { status: 404 }
-      );
-    }
-
     return NextResponse.json(
       { error: 'Failed to update family member', details: error.message },
       { status: 500 }

@@ -156,7 +156,11 @@ export default function ChoresPage() {
       setShowAddModal(false);
       e.target.reset();
 
-      setTimeout(() => setMessage(null), 2000);
+      // Refresh the board to show the new chore
+      setTimeout(() => {
+        fetchBoardSettings();
+        setMessage(null);
+      }, 500);
     } catch (error) {
       console.error('Add chore error:', error);
       setMessage({ type: 'error', text: error.message || 'Failed to save chore' });
