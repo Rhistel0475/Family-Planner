@@ -5,12 +5,14 @@ import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, us
 import { DAY_NAMES } from '../../lib/constants';
 import { useTheme } from '../providers/ThemeProvider';
 import { calculateWeeklyStats } from '../../lib/statsUtils';
+import { applyAllFilters } from '../../lib/filterUtils';
 import Toast from './Toast';
 import Modal from './Modal';
 import QuickAddButton from './QuickAddButton';
 import DraggableItem from './DraggableItem';
 import DroppableDay from './DroppableDay';
 import StatsWidget from './StatsWidget';
+import FilterBar from './FilterBar';
 
 export default function InteractiveWeekView() {
   const { theme } = useTheme();
@@ -26,6 +28,11 @@ export default function InteractiveWeekView() {
   const [newItem, setNewItem] = useState({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
   const [activeItem, setActiveItem] = useState(null);
   const [statsExpanded, setStatsExpanded] = useState(false);
+  const [filters, setFilters] = useState({
+    searchQuery: '',
+    statusFilter: 'all',
+    typeFilter: 'all'
+  });
 
   const noteColors = theme.card.bg;
   const noteRotations = ['rotate(-1deg)', 'rotate(0.8deg)', 'rotate(-0.6deg)', 'rotate(0.6deg)'];
@@ -367,13 +374,24 @@ export default function InteractiveWeekView() {
     return DAY_NAMES[(dayIndex + 6) % 7];
   };
 
-  // Filter chores by selected member
-  const filteredChores = selectedMember 
+  // Apply member filter first
+  const memberFilteredChores = selectedMember
     ? chores.filter(c => c.assignedTo === selectedMember)
     : chores;
 
+  // Apply search and filter logic
+  const { chores: filteredChores, events: filteredEvents } = useMemo(() => {
+    return applyAllFilters({
+      chores: memberFilteredChores,
+      events: events,
+      searchQuery: filters.searchQuery,
+      statusFilter: filters.statusFilter,
+      typeFilter: filters.typeFilter
+    });
+  }, [memberFilteredChores, events, filters]);
+
   const boardDays = weekDates.map((day) => {
-    const dayEvents = events.filter((item) => toDayName(item.startsAt) === day.day);
+    const dayEvents = filteredEvents.filter((item) => toDayName(item.startsAt) === day.day);
     const dayChores = filteredChores.filter((item) => item.dueDay === day.day);
     const workItems = dayEvents.filter((item) => item.type === 'WORK');
     const eventItems = dayEvents.filter((item) => item.type === 'EVENT');
@@ -497,6 +515,12 @@ export default function InteractiveWeekView() {
             onToggle={() => setStatsExpanded(!statsExpanded)}
           />
         )}
+
+        {/* Filter Bar */}
+        <FilterBar
+          onFilterChange={setFilters}
+          initialFilters={filters}
+        />
 
         <div style={styles.quickActions}>
           <QuickAddButton
