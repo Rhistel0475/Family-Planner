@@ -18,8 +18,8 @@ export async function GET(request) {
     // Ensure color and avatar fields exist (with defaults if missing from DB)
     const enrichedMembers = members.map(member => ({
       ...member,
-      color: member.color || '#3b82f6',
-      avatar: member.avatar || '👤'
+      color: '#3b82f6',
+      avatar: '👤'
     }));
 
     return NextResponse.json({ members: enrichedMembers });
