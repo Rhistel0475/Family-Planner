@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { DAY_NAMES } from '../../lib/constants';
 import { useTheme } from '../providers/ThemeProvider';
+import { calculateWeeklyStats } from '../../lib/statsUtils';
 import Toast from './Toast';
 import Modal from './Modal';
 import QuickAddButton from './QuickAddButton';
 import DraggableItem from './DraggableItem';
 import DroppableDay from './DroppableDay';
+import StatsWidget from './StatsWidget';
 
 export default function InteractiveWeekView() {
   const { theme } = useTheme();
@@ -23,6 +25,7 @@ export default function InteractiveWeekView() {
   const [editModal, setEditModal] = useState(null);
   const [newItem, setNewItem] = useState({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
   const [activeItem, setActiveItem] = useState(null);
+  const [statsExpanded, setStatsExpanded] = useState(false);
 
   const noteColors = theme.card.bg;
   const noteRotations = ['rotate(-1deg)', 'rotate(0.8deg)', 'rotate(-0.6deg)', 'rotate(0.6deg)'];
@@ -403,6 +406,12 @@ export default function InteractiveWeekView() {
     };
   });
 
+  // Calculate weekly stats for StatsWidget
+  const weeklyStats = useMemo(() => {
+    const weekDates = getWeekDates(weekOffset);
+    return calculateWeeklyStats(filteredChores, members, weekDates);
+  }, [filteredChores, members, weekOffset, getWeekDates]);
+
   const isCurrentWeek = weekOffset === 0;
   const weekLabel = weekOffset === 0 ? 'This Week' :
     weekOffset === 1 ? 'Next Week' :
@@ -478,6 +487,15 @@ export default function InteractiveWeekView() {
               </div>
             ))}
           </div>
+        )}
+
+        {/* Stats Widget */}
+        {members.length > 0 && !selectedMember && (
+          <StatsWidget
+            stats={weeklyStats}
+            isExpanded={statsExpanded}
+            onToggle={() => setStatsExpanded(!statsExpanded)}
+          />
         )}
 
         <div style={styles.quickActions}>
