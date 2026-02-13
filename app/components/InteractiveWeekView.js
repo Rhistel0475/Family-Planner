@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { DndContext, DragOverlay, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { DAY_NAMES } from '../../lib/constants';
+import { useTheme } from '../providers/ThemeProvider';
 import Toast from './Toast';
 import Modal from './Modal';
 import QuickAddButton from './QuickAddButton';
@@ -10,6 +11,7 @@ import DraggableItem from './DraggableItem';
 import DroppableDay from './DroppableDay';
 
 export default function InteractiveWeekView() {
+  const { theme } = useTheme();
   const [weekOffset, setWeekOffset] = useState(0);
   const [events, setEvents] = useState([]);
   const [chores, setChores] = useState([]);
@@ -22,7 +24,7 @@ export default function InteractiveWeekView() {
   const [newItem, setNewItem] = useState({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
   const [activeItem, setActiveItem] = useState(null);
 
-  const noteColors = ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7'];
+  const noteColors = theme.card.bg;
   const noteRotations = ['rotate(-1deg)', 'rotate(0.8deg)', 'rotate(-0.6deg)', 'rotate(0.6deg)'];
 
   // Configure drag & drop sensors
@@ -408,36 +410,36 @@ export default function InteractiveWeekView() {
     weekOffset > 0 ? `${weekOffset} weeks ahead` : `${Math.abs(weekOffset)} weeks ago`;
 
   return (
-    <main style={styles.main}>
-      <section style={styles.hero}>
-        <p style={styles.badge}>Deployed with Vercel</p>
-        <h1 style={styles.title}>Family Planner</h1>
-        <p style={styles.subtitle}>
+    <main style={{...styles.main, color: theme.card.text}}>
+      <section style={{...styles.hero, background: theme.hero.bg, border: `1px solid ${theme.hero.border}`}}>
+        <p style={{...styles.badge, background: theme.hero.badge, color: theme.hero.badgeText}}>Deployed with Vercel</p>
+        <h1 style={{...styles.title, color: theme.hero.text}}>Family Planner</h1>
+        <p style={{...styles.subtitle, color: theme.hero.text}}>
           Your smart family organizer - track chores, events, and schedules all in one place.
         </p>
       </section>
 
       {/* Week Navigation */}
       <section style={styles.controls}>
-        <div style={styles.weekNav}>
-          <button onClick={() => setWeekOffset(weekOffset - 1)} style={styles.navButton}>
+        <div style={{...styles.weekNav, background: theme.controls.bg, border: `1px solid ${theme.controls.border}`}}>
+          <button onClick={() => setWeekOffset(weekOffset - 1)} style={{...styles.navButton, background: theme.card.bg[0], color: theme.card.text, border: `1px solid ${theme.card.border}`}}>
             ← Previous
           </button>
-          <span style={styles.weekLabel}>{weekLabel}</span>
-          <button onClick={() => setWeekOffset(weekOffset + 1)} style={styles.navButton}>
+          <span style={{...styles.weekLabel, color: theme.card.text}}>{weekLabel}</span>
+          <button onClick={() => setWeekOffset(weekOffset + 1)} style={{...styles.navButton, background: theme.card.bg[0], color: theme.card.text, border: `1px solid ${theme.card.border}`}}>
             Next →
           </button>
         </div>
 
         {/* Member Filter */}
         {members.length > 0 && (
-          <div style={styles.memberFilter}>
+          <div style={{...styles.memberFilter, background: theme.controls.bg, border: `1px solid ${theme.controls.border}`}}>
             <button
               onClick={() => setSelectedMember(null)}
               style={{
                 ...styles.memberFilterBtn,
-                background: !selectedMember ? '#3f2d1d' : 'rgba(255, 255, 255, 0.6)',
-                color: !selectedMember ? 'white' : '#3f2d1d'
+                background: !selectedMember ? theme.card.text : theme.button.secondary,
+                color: !selectedMember ? theme.main : theme.card.text
               }}
             >
               All
@@ -448,8 +450,8 @@ export default function InteractiveWeekView() {
                 onClick={() => setSelectedMember(member.name)}
                 style={{
                   ...styles.memberFilterBtn,
-                  background: selectedMember === member.name ? member.color : 'rgba(255, 255, 255, 0.6)',
-                  color: selectedMember === member.name ? 'white' : '#3f2d1d',
+                  background: selectedMember === member.name ? member.color : theme.button.secondary,
+                  color: selectedMember === member.name ? 'white' : theme.card.text,
                   border: `2px solid ${member.color}`
                 }}
               >
@@ -461,15 +463,15 @@ export default function InteractiveWeekView() {
 
         {/* Member Stats */}
         {members.length > 0 && !selectedMember && (
-          <div style={styles.statsGrid}>
+          <div style={{...styles.statsGrid, background: theme.controls.bg, border: `1px solid ${theme.controls.border}`}}>
             {memberStats.map(stat => (
-              <div key={stat.id} style={styles.statCard}>
+              <div key={stat.id} style={{...styles.statCard, background: theme.button.secondary, border: `1px solid ${theme.card.border}`}}>
                 <div style={{...styles.statAvatar, background: stat.color}}>
                   {stat.avatar}
                 </div>
                 <div style={styles.statInfo}>
-                  <div style={styles.statName}>{stat.name}</div>
-                  <div style={styles.statProgress}>
+                  <div style={{...styles.statName, color: theme.card.text}}>{stat.name}</div>
+                  <div style={{...styles.statProgress, color: theme.card.text}}>
                     {stat.completed}/{stat.total} done ({stat.percentage}%)
                   </div>
                 </div>
@@ -483,19 +485,19 @@ export default function InteractiveWeekView() {
             onClick={() => setQuickAddModal('chore')}
             icon="+"
             label="Add Chore"
-            color="#c9f7a5"
+            color={theme.card.bg[2]}
           />
           <QuickAddButton
             onClick={() => setQuickAddModal('event')}
             icon="+"
             label="Add Event"
-            color="#ffd9a8"
+            color={theme.card.bg[1]}
           />
         </div>
       </section>
 
       {loading ? (
-        <div style={styles.loading}>Loading...</div>
+        <div style={{...styles.loading, color: theme.loading.text}}>Loading...</div>
       ) : (
         <DndContext
           sensors={sensors}
@@ -688,11 +690,11 @@ export default function InteractiveWeekView() {
           size="small"
         >
           <div style={styles.modalForm}>
-            <label style={styles.modalLabel}>
+            <label style={{...styles.modalLabel, color: theme.card.text}}>
               {quickAddModal === 'chore' ? 'Chore' : 'Event'} Title
             </label>
             <input
-              style={styles.modalInput}
+              style={{...styles.modalInput, background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
               placeholder={`Enter ${quickAddModal} title...`}
               value={newItem.title}
               onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
@@ -701,10 +703,10 @@ export default function InteractiveWeekView() {
 
             {quickAddModal === 'chore' && (
               <>
-                <label style={styles.modalLabel}>Assign To</label>
+                <label style={{...styles.modalLabel, color: theme.card.text}}>Assign To</label>
                 {members.length > 0 ? (
                   <select
-                    style={styles.modalInput}
+                    style={{...styles.modalInput, background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
                     value={newItem.assignedTo}
                     onChange={(e) => setNewItem({ ...newItem, assignedTo: e.target.value })}
                   >
@@ -717,7 +719,7 @@ export default function InteractiveWeekView() {
                   </select>
                 ) : (
                   <input
-                    style={styles.modalInput}
+                    style={{...styles.modalInput, background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
                     placeholder="Name"
                     value={newItem.assignedTo}
                     onChange={(e) => setNewItem({ ...newItem, assignedTo: e.target.value })}
@@ -728,9 +730,9 @@ export default function InteractiveWeekView() {
 
             {quickAddModal === 'event' && (
               <>
-                <label style={styles.modalLabel}>Event Type</label>
+                <label style={{...styles.modalLabel, color: theme.card.text}}>Event Type</label>
                 <select
-                  style={styles.modalInput}
+                  style={{...styles.modalInput, background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
                   value={newItem.type}
                   onChange={(e) => setNewItem({ ...newItem, type: e.target.value })}
                 >
@@ -740,9 +742,9 @@ export default function InteractiveWeekView() {
               </>
             )}
 
-            <label style={styles.modalLabel}>Day</label>
+            <label style={{...styles.modalLabel, color: theme.card.text}}>Day</label>
             <select
-              style={styles.modalInput}
+              style={{...styles.modalInput, background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
               value={newItem.day}
               onChange={(e) => setNewItem({ ...newItem, day: e.target.value })}
             >
@@ -751,7 +753,7 @@ export default function InteractiveWeekView() {
               ))}
             </select>
 
-            <button onClick={handleQuickAdd} style={styles.modalButton}>
+            <button onClick={handleQuickAdd} style={{...styles.modalButton, background: theme.button.primary, color: theme.button.primaryText, border: `1px solid ${theme.card.border}`}}>
               Add {quickAddModal === 'chore' ? 'Chore' : 'Event'}
             </button>
           </div>
@@ -767,16 +769,16 @@ export default function InteractiveWeekView() {
           size="small"
         >
           <div style={styles.modalForm}>
-            <label style={styles.modalLabel}>Event Title</label>
+            <label style={{...styles.modalLabel, color: theme.card.text}}>Event Title</label>
             <input
-              style={styles.modalInput}
+              style={{...styles.modalInput, background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
               value={editModal.title}
               onChange={(e) => setEditModal({ ...editModal, title: e.target.value })}
             />
 
-            <label style={styles.modalLabel}>Type</label>
+            <label style={{...styles.modalLabel, color: theme.card.text}}>Type</label>
             <select
-              style={styles.modalInput}
+              style={{...styles.modalInput, background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
               value={editModal.type}
               onChange={(e) => setEditModal({ ...editModal, type: e.target.value })}
             >
@@ -784,15 +786,15 @@ export default function InteractiveWeekView() {
               <option value="WORK">Work</option>
             </select>
 
-            <label style={styles.modalLabel}>Description</label>
+            <label style={{...styles.modalLabel, color: theme.card.text}}>Description</label>
             <textarea
-              style={{...styles.modalInput, minHeight: '80px'}}
+              style={{...styles.modalInput, minHeight: '80px', background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
               value={editModal.description || ''}
               onChange={(e) => setEditModal({ ...editModal, description: e.target.value })}
               placeholder="Optional description..."
             />
 
-            <button onClick={handleEventEdit} style={styles.modalButton}>
+            <button onClick={handleEventEdit} style={{...styles.modalButton, background: theme.button.primary, color: theme.button.primaryText, border: `1px solid ${theme.card.border}`}}>
               Update Event
             </button>
           </div>

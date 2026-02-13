@@ -10,6 +10,14 @@ body {
 
 body {
   font-family: 'Trebuchet MS', 'Segoe UI', Arial, sans-serif;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Smooth transitions for all themed elements */
+* {
+  transition-property: background-color, color, border-color, box-shadow;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
 }
 
 h1,

@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTheme } from '../providers/ThemeProvider';
 
 export default function Toast({ message, type = 'success', onClose, action, duration = 3000 }) {
+  const { theme } = useTheme();
+
   useEffect(() => {
     if (duration > 0) {
       const timer = setTimeout(onClose, duration);
@@ -11,18 +14,9 @@ export default function Toast({ message, type = 'success', onClose, action, dura
   }, [duration, onClose]);
 
   const colors = {
-    success: {
-      bg: 'rgba(63, 152, 76, 0.95)',
-      border: '#2c7939'
-    },
-    error: {
-      bg: 'rgba(186, 62, 62, 0.95)',
-      border: '#8b1f1f'
-    },
-    info: {
-      bg: 'rgba(52, 120, 186, 0.95)',
-      border: '#2b5f99'
-    }
+    success: theme.toast.success,
+    error: theme.toast.error,
+    info: theme.toast.info
   };
 
   const color = colors[type] || colors.info;
