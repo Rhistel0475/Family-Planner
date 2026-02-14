@@ -1,233 +1,590 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useTheme } from '../providers/ThemeProvider';
 
-export default function ChoresPage({ searchParams }) {
-  const router = useRouter();
-  const [isRecurring, setIsRecurring] = useState(false);
-  const [recurrencePattern, setRecurrencePattern] = useState('WEEKLY');
-  const [loading, setLoading] = useState(false);
-  const saved = searchParams?.saved === '1';
-  const error = searchParams?.error === '1';
+export default function ChoreBoardPage() {
+  const { theme } = useTheme();
+  const [templates, setTemplates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
+  // Default chore templates
+  const defaultChores = [
+    { templateKey: 'clean-kitchen', title: 'Clean Kitchen' },
+    { templateKey: 'clean-bathroom', title: 'Clean Bathroom' },
+    { templateKey: 'clean-bedroom', title: 'Clean Bedroom' },
+    { templateKey: 'clean-living-room', title: 'Clean Living Room' },
+    { templateKey: 'vacuum', title: 'Vacuum' },
+    { templateKey: 'sweep-mop', title: 'Sweep/Mop' },
+    { templateKey: 'dishes', title: 'Dishes' },
+    { templateKey: 'laundry', title: 'Laundry' },
+    { templateKey: 'dusting', title: 'Dusting' },
+    { templateKey: 'take-out-trash', title: 'Take Out Trash' },
+    { templateKey: 'wipe-counters', title: 'Wipe Counters' },
+    { templateKey: 'organize-declutter', title: 'Organize/Declutter' }
+  ];
 
-    const formData = new FormData(e.target);
-    const data = {
-      title: formData.get('title'),
-      assignedTo: formData.get('assignedTo'),
-      dueDay: formData.get('dueDay'),
-      isRecurring,
-      recurrencePattern: isRecurring ? recurrencePattern : null,
-      recurrenceInterval: isRecurring ? parseInt(formData.get('interval')) || 1 : null,
-      recurrenceEndDate: isRecurring && formData.get('endDate') ? formData.get('endDate') : null
-    };
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
 
+  const fetchTemplates = async () => {
     try {
-      const res = await fetch('/api/chores', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-
-      const result = await res.json();
+      const res = await fetch('/api/chore-board');
+      const data = await res.json();
 
       if (res.ok) {
-        router.push('/chores?saved=1');
-        e.target.reset();
-        setIsRecurring(false);
-      } else {
-        console.error('Error response:', result);
-        router.push('/chores?error=1');
+        // If no templates exist, create defaults
+        if (data.templates.length === 0) {
+          await initializeDefaultTemplates();
+        } else {
+          setTemplates(data.templates);
+        }
       }
-    } catch (err) {
-      console.error('Request error:', err);
-      router.push('/chores?error=1');
+    } catch (error) {
+      console.error('Failed to fetch templates:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const initializeDefaultTemplates = async () => {
+    try {
+      const newTemplates = [];
+
+      for (const chore of defaultChores) {
+        const res = await fetch('/api/chore-board', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            templateKey: chore.templateKey,
+            title: chore.title,
+            isRecurring: false,
+            frequencyType: 'ONE_TIME',
+            eligibilityMode: 'ALL',
+            eligibleMemberIds: []
+          })
+        });
+
+        const data = await res.json();
+        if (data.template) {
+          newTemplates.push(data.template);
+        }
+      }
+
+      setTemplates(newTemplates);
+    } catch (error) {
+      console.error('Failed to initialize templates:', error);
+    }
+  };
+
+  const addNewTemplate = async (templateData) => {
+    try {
+      const res = await fetch('/api/chore-board', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(templateData)
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.template) {
+        setTemplates([...templates, data.template]);
+        setShowAddModal(false);
+      }
+    } catch (error) {
+      console.error('Failed to add template:', error);
+    }
+  };
+
+  const updateTemplate = async (id, updates) => {
+    try {
+      const res = await fetch('/api/chore-board', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, ...updates })
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.template) {
+        setTemplates(templates.map(t => t.id === id ? data.template : t));
+      }
+    } catch (error) {
+      console.error('Failed to update template:', error);
+    }
+  };
+
+  const deleteTemplate = async (id) => {
+    if (!confirm('Delete this chore template?')) return;
+
+    try {
+      const res = await fetch(`/api/chore-board?id=${id}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        setTemplates(templates.filter(t => t.id !== id));
+      }
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+    }
+  };
+
+  const addChoreToSchedule = async (template) => {
+    // TODO: Integrate with AI to add chore instance to weekly schedule
+    alert(`Adding "${template.title}" to schedule! (AI integration pending)`);
+  };
+
+  const saveAllSettings = async () => {
+    setSaving(true);
+    // All changes are auto-saved, this is just for UX feedback
+    setTimeout(() => {
+      setSaving(false);
+      alert('All settings saved! ✓');
+    }, 500);
+  };
+
+  if (loading) {
+    return (
+      <div style={{...styles.container, background: theme.body.bg}}>
+        <div style={{...styles.loading, color: theme.card.text}}>Loading chore board...</div>
+      </div>
+    );
+  }
+
   return (
-    <main style={styles.main}>
-      <section style={styles.card}>
-        <h1 style={styles.title}>Add Chore</h1>
-        <p style={styles.subtitle}>Capture chores so your family task plan stays organized.</p>
-        {saved && <p style={styles.success}>✓ Chore saved.</p>}
-        {error && <p style={styles.error}>Please complete all fields.</p>}
+    <div style={{...styles.container, background: theme.body.bg}}>
+      <div style={styles.header}>
+        <div>
+          <h1 style={{...styles.title, color: theme.card.text}}>Chore Board</h1>
+          <p style={{...styles.subtitle, color: theme.card.subtext}}>
+            Configure your household chores, assignments, and schedules
+          </p>
+        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          style={{
+            ...styles.addButton,
+            background: theme.button.primary,
+            color: theme.button.primaryText
+          }}
+        >
+          +
+        </button>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          <label style={styles.label}>Chore</label>
-          <input name="title" style={styles.input} placeholder="Take out trash" />
+      <div style={styles.grid}>
+        {templates.map(template => (
+          <ChoreCard
+            key={template.id}
+            template={template}
+            theme={theme}
+            onAdd={() => addChoreToSchedule(template)}
+            onUpdate={(updates) => updateTemplate(template.id, updates)}
+            onDelete={() => deleteTemplate(template.id)}
+          />
+        ))}
+      </div>
 
-          <label style={styles.label}>Assigned To</label>
-          <input name="assignedTo" style={styles.input} placeholder="Alex" />
+      <button
+        onClick={saveAllSettings}
+        disabled={saving}
+        style={{
+          ...styles.saveButton,
+          background: theme.button.primary,
+          color: theme.button.primaryText
+        }}
+      >
+        {saving ? 'Saving...' : 'Save All Settings'}
+      </button>
 
-          <label style={styles.label}>Due Day</label>
-          <select name="dueDay" style={styles.input} defaultValue="Friday">
-            <option>Monday</option>
-            <option>Tuesday</option>
-            <option>Wednesday</option>
-            <option>Thursday</option>
-            <option>Friday</option>
-            <option>Saturday</option>
-            <option>Sunday</option>
+      {showAddModal && (
+        <AddChoreModal
+          theme={theme}
+          onClose={() => setShowAddModal(false)}
+          onSave={addNewTemplate}
+        />
+      )}
+    </div>
+  );
+}
+
+function ChoreCard({ template, theme, onAdd, onUpdate, onDelete }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const frequencyLabel = template.isRecurring
+    ? `${template.frequencyType.charAt(0) + template.frequencyType.slice(1).toLowerCase()}`
+    : 'One-time';
+
+  const eligibilityLabel = template.eligibilityMode === 'ALL'
+    ? 'All'
+    : template.eligibilityMode === 'SELECTED'
+    ? 'Selected'
+    : 'Role-based';
+
+  return (
+    <div
+      style={{
+        ...styles.card,
+        background: theme.card.bg[0],
+        border: `1px solid ${theme.card.border}`
+      }}
+    >
+      <div style={styles.cardHeader}>
+        <h3 style={{...styles.cardTitle, color: theme.card.text}}>{template.title}</h3>
+        <button
+          onClick={onAdd}
+          style={{
+            ...styles.cardAddButton,
+            background: theme.button.primary,
+            color: theme.button.primaryText
+          }}
+        >
+          +
+        </button>
+      </div>
+
+      <div style={{...styles.cardMeta, color: theme.card.subtext}}>
+        {frequencyLabel} • Eligible: {eligibilityLabel}
+      </div>
+
+      {expanded && (
+        <div style={styles.cardDetails}>
+          <button
+            onClick={() => setExpanded(false)}
+            style={{...styles.editButton, color: theme.card.text}}
+          >
+            ✏️ Edit
+          </button>
+          <button
+            onClick={onDelete}
+            style={{...styles.deleteButton, color: '#ff4444'}}
+          >
+            🗑️ Delete
+          </button>
+        </div>
+      )}
+
+      <button
+        onClick={() => setExpanded(!expanded)}
+        style={{...styles.expandButton, color: theme.card.subtext}}
+      >
+        {expanded ? '▲' : '▼'}
+      </button>
+    </div>
+  );
+}
+
+function AddChoreModal({ theme, onClose, onSave }) {
+  const [formData, setFormData] = useState({
+    templateKey: '',
+    title: '',
+    isRecurring: false,
+    frequencyType: 'ONE_TIME',
+    eligibilityMode: 'ALL',
+    eligibleMemberIds: []
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (!formData.title.trim()) {
+      alert('Please enter a chore title');
+      return;
+    }
+
+    // Generate templateKey from title
+    const templateKey = formData.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+
+    onSave({
+      ...formData,
+      templateKey: templateKey || `chore-${Date.now()}`
+    });
+  };
+
+  return (
+    <div style={styles.modalOverlay} onClick={onClose}>
+      <div
+        style={{
+          ...styles.modal,
+          background: theme.card.bg[0],
+          border: `1px solid ${theme.card.border}`
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 style={{...styles.modalTitle, color: theme.card.text}}>Add New Chore</h2>
+
+        <form onSubmit={handleSubmit} style={styles.form}>
+          <label style={{...styles.label, color: theme.card.text}}>Chore Name</label>
+          <input
+            type="text"
+            value={formData.title}
+            onChange={(e) => setFormData({...formData, title: e.target.value})}
+            style={{
+              ...styles.input,
+              background: theme.input.bg,
+              color: theme.input.text,
+              border: `1px solid ${theme.input.border}`
+            }}
+            placeholder="e.g., Water plants"
+            autoFocus
+          />
+
+          <label style={{...styles.label, color: theme.card.text}}>Frequency</label>
+          <select
+            value={formData.frequencyType}
+            onChange={(e) => setFormData({
+              ...formData,
+              frequencyType: e.target.value,
+              isRecurring: e.target.value !== 'ONE_TIME'
+            })}
+            style={{
+              ...styles.input,
+              background: theme.input.bg,
+              color: theme.input.text,
+              border: `1px solid ${theme.input.border}`
+            }}
+          >
+            <option value="ONE_TIME">One-time</option>
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly</option>
+            <option value="MONTHLY">Monthly</option>
           </select>
 
-          <div style={styles.checkboxContainer}>
-            <input 
-              id="recurringChore"
-              type="checkbox" 
-              checked={isRecurring}
-              onChange={(e) => setIsRecurring(e.target.checked)}
-              style={styles.checkbox}
-            />
-            <label htmlFor="recurringChore" style={styles.checkboxText}>🔄 Recurring Chore</label>
+          <label style={{...styles.label, color: theme.card.text}}>Who can do it?</label>
+          <select
+            value={formData.eligibilityMode}
+            onChange={(e) => setFormData({...formData, eligibilityMode: e.target.value})}
+            style={{
+              ...styles.input,
+              background: theme.input.bg,
+              color: theme.input.text,
+              border: `1px solid ${theme.input.border}`
+            }}
+          >
+            <option value="ALL">Anyone</option>
+            <option value="SELECTED">Selected members</option>
+            <option value="ROLE_BASED">Role-based</option>
+          </select>
+
+          <div style={styles.buttonRow}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                ...styles.cancelButton,
+                background: theme.button.secondary,
+                color: theme.card.text
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              style={{
+                ...styles.submitButton,
+                background: theme.button.primary,
+                color: theme.button.primaryText
+              }}
+            >
+              Add Chore
+            </button>
           </div>
-
-          {isRecurring && (
-            <div style={styles.recurringSection}>
-              <label style={styles.label}>Repeat</label>
-              <select 
-                name="pattern" 
-                value={recurrencePattern}
-                onChange={(e) => setRecurrencePattern(e.target.value)}
-                style={styles.input}
-              >
-                <option value="DAILY">Daily</option>
-                <option value="WEEKLY">Weekly</option>
-                <option value="MONTHLY">Monthly</option>
-                <option value="YEARLY">Yearly</option>
-              </select>
-
-              <label style={styles.label}>Every</label>
-              <input 
-                name="interval" 
-                type="number" 
-                min="1" 
-                defaultValue="1"
-                style={styles.input}
-              />
-              <span style={styles.intervalText}>
-                {recurrencePattern === 'DAILY' && 'day(s)'}
-                {recurrencePattern === 'WEEKLY' && 'week(s)'}
-                {recurrencePattern === 'MONTHLY' && 'month(s)'}
-                {recurrencePattern === 'YEARLY' && 'year(s)'}
-              </span>
-
-              <label style={styles.label}>End Date (Optional)</label>
-              <input 
-                name="endDate" 
-                type="date"
-                style={styles.input}
-              />
-            </div>
-          )}
-
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'Saving...' : 'Save Chore'}
-          </button>
         </form>
-      </section>
-    </main>
+      </div>
+    </div>
   );
 }
 
 const styles = {
-  main: {
+  container: {
     minHeight: '100vh',
-    padding: '5rem 1.5rem 2rem 1.5rem',
-    backgroundColor: '#f4e3bf',
-    backgroundImage:
-      'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.22), transparent 45%)',
-    color: '#3f2d1d'
+    padding: '5rem 1.5rem 2rem 1.5rem'
   },
-  card: {
-    maxWidth: 560,
-    margin: '0 auto',
-    background: '#c9f7a5',
-    borderRadius: 10,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
-    boxShadow: '0 14px 24px rgba(70, 45, 11, 0.2)',
-    padding: '1.2rem'
+  loading: {
+    textAlign: 'center',
+    padding: '3rem',
+    fontSize: '1.1rem'
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '2rem',
+    maxWidth: '1200px',
+    margin: '0 auto 2rem auto'
   },
   title: {
-    marginBottom: '0.35rem'
+    fontSize: '2rem',
+    fontWeight: 700,
+    marginBottom: '0.5rem'
   },
   subtitle: {
-    marginBottom: '1rem'
+    fontSize: '0.95rem',
+    opacity: 0.8
   },
-  success: {
-    marginBottom: '0.8rem',
-    padding: '0.5rem 0.6rem',
-    borderRadius: 6,
-    background: 'rgba(63, 152, 76, 0.15)',
-    border: '1px solid rgba(44, 121, 57, 0.35)',
-    color: '#1f602a'
-  },
-  error: {
-    marginBottom: '0.8rem',
-    padding: '0.5rem 0.6rem',
-    borderRadius: 6,
-    background: 'rgba(186, 62, 62, 0.12)',
-    border: '1px solid rgba(186, 62, 62, 0.35)',
-    color: '#8b1f1f'
-  },
-  label: {
-    fontSize: '0.8rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    marginBottom: '0.28rem',
-    display: 'block',
-    fontWeight: 700
-  },
-  input: {
-    width: '100%',
-    marginBottom: '0.8rem',
-    borderRadius: 6,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
-    padding: '0.55rem',
-    background: 'rgba(255,255,255,0.74)',
-    color: '#3f2d1d'
-  },
-  button: {
-    width: '100%',
-    borderRadius: 9999,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    padding: '0.6rem 0.75rem',
-    background: '#e9ffd7',
-    color: '#2b4d1f',
+  addButton: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    border: 'none',
+    fontSize: '1.5rem',
+    cursor: 'pointer',
     fontWeight: 700,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    transition: 'all 0.2s ease'
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+    gap: '1rem',
+    maxWidth: '1200px',
+    margin: '0 auto 2rem auto'
+  },
+  card: {
+    padding: '1.25rem',
+    borderRadius: '12px',
+    position: 'relative',
+    transition: 'all 0.2s ease',
     cursor: 'pointer'
   },
-  checkboxContainer: {
+  cardHeader: {
     display: 'flex',
-    alignItems: 'center',
-    marginBottom: '0.8rem',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '0.75rem'
+  },
+  cardTitle: {
+    fontSize: '1.1rem',
+    fontWeight: 600,
+    flex: 1,
+    marginRight: '0.5rem'
+  },
+  cardAddButton: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '50%',
+    border: 'none',
+    fontSize: '1.25rem',
+    cursor: 'pointer',
+    fontWeight: 700,
+    flexShrink: 0
+  },
+  cardMeta: {
+    fontSize: '0.85rem',
+    opacity: 0.7
+  },
+  cardDetails: {
+    marginTop: '1rem',
+    paddingTop: '1rem',
+    borderTop: '1px solid rgba(0,0,0,0.1)',
+    display: 'flex',
     gap: '0.5rem'
   },
-  checkbox: {
-    width: '18px',
-    height: '18px',
+  editButton: {
+    padding: '0.5rem 0.75rem',
+    borderRadius: '6px',
+    border: '1px solid rgba(0,0,0,0.1)',
+    background: 'transparent',
+    fontSize: '0.85rem',
+    cursor: 'pointer',
+    flex: 1
+  },
+  deleteButton: {
+    padding: '0.5rem 0.75rem',
+    borderRadius: '6px',
+    border: '1px solid rgba(255,68,68,0.3)',
+    background: 'transparent',
+    fontSize: '0.85rem',
     cursor: 'pointer'
   },
-  checkboxText: {
+  expandButton: {
+    position: 'absolute',
+    bottom: '0.5rem',
+    right: '0.5rem',
+    background: 'transparent',
+    border: 'none',
+    fontSize: '0.75rem',
     cursor: 'pointer',
-    fontSize: '0.95rem'
+    opacity: 0.5
   },
-  recurringSection: {
-    background: 'rgba(255,255,255,0.4)',
-    padding: '0.8rem',
-    borderRadius: 6,
-    marginBottom: '0.8rem',
-    border: '1px dashed rgba(98, 73, 24, 0.2)'
+  saveButton: {
+    display: 'block',
+    width: '100%',
+    maxWidth: '400px',
+    margin: '2rem auto',
+    padding: '1rem',
+    borderRadius: '12px',
+    border: 'none',
+    fontSize: '1rem',
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
   },
-  intervalText: {
+  modalOverlay: {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.5)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 1000
+  },
+  modal: {
+    width: '90%',
+    maxWidth: '500px',
+    borderRadius: '16px',
+    padding: '2rem',
+    boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
+  },
+  modalTitle: {
+    fontSize: '1.5rem',
+    fontWeight: 700,
+    marginBottom: '1.5rem'
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem'
+  },
+  label: {
     fontSize: '0.85rem',
-    color: '#3f2d1d',
-    marginLeft: '0.3rem'
+    fontWeight: 600,
+    marginBottom: '-0.5rem'
+  },
+  input: {
+    padding: '0.75rem',
+    borderRadius: '8px',
+    fontSize: '1rem',
+    outline: 'none'
+  },
+  buttonRow: {
+    display: 'flex',
+    gap: '1rem',
+    marginTop: '1rem'
+  },
+  cancelButton: {
+    flex: 1,
+    padding: '0.75rem',
+    borderRadius: '8px',
+    border: 'none',
+    fontSize: '0.95rem',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
+  submitButton: {
+    flex: 1,
+    padding: '0.75rem',
+    borderRadius: '8px',
+    border: 'none',
+    fontSize: '0.95rem',
+    fontWeight: 700,
+    cursor: 'pointer'
   }
 };
