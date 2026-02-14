@@ -133,9 +133,9 @@ export default function ChoreBoardPage() {
     }
   };
 
-  const addChoreToSchedule = async (template) => {
-    // TODO: Integrate with AI to add chore instance to weekly schedule
-    alert(`Adding "${template.title}" to schedule! (AI integration pending)`);
+  const toggleChoreActive = async (template) => {
+    const newActiveState = !template.isActive;
+    await updateTemplate(template.id, { isActive: newActiveState });
   };
 
   const saveAllSettings = async () => {
@@ -161,7 +161,8 @@ export default function ChoreBoardPage() {
         <div>
           <h1 style={{...styles.title, color: theme.card.text}}>Chore Board</h1>
           <p style={{...styles.subtitle, color: theme.card.subtext}}>
-            Configure your household chores, assignments, and schedules
+            {templates.filter(t => t.isActive).length} active chore{templates.filter(t => t.isActive).length !== 1 ? 's' : ''} •
+            Click + to enable chores for AI assignment
           </p>
         </div>
         <button
@@ -182,7 +183,7 @@ export default function ChoreBoardPage() {
             key={template.id}
             template={template}
             theme={theme}
-            onAdd={() => addChoreToSchedule(template)}
+            onToggle={() => toggleChoreActive(template)}
             onUpdate={(updates) => updateTemplate(template.id, updates)}
             onDelete={() => deleteTemplate(template.id)}
           />
@@ -212,7 +213,7 @@ export default function ChoreBoardPage() {
   );
 }
 
-function ChoreCard({ template, theme, onAdd, onUpdate, onDelete }) {
+function ChoreCard({ template, theme, onToggle, onUpdate, onDelete }) {
   const [expanded, setExpanded] = useState(false);
 
   const frequencyLabel = template.isRecurring
@@ -225,25 +226,32 @@ function ChoreCard({ template, theme, onAdd, onUpdate, onDelete }) {
     ? 'Selected'
     : 'Role-based';
 
+  const isActive = template.isActive;
+
   return (
     <div
       style={{
         ...styles.card,
-        background: theme.card.bg[0],
-        border: `1px solid ${theme.card.border}`
+        background: isActive ? theme.card.bg[2] : theme.card.bg[0],
+        border: `2px solid ${isActive ? theme.button.primary : theme.card.border}`,
+        opacity: isActive ? 1 : 0.6
       }}
     >
       <div style={styles.cardHeader}>
-        <h3 style={{...styles.cardTitle, color: theme.card.text}}>{template.title}</h3>
+        <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1}}>
+          {isActive && <span style={{fontSize: '1.2rem'}}>✓</span>}
+          <h3 style={{...styles.cardTitle, color: theme.card.text, margin: 0}}>{template.title}</h3>
+        </div>
         <button
-          onClick={onAdd}
+          onClick={onToggle}
           style={{
             ...styles.cardAddButton,
-            background: theme.button.primary,
-            color: theme.button.primaryText
+            background: isActive ? theme.toast.success.bg : theme.button.primary,
+            color: isActive ? '#fff' : theme.button.primaryText,
+            border: `2px solid ${isActive ? theme.toast.success.border : 'transparent'}`
           }}
         >
-          +
+          {isActive ? '✓' : '+'}
         </button>
       </div>
 

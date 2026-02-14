@@ -98,6 +98,7 @@ model ChoreBoard {
   familyId                String
   templateKey             String             @unique
   title                   String
+  isActive                Boolean            @default(false)
   isRecurring             Boolean            @default(false)
   frequencyType           FrequencyType?
   customEveryDays         Int?
