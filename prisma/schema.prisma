@@ -17,6 +17,7 @@ model Family {
   chores    Chore[]
   recipes   Recipe[]
   members   FamilyMember[]
+  choreBoards ChoreBoard[]
 
   @@index([createdAt])
 }
@@ -92,9 +93,41 @@ model Recipe {
   @@index([familyId, cookDay])
 }
 
+model ChoreBoard {
+  id                      String             @id @default(cuid())
+  familyId                String
+  templateKey             String             @unique
+  title                   String
+  isRecurring             Boolean            @default(false)
+  frequencyType           FrequencyType?
+  customEveryDays         Int?
+  eligibilityMode         EligibilityMode    @default(ALL)
+  eligibleMemberIds       String[]           @default([])
+  defaultAssigneeMemberId String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  family                  Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, templateKey])
+  @@index([familyId])
+}
+
 enum EventType {
   WORK
   EVENT
+}
+
+enum FrequencyType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum EligibilityMode {
+  ALL
+  SELECTED
+  ROLE_BASED
 }
 
 enum RecurrencePattern {
