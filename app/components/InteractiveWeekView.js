@@ -559,27 +559,26 @@ export default function InteractiveWeekView() {
         </div>
       )}
 
-        {/* Stats Widget - Collapsible */}
-        {statsExpanded && members.length > 0 && !selectedMember && (
-          <div style={{marginTop: '0.5rem'}}>
-            <StatsWidget
-              stats={weeklyStats}
-              isExpanded={true}
-              onToggle={() => setStatsExpanded(false)}
-            />
-          </div>
-        )}
+      {/* Stats Widget - Collapsible */}
+      {statsExpanded && members.length > 0 && !selectedMember && (
+        <div style={{marginTop: '0.5rem'}}>
+          <StatsWidget
+            stats={weeklyStats}
+            isExpanded={true}
+            onToggle={() => setStatsExpanded(false)}
+          />
+        </div>
+      )}
 
-        {/* Filter Bar - Collapsible */}
-        {filtersExpanded && (
-          <div style={{marginTop: '0.5rem'}}>
-            <FilterBar
-              onFilterChange={setFilters}
-              initialFilters={filters}
-            />
-          </div>
-        )}
-      </div>
+      {/* Filter Bar - Collapsible */}
+      {filtersExpanded && (
+        <div style={{marginTop: '0.5rem'}}>
+          <FilterBar
+            onFilterChange={setFilters}
+            initialFilters={filters}
+          />
+        </div>
+      )}
 
       {loading ? (
         <div style={{...styles.loading, color: theme.loading.text}}>Loading...</div>
