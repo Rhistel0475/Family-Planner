@@ -1,193 +1,167 @@
-# Family-Planner
+# Family Planner 🏠
 
-A starter **smart family planner** project using **Next.js** that is ready to deploy on **Vercel**.
+A comprehensive **smart family organization platform** built with Next.js, designed to help families coordinate schedules, manage chores, and plan together efficiently.
 
-## Quick start
+🔗 **Live Demo:** [family-planner-omega.vercel.app](https://family-planner-omega.vercel.app)
 
+## ✨ Features
+
+- 📅 **Shared Calendar** - Coordinate family events with recurring event support
+- 🧹 **Chore Board** - Assign, track, and complete household tasks with drag-and-drop interface
+- 📝 **Template Library** - Pre-built chore templates for common household tasks
+- 🤖 **AI-Powered Suggestions** - Smart scheduling and task recommendations
+- 👥 **Multi-User Support** - Separate profiles for each family member
+- ⏰ **Recurring Events** - Set up repeating tasks and events automatically
+- 📊 **Progress Tracking** - Monitor task completion and working hours
+
+## 🚀 Tech Stack
+
+- **Framework:** Next.js 14 (App Router)
+- **Database:** Prisma ORM with PostgreSQL
+- **AI Integration:** Anthropic Claude API
+- **UI Features:** Drag-and-drop with @dnd-kit
+- **Validation:** Zod schema validation
+- **Deployment:** Vercel
+- **Styling:** Modern CSS with responsive design
+
+## 🏁 Quick Start
+
+### Prerequisites
+- Node.js 20.x
+- npm or yarn
+- PostgreSQL database (or use Vercel Postgres)
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/Rhistel0475/Family-Planner.git
+cd Family-Planner
+```
+
+2. Install dependencies:
 ```bash
 npm install
+```
+
+3. Set up environment variables:
+```bash
+cp .env.example .env
+```
+Edit `.env` and add your database URL and API keys.
+
+4. Run database migrations:
+```bash
+npx prisma migrate dev
+```
+
+5. Seed the database with templates (optional):
+```bash
+node seed-templates.js
+```
+
+6. Start the development server:
+```bash
 npm run dev
 ```
 
-Open `http://localhost:3000`.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Common Ubuntu Git setup fixes
+## 📁 Project Structure
 
-If you see:
-- `fatal: not a git repository (or any of the parent directories): .git`
-- `cd: ~/Family-Planner: No such file or directory`
-
-you are likely not in the correct project folder yet.
-
-### 1) Find the repository folder
-```bash
-find ~ -maxdepth 3 -type d -name "Family-Planner" 2>/dev/null
+```
+Family-Planner/
+├── app/              # Next.js app router pages and layouts
+├── lib/              # Utility functions and shared code
+├── prisma/           # Database schema and migrations
+├── migrations/       # SQL migration files
+└── docs/            # Additional documentation (see below)
 ```
 
-### 2) Change into the real path returned above
+## 📚 Documentation
+
+Detailed guides are available in the repository:
+
+- [Quick Reference Guide](QUICK_REFERENCE.md) - Common tasks and commands
+- [Chore Board Setup](CHORE_BOARD_SETUP.md) - Configuring the chore system
+- [Recurring Events Setup](RECURRING_EVENTS_SETUP.md) - Setting up recurring tasks
+- [Template Library](CHORE_TEMPLATE_LIBRARY.md) - Pre-built chore templates
+- [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) - Production deployment guide
+- [Implementation Summary](IMPLEMENTATION_SUMMARY.md) - Technical implementation details
+- [Troubleshooting](TROUBLESHOOTING.md) - Common issues and solutions
+
+## 🚢 Deployment
+
+### Deploy to Vercel (Recommended)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Rhistel0475/Family-Planner)
+
+Or manually:
+
+1. Push this repository to GitHub
+2. Import the project in [Vercel](https://vercel.com)
+3. Add environment variables in Vercel settings
+4. Deploy
+
+### Environment Variables
+
+Create a `.env` file with the following:
+
+```env
+DATABASE_URL="postgresql://..."
+ANTHROPIC_API_KEY="sk-ant-..."
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
+```
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is private and not currently licensed for public use.
+
+## 🔧 Development Scripts
+
 ```bash
+npm run dev      # Start development server
+npm run build    # Build for production
+npm run start    # Start production server
+```
+
+## 📞 Support
+
+For issues and questions, please [open an issue](https://github.com/Rhistel0475/Family-Planner/issues) on GitHub.
+
+---
+
+## 🛠️ Troubleshooting
+
+### Common Git Setup Issues
+
+If you encounter Git or GitHub authentication errors, see our detailed [Troubleshooting Guide](TROUBLESHOOTING.md) for solutions to:
+- Git repository setup errors
+- GitHub authentication with PAT or SSH
+- Vercel deployment issues
+- Pull request creation
+
+### Quick Fixes
+
+**Not in Git repository?**
+```bash
+find ~ -maxdepth 3 -type d -name "Family-Planner" 2>/dev/null
 cd /path/from/find
 ```
 
-### 3) Confirm you're inside a Git repository
-```bash
-git rev-parse --is-inside-work-tree
-```
-
-### 4) Configure and verify Git remote
-```bash
-git remote set-url origin https://github.com/Rhistel0475/Family-Planner.git
-git remote -v
-```
-
-### 5) Push your active branch (replace with real branch name)
-```bash
-git branch --show-current
-git push -u origin main
-```
-
-> Note: Do not type placeholders like `<your-branch>` literally in shell commands.
-
-
-## GitHub authentication error (`Invalid username or token`)
-
-GitHub no longer supports account passwords for Git over HTTPS.
-Use either a **Personal Access Token (PAT)** or **SSH keys**.
-
-### Option A: HTTPS with PAT
-1. Create a token in GitHub: **Settings → Developer settings → Personal access tokens**.
-2. Give it repo access (`repo` scope for classic tokens).
-3. Retry clone and use:
-   - **Username**: your GitHub username (not email)
-   - **Password**: your PAT token
-
-```bash
-git clone https://github.com/Rhistel0475/Family-Planner.git
-```
-
-To avoid typing credentials repeatedly on Ubuntu:
-```bash
-git config --global credential.helper store
-```
-
-### Option B: SSH (recommended long-term)
-```bash
-ssh-keygen -t ed25519 -C "your_email@example.com"
-cat ~/.ssh/id_ed25519.pub
-```
-
-Add the printed key to GitHub: **Settings → SSH and GPG keys → New SSH key**, then test:
-```bash
-ssh -T git@github.com
-git clone git@github.com:Rhistel0475/Family-Planner.git
-```
-
-### Why `cd Family-Planner` failed after clone
-If authentication fails, cloning never completes, so the `Family-Planner` folder is not created.
-
-
-## Fixing Vercel error: `Could not read package.json`
-
-If Vercel shows:
-
-```
-Expected ',' or '}' after property value in JSON
-```
-
-it means the deployed commit contains invalid JSON in `package.json`.
-
-Use these checks locally before pushing:
-
+**Vercel build failing?**
 ```bash
 node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('package.json is valid')"
-python -m json.tool package.json >/dev/null && echo "json syntax ok"
 ```
 
-Then commit and redeploy the branch. If Vercel still shows the old failure, trigger a new deployment from the latest commit and disable stale cache for that deploy.
-
-Also verify the file uses plain JSON syntax only (double quotes, no trailing commas, no comments, no smart quotes).
-
-Quick sanity check: if Vercel reports an error position larger than your local file size, it is deploying an older commit. Compare with:
-
-```bash
-wc -c package.json
-git rev-parse --short HEAD
-```
-
-Then redeploy the latest commit/branch in Vercel.
-
-
-
-### If the same Vercel parse error repeats
-
-This usually means Vercel is building an older commit than the one you fixed.
-
-1. In Vercel → Project → **Deployments**, open the failed build.
-2. Confirm the commit SHA in the log matches your latest GitHub commit.
-3. If it does not match, go to **Settings → Git** and verify the correct repository and production branch.
-4. Trigger a fresh deploy from the newest commit and disable cache for that run.
-
-Local checks before re-deploy:
-
-```bash
-git rev-parse --short HEAD
-wc -c package.json
-node -e "JSON.parse(require('fs').readFileSync('package.json','utf8')); console.log('package.json is valid')"
-```
-
-If the Vercel log shows an error position larger than your current `package.json` byte count, it is definitively deploying stale source.
-
-## Creating a real GitHub Pull Request (not just local commits)
-
-If you already committed locally but do not see a PR on GitHub, do this from inside your repo:
-
-```bash
-git remote -v
-git branch --show-current
-git push -u origin <your-branch-name>
-```
-
-Then open a PR using one of these options:
-
-```bash
-gh pr create --fill
-```
-
-or in GitHub web UI: open your repo and click **Compare & pull request**.
-
-If `git remote -v` shows nothing, add the remote first:
-
-```bash
-git remote add origin https://github.com/Rhistel0475/Family-Planner.git
-```
-
-## Deploy to Vercel
-
-### Option A: Vercel dashboard (recommended)
-1. Push this repository to GitHub/GitLab/Bitbucket.
-2. In Vercel, click **Add New... → Project**.
-3. Import this repository.
-4. Keep the detected framework as **Next.js**.
-5. Click **Deploy**.
-
-### Option B: Vercel CLI
-```bash
-npm install -g vercel
-vercel
-```
-
-For production deployment:
-```bash
-vercel --prod
-```
-
-## Included setup
-- Next.js app router scaffold (`app/`)
-- `vercel.json` configured for Next.js framework and region selection
-- `npm` scripts for local development and production build
-
-## Recommended next features
-- Shared calendar events with recurrence
-- Chore assignment and completion tracking
-- Meal planning and grocery list generation
-- Smart scheduling suggestions
+For detailed troubleshooting steps, please refer to the [full troubleshooting guide](TROUBLESHOOTING.md).
