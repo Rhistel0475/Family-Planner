@@ -118,6 +118,7 @@ enum EventType {
 }
 
 enum FrequencyType {
+  ONE_TIME
   DAILY
   WEEKLY
   MONTHLY
