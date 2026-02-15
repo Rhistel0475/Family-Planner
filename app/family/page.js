@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
-import Toast from '../components/Toast';
 import QuickAddButton from '../components/QuickAddButton';
+
+// Phase 1 imports - Make sure these files exist in app/components/
+import { MemberCardSkeleton } from '../components/LoadingSkeleton';
+import { useSaveStatus, InlineSaveIndicator } from '../components/SaveIndicator';
+import { useToastQueue, ToastContainer } from '../components/EnhancedToast';
 
 const PRESET_COLORS = [
   { name: 'Blue', value: '#3b82f6' },
@@ -21,10 +25,13 @@ const AVATAR_EMOJIS = ['👨', '👩', '👦', '👧', '🧑', '👴', '👵', '
 export default function FamilyPage() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingMember, setEditingMember] = useState(null);
   const [formData, setFormData] = useState({ name: '', color: PRESET_COLORS[0].value, avatar: AVATAR_EMOJIS[0] });
+
+  // Phase 1: Enhanced state management
+  const { status: saveStatus, save } = useSaveStatus();
+  const { toasts, success, error, removeToast } = useToastQueue();
 
   useEffect(() => {
     let mounted = true;
@@ -46,10 +53,11 @@ export default function FamilyPage() {
         if (mounted) {
           setMembers(Array.isArray(data.members) ? data.members : []);
         }
-      } catch (error) {
-        console.error('Fetch failed:', error);
+      } catch (err) {
+        console.error('Fetch failed:', err);
         if (mounted) {
           setMembers([]);
+          error('Failed to load family members');
         }
       } finally {
         if (mounted) {
@@ -73,15 +81,11 @@ export default function FamilyPage() {
         const data = await res.json();
         setMembers(data.members || []);
       }
-    } catch (error) {
-      showToast('Failed to load family members', 'error');
+    } catch (err) {
+      error('Failed to load family members');
     } finally {
       setLoading(false);
     }
-  };
-
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
   };
 
   const openAddModal = () => {
@@ -100,54 +104,85 @@ export default function FamilyPage() {
     setModalOpen(true);
   };
 
+  // Phase 1: Enhanced submit with save indicator
   const handleSubmit = async () => {
     if (!formData.name.trim()) {
-      showToast('Please enter a name', 'error');
+      error('Please enter a name');
       return;
     }
 
     try {
-      const url = editingMember ? '/api/family-members' : '/api/family-members';
-      const method = editingMember ? 'PATCH' : 'POST';
-      const payload = editingMember ? { id: editingMember.id, ...formData } : formData;
+      await save(async () => {
+        const url = '/api/family-members';
+        const method = editingMember ? 'PATCH' : 'POST';
+        const payload = editingMember ? { id: editingMember.id, ...formData } : formData;
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Failed to save member');
+        }
+
+        await fetchMembers();
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        const errorMsg = data.error || 'Failed to save member';
-        throw new Error(errorMsg);
-      }
-
-      showToast(editingMember ? 'Member updated!' : 'Member added!');
+      // Success - show toast and close modal
+      success(editingMember ? 'Member updated!' : 'Member added!');
       setModalOpen(false);
-      fetchMembers();
-    } catch (error) {
-      showToast(error.message || 'Failed to save member', 'error');
+    } catch (err) {
+      error(err.message || 'Failed to save member');
     }
   };
 
-  const handleDelete = async (memberId) => {
-    if (!confirm('Delete this family member? This cannot be undone.')) return;
+  // Phase 1: Delete with undo functionality
+  const handleDelete = async (member) => {
+    if (!confirm(`Delete ${member.name}? You can undo within 5 seconds.`)) return;
+
+    // Capture member data NOW (before delete) in a local variable
+    const memberToRestore = {
+      name: member.name,
+      color: member.color,
+      avatar: member.avatar
+    };
 
     try {
-      const res = await fetch(`/api/family-members?id=${memberId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/family-members?id=${member.id}`, { method: 'DELETE' });
       const data = await res.json();
       
       if (!res.ok) {
-        const errorMsg = data.error || 'Failed to delete member';
-        throw new Error(errorMsg);
+        throw new Error(data.error || 'Failed to delete member');
       }
 
-      showToast('Member deleted');
+      // Show success with undo option
+      success(`Deleted ${member.name}`, {
+        onUndo: async () => {
+          const restoreRes = await fetch('/api/family-members', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(memberToRestore) // Use local variable
+          });
+          
+          if (restoreRes.ok) {
+            fetchMembers();
+            success(`Restored ${member.name}`);
+          } else {
+            const errorData = await restoreRes.json();
+            console.error('Restore error:', errorData);
+            error('Failed to restore member');
+          }
+        },
+        duration: 5000
+      });
+
       fetchMembers();
-    } catch (error) {
-      showToast(error.message || 'Failed to delete member', 'error');
+    } catch (err) {
+      error(err.message || 'Failed to delete member');
     }
   };
 
@@ -168,8 +203,14 @@ export default function FamilyPage() {
         </div>
       </section>
 
-      {loading && members.length === 0 ? (
-        <div style={styles.loading}>Loading family members...</div>
+      {/* Phase 1: Loading skeletons instead of text */}
+      {loading ? (
+        <section style={styles.grid}>
+          <MemberCardSkeleton />
+          <MemberCardSkeleton />
+          <MemberCardSkeleton />
+          <MemberCardSkeleton />
+        </section>
       ) : members.length === 0 ? (
         <section style={styles.emptyState}>
           <p style={styles.emptyIcon}>👥</p>
@@ -210,7 +251,7 @@ export default function FamilyPage() {
                   Edit
                 </button>
                 <button
-                  onClick={() => handleDelete(member.id)}
+                  onClick={() => handleDelete(member)}
                   style={styles.deleteBtn}
                 >
                   Delete
@@ -271,21 +312,21 @@ export default function FamilyPage() {
               ))}
             </div>
 
+            {/* Phase 1: Button with save indicator */}
             <button onClick={handleSubmit} style={styles.modalButton}>
               {editingMember ? 'Update Member' : 'Add Member'}
+              <InlineSaveIndicator status={saveStatus} />
             </button>
           </div>
         </Modal>
       )}
 
-      {/* Toast */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
-        />
-      )}
+      {/* Phase 1: Enhanced toast with undo */}
+      <ToastContainer 
+        toasts={toasts} 
+        onRemove={removeToast} 
+        position="bottom-right" 
+      />
     </main>
   );
 }
@@ -325,12 +366,6 @@ const styles = {
     marginTop: '1.5rem',
     display: 'flex',
     justifyContent: 'center'
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '3rem',
-    fontSize: '1.2rem',
-    color: '#5b4228'
   },
   emptyState: {
     maxWidth: 500,
@@ -494,6 +529,11 @@ const styles = {
     fontWeight: 700,
     cursor: 'pointer',
     fontSize: '0.95rem',
-    marginTop: '0.5rem'
+    marginTop: '0.5rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '0.5rem'
   }
 };
+ 

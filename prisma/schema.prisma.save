@@ -1,7 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-}
-
 datasource db {
   provider = "postgresql"
   url       = env("DATABASE_URL")
@@ -26,17 +24,14 @@ model FamilyMember {
   id           String   @id @default(cuid())
   familyId     String
   name         String
-  role         String?  @default("member")
-  workingHours String?
-  color        String?  @default("#3b82f6")
-  avatar       String?  @default("👤")
+  role         String?  @default("member") // member, parent, kid
+  workingHours String?  // e.g., "9-5", "8-4", or "Not working"
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
 }
-
 
 model Event {
   id                String             @id @default(cuid())

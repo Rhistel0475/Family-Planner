@@ -18,64 +18,48 @@ export async function GET(request) {
     let boardSettings = [];
     
     try {
-      // Try to fetch existing board settings sequentially with timeout to avoid hanging
+      // Fetch ALL ChoreBoard entries for this family (predefined + custom)
+      const allSettings = await prisma.choreBoard.findMany({
+        where: { familyId: family.id },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      // Create a Set of existing template keys
+      const existingKeys = new Set(allSettings.map(s => s.templateKey));
+
+      // Auto-create missing predefined chores
       for (const chore of PREDEFINED_CHORES) {
-        try {
-          let setting = await prisma.choreBoard.findUnique({
-            where: {
-              familyId_templateKey: {
-                familyId: family.id,
-                templateKey: chore.templateKey
-              }
-            }
-          });
-
-          // Auto-create default setting if missing
-          if (!setting) {
-            setting = await prisma.choreBoard.create({
-              data: {
-                familyId: family.id,
-                templateKey: chore.templateKey,
-                title: chore.title,
-                isRecurring: false,
-                frequencyType: 'ONE_TIME',
-                eligibilityMode: 'ALL',
-                eligibleMemberIds: [],
-                defaultAssigneeMemberId: null
-              }
-            });
-          }
-
-          boardSettings.push({
-            ...setting,
-            defaultAssigneeLabel: members.find(m => m.id === setting.defaultAssigneeMemberId)?.name || null,
-            eligibleMemberLabels: (setting.eligibleMemberIds || []).map(id => members.find(m => m.id === id)?.name || id)
-          });
-        } catch (choreError) {
-          // If this specific chore fails, add the default
-          if (choreError.code === 'P2021' || choreError.message?.includes('does not exist')) {
-            boardSettings.push({
-              id: `temp-${chore.templateKey}`,
+        if (!existingKeys.has(chore.templateKey)) {
+          const newSetting = await prisma.choreBoard.create({
+            data: {
               familyId: family.id,
               templateKey: chore.templateKey,
               title: chore.title,
               isRecurring: false,
               frequencyType: 'ONE_TIME',
-              customEveryDays: null,
               eligibilityMode: 'ALL',
               eligibleMemberIds: [],
-              defaultAssigneeMemberId: null,
-              defaultAssigneeLabel: null,
-              eligibleMemberLabels: [],
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              _tableNotCreated: true
-            });
-          } else {
-            throw choreError;
-          }
+              defaultAssigneeMemberId: null
+            }
+          });
+          allSettings.push(newSetting);
         }
       }
+
+      // Enrich all settings with member labels
+      boardSettings = allSettings.map(setting => ({
+        ...setting,
+        defaultAssigneeLabel: members.find(m => m.id === setting.defaultAssigneeMemberId)?.name || null,
+        eligibleMemberLabels: (setting.eligibleMemberIds || []).map(id => members.find(m => m.id === id)?.name || id)
+      }));
+
+      console.log(`📊 ChoreBoard GET: Returning ${boardSettings.length} total settings`);
+      console.log(`📊 Predefined: ${boardSettings.filter(s => !s.templateKey.startsWith('custom_')).length}`);
+      console.log(`📊 Custom: ${boardSettings.filter(s => s.templateKey.startsWith('custom_')).length}`);
+      if (boardSettings.filter(s => s.templateKey.startsWith('custom_')).length > 0) {
+        console.log('📊 Custom chores:', boardSettings.filter(s => s.templateKey.startsWith('custom_')).map(s => s.title));
+      }
+
     } catch (dbError) {
       // If all queries fail (table doesn't exist), return all defaults
       if (dbError.code === 'P2021' || dbError.message?.includes('does not exist')) {
@@ -119,6 +103,8 @@ export async function PATCH(request) {
   try {
     const body = await request.json();
     const { settings } = body;
+
+    console.log('📝 ChoreBoard PATCH: Received', settings?.length, 'settings to update');
 
     if (!Array.isArray(settings)) {
       return NextResponse.json(
@@ -194,6 +180,13 @@ export async function PATCH(request) {
         })
       )
     );
+
+    console.log('📝 ChoreBoard PATCH: Successfully upserted', updated.length, 'entries');
+    updated.forEach(u => {
+      if (u.templateKey.startsWith('custom_')) {
+        console.log(`📝 Created/Updated custom chore: ${u.title} (${u.templateKey})`);
+      }
+    });
 
     return NextResponse.json({
       success: true,

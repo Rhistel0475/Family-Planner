@@ -13,6 +13,7 @@ export default function ChoresPage() {
   const [message, setMessage] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
+  const [setDueDayChecked, setSetDueDayChecked] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -40,6 +41,11 @@ export default function ChoresPage() {
       const res = await fetch('/api/chore-board');
       const data = await res.json();
       if (data.error && !data.settings) throw new Error(data.error);
+      
+      console.log('🟢 Fetched board settings:', data.settings?.length, 'total');
+      const customCount = data.settings?.filter(s => s.templateKey.startsWith('custom_')).length || 0;
+      console.log('🟢 Custom chores:', customCount);
+      
       setSettings(data.settings || []);
       setMembers(data.members || []);
     } catch (error) {
@@ -141,8 +147,9 @@ export default function ChoresPage() {
     try {
       const formData = new FormData(e.target);
       const title = formData.get('title')?.trim();
-      const assignedTo = formData.get('assignedTo') || '';
-      const dueDay = formData.get('dueDay');
+      const assignedMemberId = formData.get('assignedTo') || null;
+      const setDueDay = formData.get('setDueDay') === 'on';
+      const dueDay = setDueDay ? formData.get('dueDay') : null;
 
       if (!title) {
         setMessage({ type: 'error', text: 'Please enter a chore title' });
@@ -150,33 +157,52 @@ export default function ChoresPage() {
         return;
       }
 
-      const res = await fetch('/api/chores', {
-        method: 'POST',
+      // Generate a unique template key from the title
+      const templateKey = 'custom_' + title.toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        + '_' + Date.now();
+
+      console.log('🔵 Adding custom chore:', title);
+      console.log('🔵 Generated templateKey:', templateKey);
+      console.log('🔵 Set Due Day:', setDueDay, '- Due Day:', dueDay);
+
+      // Create the ChoreBoard entry (configuration only - AI will create instances later)
+      const boardRes = await fetch('/api/chore-board', {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title,
-          assignedTo,
-          dueDay,
-          isRecurring: false
+          settings: [{
+            templateKey: templateKey,
+            title: title,
+            isRecurring: false,
+            frequencyType: 'ONE_TIME',
+            customEveryDays: null,
+            eligibilityMode: 'ALL',
+            eligibleMemberIds: [],
+            defaultAssigneeMemberId: assignedMemberId
+          }]
         })
       });
 
-      const data = await res.json();
+      const boardData = await boardRes.json();
+      console.log('🔵 ChoreBoard API response:', boardData);
 
-      if (!res.ok) {
-        const errorMsg = data.error || data.message || 'Failed to save chore';
+      if (!boardRes.ok) {
+        const errorMsg = boardData.error || 'Failed to add chore to board';
         throw new Error(errorMsg);
       }
 
-      setMessage({ type: 'success', text: '✓ Chore added' });
+      setMessage({ type: 'success', text: '✓ Chore added to board. Use "Smart Chore Assignment" to schedule it.' });
       setShowAddModal(false);
+      setSetDueDayChecked(false);
       e.target.reset();
 
       // Refresh the board to show the new chore
       setTimeout(() => {
         fetchBoardSettings();
         setMessage(null);
-      }, 500);
+      }, 1500);
     } catch (error) {
       console.error('Add chore error:', error);
       setMessage({ type: 'error', text: error.message || 'Failed to save chore' });
@@ -238,13 +264,19 @@ export default function ChoresPage() {
       </div>
 
       {showAddModal && (
-        <div className={styles.modalOverlay} onClick={() => setShowAddModal(false)}>
+        <div className={styles.modalOverlay} onClick={() => {
+          setShowAddModal(false);
+          setSetDueDayChecked(false);
+        }}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <h2>Add a Manual Chore</h2>
               <button
                 className={styles.closeButton}
-                onClick={() => setShowAddModal(false)}
+                onClick={() => {
+                  setShowAddModal(false);
+                  setSetDueDayChecked(false);
+                }}
               >
                 ✕
               </button>
@@ -267,29 +299,48 @@ export default function ChoresPage() {
                 <select name="assignedTo" defaultValue="">
                   <option value="">— Available to all members</option>
                   {members.map(m => (
-                    <option key={m.id} value={m.name}>{m.name}</option>
+                    <option key={m.id} value={m.id}>{m.name}</option>
                   ))}
                 </select>
+                <small>Leave blank to let AI assign</small>
               </div>
 
               <div className={styles.formGroup}>
-                <label>Due Day</label>
-                <select name="dueDay" defaultValue="Friday">
-                  <option>Monday</option>
-                  <option>Tuesday</option>
-                  <option>Wednesday</option>
-                  <option>Thursday</option>
-                  <option>Friday</option>
-                  <option>Saturday</option>
-                  <option>Sunday</option>
-                </select>
+                <label className={styles.checkboxLabel}>
+                  <input
+                    type="checkbox"
+                    name="setDueDay"
+                    checked={setDueDayChecked}
+                    onChange={(e) => setSetDueDayChecked(e.target.checked)}
+                  />
+                  Set Due Day
+                </label>
+                <small>If unchecked, AI will assign the due day when you click "Smart Chore Assignment"</small>
               </div>
+
+              {setDueDayChecked && (
+                <div className={styles.formGroup}>
+                  <label>Due Day</label>
+                  <select name="dueDay" defaultValue="Friday">
+                    <option>Monday</option>
+                    <option>Tuesday</option>
+                    <option>Wednesday</option>
+                    <option>Thursday</option>
+                    <option>Friday</option>
+                    <option>Saturday</option>
+                    <option>Sunday</option>
+                  </select>
+                </div>
+              )}
 
               <div className={styles.modalActions}>
                 <button
                   type="button"
                   className={styles.cancelButton}
-                  onClick={() => setShowAddModal(false)}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setSetDueDayChecked(false);
+                  }}
                 >
                   Cancel
                 </button>

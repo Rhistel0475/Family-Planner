@@ -1,117 +1,202 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
-import { initializeSystemTemplates, getTemplates } from '../../../lib/choreTemplates';
-import { z } from 'zod';
+import { PREDEFINED_CHORES } from '../../../lib/boardChores';
 
-const templateSchema = z.object({
-  name: z.string().min(1, 'Name is required').max(200, 'Name too long'),
-  description: z.string().max(500).nullable().optional()
-});
-
-export async function GET(req) {
+export async function GET(request) {
   try {
     const family = await getOrCreateDefaultFamily();
-    
-    // Initialize system templates on first call
-    try {
-      await initializeSystemTemplates(prisma);
-    } catch (initError) {
-      console.error('Failed to initialize templates:', initError);
-      // Continue - return in-memory templates as fallback
-    }
 
-    // Get all templates (system + family custom)
-    let templates = [];
+    // Fetch family members (required for enriching the data)
+    const members = await prisma.familyMember.findMany({
+      where: { familyId: family.id },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    // Try to fetch board settings from the database
+    // If the ChoreBoard table doesn't exist, return predefined defaults
+    let boardSettings = [];
+    
     try {
-      templates = await getTemplates(prisma, family.id);
-    } catch (getError) {
-      console.error('Failed to get templates from DB:', getError);
-      // Return in-memory system templates as fallback
-      templates = [
-        { id: 'system-1', name: 'Clean Bedroom', description: 'Tidy and vacuum bedroom', isSystem: true, familyId: null },
-        { id: 'system-2', name: 'Clean Kitchen', description: 'Wipe counters, clean sink, sweep floor', isSystem: true, familyId: null },
-        { id: 'system-3', name: 'Clean Living Room', description: 'Dust furniture, pick up items, vacuum', isSystem: true, familyId: null },
-        { id: 'system-4', name: 'Take Out Trash', description: 'Empty trash cans and take to curb', isSystem: true, familyId: null },
-        { id: 'system-5', name: 'Wash Dishes', description: 'Wash or load dishes into dishwasher', isSystem: true, familyId: null },
-        { id: 'system-6', name: 'Do Laundry', description: 'Wash, dry, and fold laundry', isSystem: true, familyId: null },
-        { id: 'system-7', name: 'Vacuum Floors', description: 'Vacuum all carpeted areas', isSystem: true, familyId: null },
-        { id: 'system-8', name: 'Clean Bathroom', description: 'Clean toilet, sink, and shower', isSystem: true, familyId: null },
-        { id: 'system-9', name: 'Mop Floors', description: 'Mop kitchen and bathroom floors', isSystem: true, familyId: null },
-        { id: 'system-10', name: 'Grocery Shopping', description: 'Shop for weekly groceries', isSystem: true, familyId: null },
-        { id: 'system-11', name: 'Yard Work', description: 'Mow lawn and trim edges', isSystem: true, familyId: null },
-        { id: 'system-12', name: 'Organize Closet', description: 'Sort and organize closet', isSystem: true, familyId: null }
-      ];
+      // Fetch ALL ChoreBoard entries for this family (predefined + custom)
+      const allSettings = await prisma.choreBoard.findMany({
+        where: { familyId: family.id },
+        orderBy: { createdAt: 'asc' }
+      });
+
+      // Create a Set of existing template keys
+      const existingKeys = new Set(allSettings.map(s => s.templateKey));
+
+      // Auto-create missing predefined chores
+      for (const chore of PREDEFINED_CHORES) {
+        if (!existingKeys.has(chore.templateKey)) {
+          const newSetting = await prisma.choreBoard.create({
+            data: {
+              familyId: family.id,
+              templateKey: chore.templateKey,
+              title: chore.title,
+              isRecurring: false,
+              frequencyType: 'ONE_TIME',
+              eligibilityMode: 'ALL',
+              eligibleMemberIds: [],
+              defaultAssigneeMemberId: null
+            }
+          });
+          allSettings.push(newSetting);
+        }
+      }
+
+      // Enrich all settings with member labels
+      boardSettings = allSettings.map(setting => ({
+        ...setting,
+        defaultAssigneeLabel: members.find(m => m.id === setting.defaultAssigneeMemberId)?.name || null,
+        eligibleMemberLabels: (setting.eligibleMemberIds || []).map(id => members.find(m => m.id === id)?.name || id)
+      }));
+
+      console.log(`📊 ChoreBoard GET: Returning ${boardSettings.length} total settings`);
+      console.log(`📊 Predefined: ${boardSettings.filter(s => !s.templateKey.startsWith('custom_')).length}`);
+      console.log(`📊 Custom: ${boardSettings.filter(s => s.templateKey.startsWith('custom_')).length}`);
+      if (boardSettings.filter(s => s.templateKey.startsWith('custom_')).length > 0) {
+        console.log('📊 Custom chores:', boardSettings.filter(s => s.templateKey.startsWith('custom_')).map(s => s.title));
+      }
+
+    } catch (dbError) {
+      // If all queries fail (table doesn't exist), return all defaults
+      if (dbError.code === 'P2021' || dbError.message?.includes('does not exist')) {
+        boardSettings = PREDEFINED_CHORES.map(chore => ({
+          id: `temp-${chore.templateKey}`,
+          familyId: family.id,
+          templateKey: chore.templateKey,
+          title: chore.title,
+          isRecurring: false,
+          frequencyType: 'ONE_TIME',
+          customEveryDays: null,
+          eligibilityMode: 'ALL',
+          eligibleMemberIds: [],
+          defaultAssigneeMemberId: null,
+          defaultAssigneeLabel: null,
+          eligibleMemberLabels: [],
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          _tableNotCreated: true
+        }));
+      } else {
+        throw dbError;
+      }
     }
 
     return NextResponse.json({
-      success: true,
-      templates
+      settings: boardSettings,
+      members,
+      family: { id: family.id, name: family.name }
     });
   } catch (error) {
-    console.error('Failed to fetch templates:', error);
+    console.error('Chore Board GET error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to fetch templates' },
+      { error: 'Failed to fetch chore board settings', details: error.message },
       { status: 500 }
     );
   }
 }
 
-export async function POST(req) {
+export async function PATCH(request) {
   try {
-    const family = await getOrCreateDefaultFamily();
-    const body = await req.json();
+    const body = await request.json();
+    const { settings } = body;
 
-    // Validate input
-    const validation = templateSchema.safeParse(body);
-    if (!validation.success) {
-      const errors = validation.error.errors.map(e => ({
-        field: e.path.join('.'),
-        message: e.message
-      }));
+    console.log('📝 ChoreBoard PATCH: Received', settings?.length, 'settings to update');
+
+    if (!Array.isArray(settings)) {
       return NextResponse.json(
-        { errors, error: 'Validation failed' },
+        { error: 'Settings must be an array' },
         { status: 400 }
       );
     }
 
-    const { name, description } = validation.data;
+    const family = await getOrCreateDefaultFamily();
 
-    // Check for duplicate names (system or family custom)
-    const existing = await prisma.choreTemplate.findFirst({
-      where: {
-        name: name,
-        OR: [
-          { isSystem: true },
-          { familyId: family.id }
-        ]
+    // Validate each setting
+    for (const setting of settings) {
+      const { templateKey, isRecurring, frequencyType, customEveryDays, eligibilityMode, eligibleMemberIds, defaultAssigneeMemberId } = setting;
+
+      if (!templateKey) {
+        return NextResponse.json(
+          { error: 'Template key is required' },
+          { status: 400 }
+        );
       }
-    });
 
-    if (existing) {
-      return NextResponse.json(
-        { error: 'Template with this name already exists' },
-        { status: 409 }
-      );
+      if (!isRecurring && frequencyType !== 'ONE_TIME') {
+        return NextResponse.json(
+          { error: `Cannot set frequency ${frequencyType} when recurring is off` },
+          { status: 400 }
+        );
+      }
+
+      if (frequencyType === 'CUSTOM' && (!customEveryDays || customEveryDays < 1)) {
+        return NextResponse.json(
+          { error: `Custom frequency requires customEveryDays >= 1` },
+          { status: 400 }
+        );
+      }
+
+      if (eligibilityMode === 'SELECTED' && (!eligibleMemberIds || eligibleMemberIds.length === 0)) {
+        return NextResponse.json(
+          { error: `SELECTED eligibility mode requires at least 1 member` },
+          { status: 400 }
+        );
+      }
     }
 
-    const template = await prisma.choreTemplate.create({
-      data: {
-        name,
-        description,
-        isSystem: false,
-        familyId: family.id
+    // Update all settings in parallel
+    const updated = await Promise.all(
+      settings.map(setting =>
+        prisma.choreBoard.upsert({
+          where: {
+            familyId_templateKey: {
+              familyId: family.id,
+              templateKey: setting.templateKey
+            }
+          },
+          update: {
+            isRecurring: setting.isRecurring,
+            frequencyType: setting.frequencyType,
+            customEveryDays: setting.customEveryDays || null,
+            eligibilityMode: setting.eligibilityMode,
+            eligibleMemberIds: setting.eligibleMemberIds || [],
+            defaultAssigneeMemberId: setting.defaultAssigneeMemberId || null
+          },
+          create: {
+            familyId: family.id,
+            templateKey: setting.templateKey,
+            title: setting.title,
+            isRecurring: setting.isRecurring,
+            frequencyType: setting.frequencyType,
+            customEveryDays: setting.customEveryDays || null,
+            eligibilityMode: setting.eligibilityMode,
+            eligibleMemberIds: setting.eligibleMemberIds || [],
+            defaultAssigneeMemberId: setting.defaultAssigneeMemberId || null
+          }
+        })
+      )
+    );
+
+    console.log('📝 ChoreBoard PATCH: Successfully upserted', updated.length, 'entries');
+    updated.forEach(u => {
+      if (u.templateKey.startsWith('custom_')) {
+        console.log(`📝 Created/Updated custom chore: ${u.title} (${u.templateKey})`);
       }
     });
 
     return NextResponse.json({
       success: true,
-      template
+      updated: updated.length,
+      settings: updated
     });
   } catch (error) {
-    console.error('Failed to create template:', error);
+    console.error('Chore Board PATCH error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to create template' },
+      { error: 'Failed to save chore board settings', details: error.message },
       { status: 500 }
     );
   }

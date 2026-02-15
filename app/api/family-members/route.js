@@ -15,11 +15,11 @@ export async function GET(request) {
       }
     });
 
-    // Ensure color and avatar fields exist (with defaults if missing from DB)
+    // Return members with their actual color and avatar values
     const enrichedMembers = members.map(member => ({
       ...member,
-      color: '#3b82f6',
-      avatar: '👤'
+      color: member.color || '#3b82f6', // Use stored color or default
+      avatar: member.avatar || '👤'     // Use stored avatar or default
     }));
 
     return NextResponse.json({ members: enrichedMembers });
@@ -35,7 +35,15 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name } = body;
+    
+    if (!body) {
+      return NextResponse.json(
+        { error: 'Request body is required' },
+        { status: 400 }
+      );
+    }
+
+    const { name, color, avatar } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -49,7 +57,9 @@ export async function POST(request) {
     const member = await prisma.familyMember.create({
       data: {
         familyId: family.id,
-        name: name.trim()
+        name: name.trim(),
+        color: color || '#3b82f6',
+        avatar: avatar || '👤'
       }
     });
 
@@ -66,7 +76,15 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { id, name } = body;
+    
+    if (!body) {
+      return NextResponse.json(
+        { error: 'Request body is required' },
+        { status: 400 }
+      );
+    }
+
+    const { id, name, color, avatar } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -77,6 +95,8 @@ export async function PATCH(request) {
 
     const updateData = {};
     if (name !== undefined) updateData.name = name.trim();
+    if (color !== undefined) updateData.color = color;
+    if (avatar !== undefined) updateData.avatar = avatar;
 
     const member = await prisma.familyMember.update({
       where: { id },
