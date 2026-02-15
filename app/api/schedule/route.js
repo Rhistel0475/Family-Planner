@@ -1,59 +1,25 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
-import { getNextOccurrence } from '../../../lib/recurring';
 
-const dayToIndex = {
-  Monday: 0,
-  Tuesday: 1,
-  Wednesday: 2,
-  Thursday: 3,
-  Friday: 4,
-  Saturday: 5,
-  Sunday: 6
-};
-
-// Returns the date of the chosen day in the current week (Mon-based), at a specific HH:MM
-function getDateForDayAndTime(dayName, timeHHMM = '09:00') {
-  const now = new Date();
-  const currentDay = now.getDay(); // 0=Sun..6=Sat
-  const daysFromMonday = (currentDay + 6) % 7;
-
-  const monday = new Date(now);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(now.getDate() - daysFromMonday);
-
-  const date = new Date(monday);
-  date.setDate(monday.getDate() + (dayToIndex[dayName] ?? 0));
-
-  const [hh, mm] = String(timeHHMM).split(':');
-  const hour = Number(hh);
-  const minute = Number(mm);
-
-  if (Number.isFinite(hour) && Number.isFinite(minute)) {
-    date.setHours(hour, minute, 0, 0);
-  } else {
-    // fallback
-    date.setHours(9, 0, 0, 0);
-  }
-
-  return date;
+function parseLocalDateTime(dateStr, timeStr) {
+  // dateStr: YYYY-MM-DD, timeStr: HH:MM (24h)
+  // Creates a Date in local time.
+  if (!dateStr || !timeStr) return null;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const [hh, mm] = timeStr.split(':').map(Number);
+  if (!y || !m || !d || Number.isNaN(hh) || Number.isNaN(mm)) return null;
+  return new Date(y, m - 1, d, hh, mm, 0, 0);
 }
 
-export async function GET(request) {
+export async function GET() {
   try {
-    // For a calendar view, return actual occurrences (non-parent, non-pattern rows).
-    // Your POST creates parents (isRecurring true) and instances (isRecurring false).
     const family = await getOrCreateDefaultFamily();
 
+    // Schedule page should show EVENTS only (not WORK)
     const events = await prisma.event.findMany({
-      where: {
-        familyId: family.id,
-        isRecurring: false // show real occurrences only
-      },
-      orderBy: {
-        startsAt: 'asc'
-      }
+      where: { familyId: family.id, type: 'EVENT' },
+      orderBy: { startsAt: 'asc' }
     });
 
     return NextResponse.json({ events });
@@ -70,100 +36,66 @@ export async function POST(request) {
   try {
     const body = await request.json();
 
-    // NEW: Schedule page now only sends event + day + time (+ optional recurrence)
-    const day = String(body.day || '').trim();
-    const event = String(body.event || '').trim();
-    const eventTime = String(body.eventTime || '').trim(); // "HH:MM"
-    const isRecurring = body.isRecurring === true;
+    // We now create EVENT only on this route
+    const title = String(body.title || '').trim();
+    const category = body.category || 'OTHER';
+    const description = body.description ? String(body.description).trim() : null;
+    const location = body.location ? String(body.location).trim() : null;
 
-    const recurrencePattern = body.recurrencePattern || null;
-    const recurrenceInterval = parseInt(body.recurrenceInterval, 10) || 1;
-    const recurrenceEndDate = body.recurrenceEndDate ? new Date(body.recurrenceEndDate) : null;
+    const date = String(body.date || '').trim();        // YYYY-MM-DD
+    const startTime = String(body.startTime || '').trim(); // HH:MM
+    const endTime = String(body.endTime || '').trim();     // HH:MM
 
-    if (!day || !event) {
+    if (!title || !date || !startTime) {
       return NextResponse.json(
-        { error: 'Please choose a day and enter an event.' },
+        { error: 'Title, date, and start time are required.' },
         { status: 400 }
       );
     }
 
-    const family = await getOrCreateDefaultFamily();
-
-    // NEW: startsAt uses day + time
-    const startsAt = getDateForDayAndTime(day, eventTime || '09:00');
-
-    let createdCount = 0;
-
-    if (isRecurring && recurrencePattern) {
-      // Create parent recurring event (pattern)
-      const parentEvent = await prisma.event.create({
-        data: {
-          familyId: family.id,
-          type: 'EVENT',
-          title: event,
-          description: `${day} event (recurring)`,
-          startsAt,
-          isRecurring: true,
-          recurrencePattern,
-          recurrenceInterval,
-          recurrenceEndDate
-        }
-      });
-
-      // Generate instances for next 12 months (or until end)
-      const endOfRange =
-        recurrenceEndDate || new Date(new Date().setFullYear(new Date().getFullYear() + 1));
-
-      let currentDate = new Date(startsAt);
-      let eventCount = 0;
-
-      while (currentDate <= endOfRange) {
-        const instanceDate = new Date(currentDate);
-
-        await prisma.event.create({
-          data: {
-            familyId: family.id,
-            type: 'EVENT',
-            title: event,
-            description: `${day} event (instance)`,
-            startsAt: instanceDate,
-            parentEventId: parentEvent.id,
-            isRecurring: false
-          }
-        });
-
-        eventCount++;
-        currentDate = getNextOccurrence(currentDate, recurrencePattern, recurrenceInterval);
-
-        // Safety limit
-        if (eventCount >= 100) break;
-      }
-
-      createdCount = eventCount;
-    } else {
-      // Single occurrence
-      await prisma.event.create({
-        data: {
-          familyId: family.id,
-          type: 'EVENT',
-          title: event,
-          description: `${day} event`,
-          startsAt,
-          isRecurring: false
-        }
-      });
-
-      createdCount = 1;
+    const startsAt = parseLocalDateTime(date, startTime);
+    if (!startsAt) {
+      return NextResponse.json({ error: 'Invalid start date/time.' }, { status: 400 });
     }
 
+    let endsAt = null;
+    if (endTime) {
+      endsAt = parseLocalDateTime(date, endTime);
+      if (!endsAt) {
+        return NextResponse.json({ error: 'Invalid end time.' }, { status: 400 });
+      }
+      if (endsAt <= startsAt) {
+        return NextResponse.json(
+          { error: 'End time must be after start time.' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const family = await getOrCreateDefaultFamily();
+
+    const created = await prisma.event.create({
+      data: {
+        familyId: family.id,
+        type: 'EVENT',
+        category,
+        title,
+        description,
+        location,
+        startsAt,
+        endsAt,
+        isRecurring: false
+      }
+    });
+
     return NextResponse.json(
-      { success: true, message: `Created ${createdCount} event(s)` },
+      { success: true, message: 'Event created.', event: created },
       { status: 200 }
     );
   } catch (error) {
-    console.error('Schedule POST error:', error.message || error);
+    console.error('Schedule POST error:', error);
     return NextResponse.json(
-      { error: 'Failed to save schedule item', details: error.message },
+      { error: 'Failed to create event', details: error.message },
       { status: 500 }
     );
   }
@@ -172,21 +104,46 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { id, title, type, description, startsAt, attended } = body;
+    const { id, title, category, description, location, date, startTime, endTime } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
     }
 
     const updateData = {};
-    if (title !== undefined) updateData.title = title;
-    if (type !== undefined) updateData.type = type;
-    if (description !== undefined) updateData.description = description;
-    if (startsAt !== undefined) updateData.startsAt = new Date(startsAt);
 
-    if (attended !== undefined) {
-      updateData.attended = attended;
-      updateData.attendedAt = attended ? new Date() : null;
+    if (title !== undefined) updateData.title = String(title || '').trim();
+    if (category !== undefined) updateData.category = category || 'OTHER';
+    if (description !== undefined) updateData.description = description ? String(description).trim() : null;
+    if (location !== undefined) updateData.location = location ? String(location).trim() : null;
+
+    // If date/startTime provided, recompute startsAt/endsAt
+    if (date !== undefined || startTime !== undefined || endTime !== undefined) {
+      const safeDate = String(date || '').trim();
+      const safeStart = String(startTime || '').trim();
+      const safeEnd = String(endTime || '').trim();
+
+      if (!safeDate || !safeStart) {
+        return NextResponse.json(
+          { error: 'To update time, date and start time are required.' },
+          { status: 400 }
+        );
+      }
+
+      const startsAt = parseLocalDateTime(safeDate, safeStart);
+      if (!startsAt) return NextResponse.json({ error: 'Invalid start date/time.' }, { status: 400 });
+      updateData.startsAt = startsAt;
+
+      if (safeEnd) {
+        const endsAt = parseLocalDateTime(safeDate, safeEnd);
+        if (!endsAt) return NextResponse.json({ error: 'Invalid end time.' }, { status: 400 });
+        if (endsAt <= startsAt) {
+          return NextResponse.json({ error: 'End time must be after start time.' }, { status: 400 });
+        }
+        updateData.endsAt = endsAt;
+      } else {
+        updateData.endsAt = null;
+      }
     }
 
     const event = await prisma.event.update({
@@ -196,12 +153,10 @@ export async function PATCH(request) {
 
     return NextResponse.json({ success: true, event });
   } catch (error) {
-    console.error('Event PATCH error:', error);
-
+    console.error('Schedule PATCH error:', error);
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
-
     return NextResponse.json(
       { error: 'Failed to update event', details: error.message },
       { status: 500 }
@@ -218,27 +173,18 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
     }
 
-    // If someone deletes a recurring parent by accident, delete its instances too.
-    // (Harmless for non-parent items)
-    await prisma.event.deleteMany({
-      where: { parentEventId: id }
-    });
-
-    await prisma.event.delete({
-      where: { id }
-    });
+    await prisma.event.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Event DELETE error:', error);
-
+    console.error('Schedule DELETE error:', error);
     if (error.code === 'P2025') {
       return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
-
     return NextResponse.json(
       { error: 'Failed to delete event', details: error.message },
       { status: 500 }
     );
   }
 }
+

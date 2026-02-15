@@ -4,19 +4,20 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url       = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model Family {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  setupComplete Boolean @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  events    Event[]
-  chores    Chore[]
-  recipes   Recipe[]
-  members   FamilyMember[]
+  id            String   @id @default(cuid())
+  name          String   @unique
+  setupComplete Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  events      Event[]
+  chores      Chore[]
+  recipes     Recipe[]
+  members     FamilyMember[]
   choreBoards ChoreBoard[]
 
   @@index([createdAt])
@@ -32,51 +33,66 @@ model FamilyMember {
   avatar       String?  @default("👤")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
 }
 
-
 model Event {
-  id                String             @id @default(cuid())
-  familyId          String
-  type              EventType          @default(EVENT)
-  title             String
-  description       String?
-  startsAt          DateTime
-  endsAt            DateTime?
-  location          String?
-  isRecurring       Boolean            @default(false)
-  recurrencePattern RecurrencePattern?
+  id       String @id @default(cuid())
+  familyId String
+
+  // "WORK" vs "EVENT" stays (your existing)
+  type EventType @default(EVENT)
+
+  // ✅ NEW: structured category for EVENT entries
+  // Example: DOCTOR, DENTIST, SCHOOL, FAMILY, CHURCH, OTHER
+  category EventCategory? @default(OTHER)
+
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  location    String?
+
+  isRecurring        Boolean            @default(false)
+  recurrencePattern  RecurrencePattern?
   recurrenceInterval Int?
-  recurrenceEndDate DateTime?
-  parentEventId     String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  recurrenceEndDate  DateTime?
+  parentEventId      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, startsAt])
   @@index([startsAt])
   @@index([parentEventId])
+  @@index([category])
 }
 
 model Chore {
-  id                String             @id @default(cuid())
-  familyId          String
-  title             String
-  assignedTo        String
-  dueDay            String
-  isRecurring       Boolean            @default(false)
-  recurrencePattern RecurrencePattern?
+  id         String @id @default(cuid())
+  familyId   String
+  title      String
+  assignedTo String
+  dueDay     String
+
+  isRecurring        Boolean            @default(false)
+  recurrencePattern  RecurrencePattern?
   recurrenceInterval Int?
-  recurrenceEndDate DateTime?
-  parentEventId     String?
-  completed         Boolean            @default(false)
-  completedAt       DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  recurrenceEndDate  DateTime?
+  parentEventId      String?
+
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, dueDay])
   @@index([completed])
@@ -91,7 +107,8 @@ model Recipe {
   cookDay     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, cookDay])
 }
@@ -101,7 +118,7 @@ model ChoreTemplate {
   name        String
   description String?
   isSystem    Boolean  @default(false)
-  familyId    String?  // null for system templates
+  familyId    String? // null for system templates
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -111,19 +128,20 @@ model ChoreTemplate {
 }
 
 model ChoreBoard {
-  id                    String   @id @default(cuid())
-  familyId              String
-  templateKey           String   // e.g., "clean_kitchen"
-  title                 String   // Display title
-  isRecurring           Boolean  @default(false)
-  frequencyType         FrequencyType @default(ONE_TIME)
-  customEveryDays       Int?     // Only used when frequencyType = CUSTOM
-  eligibilityMode       EligibilityMode @default(ALL)
-  eligibleMemberIds     String[] @default([]) // JSON array of member IDs
+  id                      String          @id @default(cuid())
+  familyId                String
+  templateKey             String // e.g., "clean_kitchen"
+  title                   String // Display title
+  isRecurring             Boolean         @default(false)
+  frequencyType           FrequencyType   @default(ONE_TIME)
+  customEveryDays         Int? // Only used when frequencyType = CUSTOM
+  eligibilityMode         EligibilityMode @default(ALL)
+  eligibleMemberIds       String[]        @default([]) // JSON array of member IDs
   defaultAssigneeMemberId String? // Optional default assignee
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  family                Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@unique([familyId, templateKey])
   @@index([familyId])
@@ -133,6 +151,15 @@ model ChoreBoard {
 enum EventType {
   WORK
   EVENT
+}
+
+enum EventCategory {
+  DOCTOR
+  DENTIST
+  SCHOOL
+  FAMILY
+  CHURCH
+  OTHER
 }
 
 enum RecurrencePattern {
