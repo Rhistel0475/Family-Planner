@@ -9,3 +9,11 @@ pnpm-debug.log*
 .DS_Store
 .env*
 .env*.local
+
+# Never commit SSH keys
+*.pem
+*id_ed25519*
+*id_rsa*
+*Key*
+*SSH Key*
+
