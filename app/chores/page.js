@@ -4,95 +4,89 @@ import { useEffect, useState } from 'react';
 import { getRotationAngle, getStatusString } from '../../lib/boardChores';
 import styles from './chores.module.css';
 
+const FREQUENCY_OPTIONS = [
+  { value: 'DAILY', label: 'Daily' },
+  { value: 'WEEKLY', label: 'Weekly' },
+  { value: 'BIWEEKLY', label: 'Biweekly' },
+  { value: 'MONTHLY', label: 'Monthly' },
+  { value: 'CUSTOM', label: 'Custom (every N days)' }
+];
+
+const DUE_DAY_OPTIONS = [
+  { value: 'SUN', label: 'Sunday' },
+  { value: 'MON', label: 'Monday' },
+  { value: 'TUE', label: 'Tuesday' },
+  { value: 'WED', label: 'Wednesday' },
+  { value: 'THU', label: 'Thursday' },
+  { value: 'FRI', label: 'Friday' },
+  { value: 'SAT', label: 'Saturday' }
+];
+
 export default function ChoresPage() {
   const [settings, setSettings] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
   const [expandedKey, setExpandedKey] = useState(null);
   const [message, setMessage] = useState(null);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [setDueDayChecked, setSetDueDayChecked] = useState(false);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const res = await fetch('/api/chore-board');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.error && !data.settings) throw new Error(data.error);
-        setSettings(Array.isArray(data.settings) ? data.settings : []);
-        setMembers(Array.isArray(data.members) ? data.members : []);
-      } catch (error) {
-        console.error('Failed to fetch:', error);
-        setMessage({ type: 'error', text: 'Failed to load chore board' });
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    fetchBoardSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchBoardSettings = async () => {
     try {
       setLoading(true);
+
       const res = await fetch('/api/chore-board');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
       const data = await res.json();
       if (data.error && !data.settings) throw new Error(data.error);
-      
-      console.log('🟢 Fetched board settings:', data.settings?.length, 'total');
-      const customCount = data.settings?.filter(s => s.templateKey.startsWith('custom_')).length || 0;
-      console.log('🟢 Custom chores:', customCount);
-      
-      setSettings(data.settings || []);
-      setMembers(data.members || []);
+
+      setSettings(Array.isArray(data.settings) ? data.settings : []);
+      setMembers(Array.isArray(data.members) ? data.members : []);
     } catch (error) {
-      console.error('Failed to fetch board settings:', error);
-      setMessage({ type: 'error', text: 'Failed to load chore board settings' });
+      console.error('Failed to fetch chore board:', error);
+      setMessage({ type: 'error', text: 'Failed to load chore board' });
     } finally {
       setLoading(false);
     }
   };
 
   const handleSettingChange = (templateKey, updates) => {
-    setSettings(prev =>
-      prev.map(s =>
-        s.templateKey === templateKey ? { ...s, ...updates } : s
-      )
+    setSettings((prev) =>
+      prev.map((s) => (s.templateKey === templateKey ? { ...s, ...updates } : s))
     );
   };
 
   const handleFrequencyChange = (templateKey, frequencyType) => {
     const updates = { frequencyType };
-    if (frequencyType !== 'CUSTOM') {
-      updates.customEveryDays = null;
-    }
+    if (frequencyType !== 'CUSTOM') updates.customEveryDays = null;
     handleSettingChange(templateKey, updates);
   };
 
   const handleEligibilityModeChange = (templateKey, mode) => {
     const updates = { eligibilityMode: mode };
-    if (mode === 'ALL') {
-      updates.eligibleMemberIds = [];
-    }
+    if (mode === 'ALL') updates.eligibleMemberIds = [];
     handleSettingChange(templateKey, updates);
   };
 
   const handleToggleMember = (templateKey, memberId) => {
-    setSettings(prev =>
-      prev.map(s => {
-        if (s.templateKey === templateKey) {
-          const current = s.eligibleMemberIds || [];
-          return {
-            ...s,
-            eligibleMemberIds: current.includes(memberId)
-              ? current.filter(id => id !== memberId)
-              : [...current, memberId]
-          };
-        }
-        return s;
+    setSettings((prev) =>
+      prev.map((s) => {
+        if (s.templateKey !== templateKey) return s;
+        const current = s.eligibleMemberIds || [];
+        const next = current.includes(memberId)
+          ? current.filter((id) => id !== memberId)
+          : [...current, memberId];
+        return { ...s, eligibleMemberIds: next };
       })
     );
   };
@@ -101,15 +95,19 @@ export default function ChoresPage() {
     try {
       setSaving(true);
 
+      // Validate settings before saving
       for (const setting of settings) {
+        // If not recurring, force ONE_TIME
         if (!setting.isRecurring && setting.frequencyType !== 'ONE_TIME') {
           setMessage({ type: 'error', text: `${setting.title}: Disable recurring to use One-time` });
           return;
         }
+
         if (setting.frequencyType === 'CUSTOM' && (!setting.customEveryDays || setting.customEveryDays < 1)) {
           setMessage({ type: 'error', text: `${setting.title}: Custom frequency requires a valid day count` });
           return;
         }
+
         if (setting.eligibilityMode === 'SELECTED' && (!setting.eligibleMemberIds || setting.eligibleMemberIds.length === 0)) {
           setMessage({ type: 'error', text: `${setting.title}: SELECTED mode requires at least 1 member` });
           return;
@@ -146,10 +144,13 @@ export default function ChoresPage() {
 
     try {
       const formData = new FormData(e.target);
-      const title = formData.get('title')?.trim();
-      const assignedMemberId = formData.get('assignedTo') || null;
+
+      const title = (formData.get('title') || '').toString().trim();
+      const assignedMemberId = (formData.get('assignedTo') || '').toString() || null;
+
+      // You capture these for UI now; if you want persistence, add fields to schema + API
       const setDueDay = formData.get('setDueDay') === 'on';
-      const dueDay = setDueDay ? formData.get('dueDay') : null;
+      const dueDay = setDueDay ? (formData.get('dueDay') || '').toString() : null;
 
       if (!title) {
         setMessage({ type: 'error', text: 'Please enter a chore title' });
@@ -157,48 +158,46 @@ export default function ChoresPage() {
         return;
       }
 
-      // Generate a unique template key from the title
-      const templateKey = 'custom_' + title.toLowerCase()
-        .replace(/[^a-z0-9]+/g, '_')
-        .replace(/^_+|_+$/g, '')
-        + '_' + Date.now();
+      const templateKey =
+        'custom_' +
+        title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '') +
+        '_' +
+        Date.now();
 
       console.log('🔵 Adding custom chore:', title);
       console.log('🔵 Generated templateKey:', templateKey);
-      console.log('🔵 Set Due Day:', setDueDay, '- Due Day:', dueDay);
+      console.log('🔵 Set Due Day:', setDueDay, 'Due Day:', dueDay);
 
-      // Create the ChoreBoard entry (configuration only - AI will create instances later)
       const boardRes = await fetch('/api/chore-board', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          settings: [{
-            templateKey: templateKey,
-            title: title,
-            isRecurring: false,
-            frequencyType: 'ONE_TIME',
-            customEveryDays: null,
-            eligibilityMode: 'ALL',
-            eligibleMemberIds: [],
-            defaultAssigneeMemberId: assignedMemberId
-          }]
+          settings: [
+            {
+              templateKey,
+              title,
+              isRecurring: false,
+              frequencyType: 'ONE_TIME',
+              customEveryDays: null,
+              eligibilityMode: 'ALL',
+              eligibleMemberIds: [],
+              defaultAssigneeMemberId: assignedMemberId
+            }
+          ]
         })
       });
 
       const boardData = await boardRes.json();
-      console.log('🔵 ChoreBoard API response:', boardData);
-
-      if (!boardRes.ok) {
-        const errorMsg = boardData.error || 'Failed to add chore to board';
-        throw new Error(errorMsg);
-      }
+      if (!boardRes.ok) throw new Error(boardData.error || 'Failed to add chore to board');
 
       setMessage({ type: 'success', text: '✓ Chore added to board. Use "Smart Chore Assignment" to schedule it.' });
       setShowAddModal(false);
       setSetDueDayChecked(false);
       e.target.reset();
 
-      // Refresh the board to show the new chore
       setTimeout(() => {
         fetchBoardSettings();
         setMessage(null);
@@ -217,34 +216,59 @@ export default function ChoresPage() {
 
   return (
     <div className={styles.container}>
+      {/* HEADER */}
       <div className={styles.header}>
         <div>
-          <h1>Chore Board</h1>
-          <p>Configure your household chores, assignments, and schedules</p>
+          <h1>Chores</h1>
+          <p>Configure your chore board, assignments, and schedules.</p>
         </div>
-        <button
-          className={styles.addButton}
-          onClick={() => setShowAddModal(true)}
-          title="Add a manual chore"
-        >
-          +
-        </button>
+
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <button
+            type="button"
+            className={styles.addButton}
+            onClick={() => setShowAddModal(true)}
+            aria-label="Add chore"
+            title="Add chore"
+          >
+            +
+          </button>
+
+          <button
+            type="button"
+            className={styles.saveButton}
+            onClick={handleSaveAll}
+            disabled={saving}
+            title="Save all changes"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
       </div>
 
+      {/* MESSAGE */}
       {message && (
-        <div className={`${styles.message} ${styles[`message_${message.type}`]}`}>
+        <div
+          className={[
+            styles.message,
+            message.type === 'success' ? styles.message_success : styles.message_error
+          ].join(' ')}
+        >
           {message.text}
         </div>
       )}
 
+      {/* BOARD */}
       <div className={styles.board}>
-        {settings.map(setting => (
+        {settings.map((setting) => (
           <ChoreCard
             key={setting.templateKey}
             setting={setting}
             members={members}
             expanded={expandedKey === setting.templateKey}
-            onToggleExpand={() => setExpandedKey(expandedKey === setting.templateKey ? null : setting.templateKey)}
+            onToggleExpand={() =>
+              setExpandedKey(expandedKey === setting.templateKey ? null : setting.templateKey)
+            }
             onChange={(updates) => handleSettingChange(setting.templateKey, updates)}
             onFrequencyChange={(freq) => handleFrequencyChange(setting.templateKey, freq)}
             onEligibilityModeChange={(mode) => handleEligibilityModeChange(setting.templateKey, mode)}
@@ -253,30 +277,39 @@ export default function ChoresPage() {
         ))}
       </div>
 
+      {/* FOOTER (optional extra save button at bottom for long pages) */}
       <div className={styles.footer}>
-        <button
-          className={styles.saveButton}
-          onClick={handleSaveAll}
-          disabled={saving}
-        >
-          {saving ? 'Saving...' : 'Save All Settings'}
+        <button type="button" className={styles.saveButton} onClick={handleSaveAll} disabled={saving}>
+          {saving ? 'Saving…' : 'Save All Changes'}
         </button>
       </div>
 
+      {/* ADD CHORE MODAL */}
       {showAddModal && (
-        <div className={styles.modalOverlay} onClick={() => {
-          setShowAddModal(false);
-          setSetDueDayChecked(false);
-        }}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <div
+          className={styles.modalOverlay}
+          role="presentation"
+          onClick={() => {
+            setShowAddModal(false);
+            setSetDueDayChecked(false);
+          }}
+        >
+          <div
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className={styles.modalHeader}>
-              <h2>Add a Manual Chore</h2>
+              <h2>Add a chore</h2>
               <button
+                type="button"
                 className={styles.closeButton}
                 onClick={() => {
                   setShowAddModal(false);
                   setSetDueDayChecked(false);
                 }}
+                aria-label="Close"
               >
                 ✕
               </button>
@@ -284,29 +317,24 @@ export default function ChoresPage() {
 
             <form onSubmit={handleAddChore} className={styles.modalForm}>
               <div className={styles.formGroup}>
-                <label>Chore Title *</label>
-                <input
-                  name="title"
-                  type="text"
-                  placeholder="e.g., Water the plants"
-                  required
-                  autoFocus
-                />
+                <label>Chore Title</label>
+                <input name="title" placeholder="e.g., Take out trash" />
               </div>
 
               <div className={styles.formGroup}>
-                <label>Assign To</label>
+                <label>Assign To (optional)</label>
                 <select name="assignedTo" defaultValue="">
-                  <option value="">— Available to all members</option>
-                  {members.map(m => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
+                  <option value="">No default assignee</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
                   ))}
                 </select>
-                <small>Leave blank to let AI assign</small>
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.checkboxLabel}>
+                <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                   <input
                     type="checkbox"
                     name="setDueDay"
@@ -315,23 +343,20 @@ export default function ChoresPage() {
                   />
                   Set Due Day
                 </label>
-                <small>If unchecked, AI will assign the due day when you click "Smart Chore Assignment"</small>
-              </div>
 
-              {setDueDayChecked && (
-                <div className={styles.formGroup}>
-                  <label>Due Day</label>
-                  <select name="dueDay" defaultValue="Friday">
-                    <option>Monday</option>
-                    <option>Tuesday</option>
-                    <option>Wednesday</option>
-                    <option>Thursday</option>
-                    <option>Friday</option>
-                    <option>Saturday</option>
-                    <option>Sunday</option>
-                  </select>
-                </div>
-              )}
+                {setDueDayChecked && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <label>Due Day</label>
+                    <select name="dueDay" defaultValue="MON">
+                      {DUE_DAY_OPTIONS.map((d) => (
+                        <option key={d.value} value={d.value}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
 
               <div className={styles.modalActions}>
                 <button
@@ -341,15 +366,13 @@ export default function ChoresPage() {
                     setShowAddModal(false);
                     setSetDueDayChecked(false);
                   }}
+                  disabled={addLoading}
                 >
                   Cancel
                 </button>
-                <button
-                  type="submit"
-                  className={styles.submitButton}
-                  disabled={addLoading}
-                >
-                  {addLoading ? 'Adding...' : 'Add Chore'}
+
+                <button type="submit" className={styles.submitButton} disabled={addLoading}>
+                  {addLoading ? 'Adding…' : 'Add Chore'}
                 </button>
               </div>
             </form>
@@ -373,96 +396,114 @@ function ChoreCard({
   const rotation = getRotationAngle(setting.templateKey);
   const statusStr = getStatusString(setting);
 
+  const cardClass = expanded ? `${styles.card} ${styles.expanded}` : styles.card;
+
   return (
     <div
-      className={`${styles.card} ${expanded ? styles.expanded : ''}`}
-      style={{ '--rotation': `${rotation}deg` }}
+      className={cardClass}
+      style={{ '--rotation': rotation }}
+      onClick={onToggleExpand}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onToggleExpand();
+      }}
     >
-      <div className={styles.cardHeader} onClick={onToggleExpand}>
+      <div className={styles.cardHeader}>
         <h3>{setting.title}</h3>
         <div className={styles.status}>{statusStr}</div>
         <div className={styles.expandIcon}>{expanded ? '−' : '+'}</div>
       </div>
 
       {expanded && (
-        <div className={styles.cardContent}>
+        <div className={styles.cardContent} onClick={(e) => e.stopPropagation()}>
+          {/* Recurring */}
           <div className={styles.section}>
             <label className={styles.checkboxLabel}>
               <input
                 type="checkbox"
-                checked={setting.isRecurring}
+                checked={!!setting.isRecurring}
                 onChange={(e) => {
-                  const isRec = e.target.checked;
+                  const isRecurring = e.target.checked;
                   onChange({
-                    isRecurring: isRec,
-                    frequencyType: isRec ? 'WEEKLY' : 'ONE_TIME'
+                    isRecurring,
+                    frequencyType: isRecurring ? 'WEEKLY' : 'ONE_TIME',
+                    customEveryDays: isRecurring ? setting.customEveryDays : null
                   });
                 }}
               />
               Recurring
             </label>
+            <small>If unchecked, this becomes One-time and AI can schedule it when requested.</small>
 
             {setting.isRecurring && (
               <div className={styles.frequencyGroup}>
-                <label>Frequency:</label>
+                <label>Frequency</label>
                 <select
-                  value={setting.frequencyType}
+                  value={setting.frequencyType || 'WEEKLY'}
                   onChange={(e) => onFrequencyChange(e.target.value)}
                 >
-                  <option value="DAILY">Daily</option>
-                  <option value="WEEKLY">Weekly</option>
-                  <option value="BIWEEKLY">Biweekly</option>
-                  <option value="MONTHLY">Monthly</option>
-                  <option value="CUSTOM">Custom</option>
+                  {FREQUENCY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
 
                 {setting.frequencyType === 'CUSTOM' && (
                   <div className={styles.customDays}>
-                    <label>Every N days:</label>
+                    <label>Every</label>
                     <input
                       type="number"
-                      min="1"
-                      value={setting.customEveryDays || 1}
-                      onChange={(e) => onChange({ customEveryDays: parseInt(e.target.value) || 1 })}
+                      min={1}
+                      value={setting.customEveryDays ?? 1}
+                      onChange={(e) =>
+                        onChange({ customEveryDays: parseInt(e.target.value, 10) || 1 })
+                      }
                     />
+                    <span>days</span>
                   </div>
                 )}
               </div>
             )}
           </div>
 
+          {/* Default Assignee */}
           <div className={styles.section}>
-            <label>Default Assignee:</label>
+            <label>Default Assignee</label>
             <select
               value={setting.defaultAssigneeMemberId || ''}
               onChange={(e) => onChange({ defaultAssigneeMemberId: e.target.value || null })}
             >
-              <option value="">— No preference (AI decides)</option>
-              {members.map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
+              <option value="">No default (AI decides)</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
               ))}
             </select>
-            <small>AI is allowed to reassign later</small>
+            <small>AI can still rotate or reassign based on eligibility and workload.</small>
           </div>
 
+          {/* Eligibility */}
           <div className={styles.section}>
-            <label>Eligible Members:</label>
+            <label>Eligible Members</label>
+
             <div className={styles.eligibilityMode}>
               <label className={styles.radioLabel}>
                 <input
                   type="radio"
-                  name={`eligibility_${setting.templateKey}`}
-                  value="ALL"
-                  checked={setting.eligibilityMode === 'ALL'}
+                  name={`elig-${setting.templateKey}`}
+                  checked={setting.eligibilityMode !== 'SELECTED'}
                   onChange={() => onEligibilityModeChange('ALL')}
                 />
                 All members
               </label>
+
               <label className={styles.radioLabel}>
                 <input
                   type="radio"
-                  name={`eligibility_${setting.templateKey}`}
-                  value="SELECTED"
+                  name={`elig-${setting.templateKey}`}
                   checked={setting.eligibilityMode === 'SELECTED'}
                   onChange={() => onEligibilityModeChange('SELECTED')}
                 />
@@ -472,7 +513,7 @@ function ChoreCard({
 
             {setting.eligibilityMode === 'SELECTED' && (
               <div className={styles.memberCheckboxes}>
-                {members.map(m => (
+                {members.map((m) => (
                   <label key={m.id} className={styles.checkboxLabel}>
                     <input
                       type="checkbox"
@@ -484,6 +525,10 @@ function ChoreCard({
                 ))}
               </div>
             )}
+
+            <small>
+              Use SELECTED if you only want certain people eligible for this chore.
+            </small>
           </div>
         </div>
       )}
