@@ -3,16 +3,24 @@
 import Link from 'next/link';
 import { useState } from 'react';
 
+// Main navigation = destinations (NOT actions)
 const navItems = [
-  { href: '/', label: 'Weekly View' },
-  { href: '/schedule', label: 'Schedule' },
+  { href: '/', label: 'Dashboard' },          // was "Weekly View"
+  { href: '/schedule', label: 'Calendar' },   // clearer
   { href: '/chores', label: 'Chores' },
-  { href: '/recipes', label: 'Recipes' },
-  { href: '/family', label: 'Family Members' },
-  { href: '/ai', label: 'AI Assistant' },
-  { href: '/setup', label: 'Setup' },
-  { href: '/status', label: 'DB Status' }
+  { href: '/recipes', label: 'Meals' },       // clearer
+  { href: '/family', label: 'Family' },       // shorter
+  { href: '/ai', label: 'Concierge' }         // aligns with your RISE vision
 ];
+
+// Admin/Dev links (hidden in production)
+const adminItems =
+  process.env.NODE_ENV !== 'production'
+    ? [
+        { href: '/setup', label: 'Setup' },
+        { href: '/status', label: 'DB Status' }
+      ]
+    : [];
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
@@ -21,7 +29,8 @@ export default function HamburgerMenu() {
     <>
       <button
         type="button"
-        aria-label="Open navigation menu"
+        aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
+        aria-expanded={open}
         style={styles.button}
         onClick={() => setOpen((prev) => !prev)}
       >
@@ -30,7 +39,14 @@ export default function HamburgerMenu() {
         <span style={styles.line} />
       </button>
 
-      {open && <button type="button" aria-label="Close menu" style={styles.backdrop} onClick={() => setOpen(false)} />}
+      {open && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          style={styles.backdrop}
+          onClick={() => setOpen(false)}
+        />
+      )}
 
       <aside
         style={{
@@ -39,15 +55,38 @@ export default function HamburgerMenu() {
         }}
       >
         <h2 style={styles.title}>Family Planner</h2>
-        <p style={styles.subtitle}>Navigate input pages</p>
+        <p style={styles.subtitle}>Jump to a section</p>
 
-        <nav style={styles.nav}>
+        <nav style={styles.nav} aria-label="Primary navigation">
           {navItems.map((item) => (
-            <Link key={item.href} href={item.href} style={styles.link} onClick={() => setOpen(false)}>
+            <Link
+              key={item.href}
+              href={item.href}
+              style={styles.link}
+              onClick={() => setOpen(false)}
+            >
               {item.label}
             </Link>
           ))}
         </nav>
+
+        {adminItems.length > 0 && (
+          <>
+            <div style={styles.sectionLabel}>Admin</div>
+            <nav style={styles.nav} aria-label="Admin navigation">
+              {adminItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  style={styles.link}
+                  onClick={() => setOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </>
+        )}
       </aside>
     </>
   );
@@ -107,6 +146,16 @@ const styles = {
     marginBottom: '1rem',
     color: '#5b4228'
   },
+  sectionLabel: {
+    marginTop: '1.2rem',
+    marginBottom: '0.5rem',
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#5b4228',
+    opacity: 0.8
+  },
   nav: {
     display: 'grid',
     gap: '0.6rem'
@@ -121,3 +170,4 @@ const styles = {
     fontWeight: 700
   }
 };
+
