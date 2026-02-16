@@ -13,7 +13,6 @@ const navItems = [
   { href: '/family', label: 'Family Members' },
   { href: '/ai', label: 'AI Assistant' },
   { href: '/setup', label: 'Setup' },
-  { href: '/status', label: 'DB Status' }
   { href: '/', label: 'Dashboard' },          // was "Weekly View"
   { href: '/schedule', label: 'Calendar' },   // clearer
   { href: '/chores', label: 'Chores' },
