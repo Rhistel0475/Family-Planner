@@ -32,11 +32,6 @@ export function ThemeProvider({ children }) {
 
   const theme = isDarkMode ? darkTheme : lightTheme;
 
-  // Prevent flash of unstyled content
-  if (!mounted) {
-    return <div style={{ visibility: 'hidden' }}>{children}</div>;
-  }
-
   return (
     <ThemeContext.Provider value={{ isDarkMode, toggleTheme, theme }}>
       <div style={{
@@ -44,7 +39,8 @@ export function ThemeProvider({ children }) {
         backgroundImage: theme.mainGradient,
         color: theme.card.text,
         minHeight: '100vh',
-        transition: 'background-color 0.3s ease, color 0.3s ease'
+        transition: 'background-color 0.3s ease, color 0.3s ease',
+        visibility: mounted ? 'visible' : 'hidden'
       }}>
         {children}
       </div>
