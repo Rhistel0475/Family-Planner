@@ -36,48 +36,36 @@ model FamilyMember {
 }
 
 model Event {
-  id                String             @id @default(cuid())
-  familyId          String
-  type              EventType          @default(EVENT)
-  title             String
-  description       String?
-  startsAt          DateTime
-  endsAt            DateTime?
-  location          String?
-  isRecurring       Boolean            @default(false)
-  recurrencePattern RecurrencePattern?
-  recurrenceInterval Int?
-  recurrenceEndDate DateTime?
-  parentEventId     String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  familyId    String
+  type        EventType @default(EVENT)
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  location    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, startsAt])
   @@index([startsAt])
-  @@index([parentEventId])
 }
 
 model Chore {
-  id                String             @id @default(cuid())
-  familyId          String
-  title             String
-  assignedTo        String
-  dueDay            String
-  isRecurring       Boolean            @default(false)
-  recurrencePattern RecurrencePattern?
-  recurrenceInterval Int?
-  recurrenceEndDate DateTime?
-  parentEventId     String?
-  completed         Boolean            @default(false)
-  completedAt       DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id          String    @id @default(cuid())
+  familyId    String
+  title       String
+  assignedTo  String
+  dueDay      String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, dueDay])
   @@index([completed])
-  @@index([parentEventId])
 }
 
 model Recipe {
@@ -133,11 +121,4 @@ enum EligibilityMode {
   ALL
   SELECTED
   ROLE_BASED
-}
-
-enum RecurrencePattern {
-  DAILY
-  WEEKLY
-  MONTHLY
-  YEARLY
 }
