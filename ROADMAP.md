@@ -122,7 +122,7 @@ A simple family "weekly board" that makes it easy to:
 
 ---
 
-### Phase 1.5 — Stabilization / Consistency (NEXT 🔄)
+### Phase 1.5 — Stabilization / Consistency (DONE ✅)
 **Lock the schema + routes + UI into a consistent model**
 
 #### Prisma
@@ -295,4 +295,4 @@ A task is "Done" when:
 ---
 
 **Last Updated:** 2026-02-16
-**Current Focus:** Phase 1.5 (Stabilization & Consistency)
+**Current Focus:** Phase 2 (Events UX Upgrade) - HIGH PRIORITY
