@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useTheme } from '../providers/ThemeProvider';
 
 const navItems = [
+  { href: '/dashboard', label: '📊 Dashboard' },
   { href: '/', label: 'Weekly View' },
   { href: '/schedule', label: 'Add Schedule' },
   { href: '/chores', label: 'Add Chores' },

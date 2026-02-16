@@ -9,9 +9,9 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   const navItems = [
+    { href: '/dashboard', icon: '📊', label: 'Dashboard' },
     { href: '/', icon: '🏠', label: 'Home' },
     { href: '/chores', icon: '✓', label: 'Chores' },
-    { href: '/schedule', icon: '📅', label: 'Schedule' },
     { href: '/family', icon: '👥', label: 'Family' },
     { href: '/ai', icon: '🤖', label: 'AI' }
   ];
