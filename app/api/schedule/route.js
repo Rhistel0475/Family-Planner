@@ -29,7 +29,6 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const title = String(body.title || '').trim();
-    const category = body.category ? String(body.category).trim() : null;
     const location = body.location ? String(body.location).trim() : null;
     const description = body.description ? String(body.description).trim() : null;
 
@@ -59,10 +58,7 @@ export async function POST(request) {
         description,
         location,
         startsAt,
-        endsAt,
-        // category is optional — if your Prisma model doesn't have it yet,
-        // comment the next line out until you add it.
-        category
+        endsAt
       }
     });
 
@@ -103,10 +99,6 @@ export async function PATCH(request) {
         if (Number.isNaN(d.getTime())) return NextResponse.json({ error: 'Invalid endsAt' }, { status: 400 });
         updateData.endsAt = d;
       }
-    }
-
-    if (body.category !== undefined) {
-      updateData.category = body.category ? String(body.category).trim() : null;
     }
 
     // Validate end > start if both present
