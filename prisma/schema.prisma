@@ -4,41 +4,33 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url       = env("DATABASE_URL")
 }
 
 model Family {
-  id            String   @id @default(cuid())
-  name          String   @unique
-  setupComplete Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  events      Event[]
-  chores      Chore[]
-  recipes     Recipe[]
-  members     FamilyMember[]
+  id        String   @id @default(cuid())
+  name      String   @unique
+  setupComplete Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events    Event[]
+  chores    Chore[]
+  recipes   Recipe[]
+  members   FamilyMember[]
   choreBoards ChoreBoard[]
 
   @@index([createdAt])
 }
 
 model FamilyMember {
-  id       String  @id @default(cuid())
-  familyId String
-  name     String
-  role     String? @default("member")
-
-  // Work hours belong here (per your request)
-  workingHours String?
-
-  color  String? @default("#3b82f6")
-  avatar String? @default("👤")
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  familyId     String
+  name         String
+  role         String?  @default("member") // member, parent, kid
+  workingHours String?  // e.g., "9-5", "8-4", or "Not working"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
 }
@@ -71,62 +63,6 @@ model Chore {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  id       String @id @default(cuid())
-  familyId String
-
-  // Keep EventType so your existing code doesn’t break.
-  // You can stop creating WORK events in the UI/API.
-  type EventType @default(EVENT)
-
-  // New: category for common family items
-  category EventCategory @default(GENERAL)
-
-  title       String
-  description String?
-
-  // You requested start + end time
-  startsAt DateTime
-  endsAt   DateTime?
-
-  location String?
-
-  isRecurring        Boolean            @default(false)
-  recurrencePattern  RecurrencePattern?
-  recurrenceInterval Int?
-  recurrenceEndDate  DateTime?
-  parentEventId      String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
-
-  @@index([familyId, startsAt])
-  @@index([startsAt])
-  @@index([parentEventId])
-  @@index([category])
-}
-
-model Chore {
-  id         String @id @default(cuid())
-  familyId   String
-  title      String
-  assignedTo String
-  dueDay     String
-
-  isRecurring        Boolean            @default(false)
-  recurrencePattern  RecurrencePattern?
-  recurrenceInterval Int?
-  recurrenceEndDate  DateTime?
-  parentEventId      String?
-
-  completed   Boolean   @default(false)
-  completedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, dueDay])
   @@index([completed])
@@ -140,36 +76,30 @@ model Recipe {
   cookDay     String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, cookDay])
 }
 
 model ChoreBoard {
-  id          String @id @default(cuid())
-  familyId    String
-  templateKey String
-  title       String
-
-  isRecurring             Boolean         @default(false)
-  frequencyType           FrequencyType   @default(ONE_TIME)
+  id                      String             @id @default(cuid())
+  familyId                String
+  templateKey             String             @unique
+  title                   String
+  isActive                Boolean            @default(false)
+  isRecurring             Boolean            @default(false)
+  frequencyType           FrequencyType?
   customEveryDays         Int?
-  eligibilityMode         EligibilityMode @default(ALL)
-  eligibleMemberIds       String[]        @default([])
+  eligibilityMode         EligibilityMode    @default(ALL)
+  eligibleMemberIds       String[]           @default([])
   defaultAssigneeMemberId String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  family                  Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@unique([familyId, templateKey])
   @@index([familyId])
-  @@index([templateKey])
 }
-
-// Enums
 
 enum EventType {
   WORK
@@ -179,28 +109,10 @@ enum EventType {
   EVENT
 }
 
-enum EventCategory {
-  GENERAL
-  FAMILY
-  CHURCH
-  SCHOOL
-  SPORTS
-  BIRTHDAY
-  APPOINTMENT
-}
-
-enum RecurrencePattern {
-  DAILY
-  WEEKLY
-  MONTHLY
-  YEARLY
-}
-
 enum FrequencyType {
   ONE_TIME
   DAILY
   WEEKLY
-  BIWEEKLY
   MONTHLY
   CUSTOM
 }
