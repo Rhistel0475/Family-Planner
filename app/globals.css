@@ -43,6 +43,22 @@ p {
   }
 }
 
+/* Prevent body scroll when main is scrollable */
+html, body {
+  overflow: hidden;
+}
+
+/* Media queries for responsive layout */
+@media (max-width: 1200px) {
+  /* Grid responsive layout handled by auto-fit */
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

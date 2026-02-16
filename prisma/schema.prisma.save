@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+datasource db {
+  provider = "postgresql"
+  url       = env("DATABASE_URL")
+}
+
+model Family {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  setupComplete Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events    Event[]
+  chores    Chore[]
+  recipes   Recipe[]
+  members   FamilyMember[]
+  choreBoards ChoreBoard[]
+
+  @@index([createdAt])
+}
+
+model FamilyMember {
+  id           String   @id @default(cuid())
+  familyId     String
+  name         String
+  role         String?  @default("member") // member, parent, kid
+  workingHours String?  // e.g., "9-5", "8-4", or "Not working"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  family       Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+}
+
+model Event {
+  id                String             @id @default(cuid())
+  familyId          String
+  type              EventType          @default(EVENT)
+  title             String
+  description       String?
+  startsAt          DateTime
+  endsAt            DateTime?
+  location          String?
+  isRecurring       Boolean            @default(false)
+  recurrencePattern RecurrencePattern?
+  recurrenceInterval Int?
+  recurrenceEndDate DateTime?
+  parentEventId     String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, startsAt])
+  @@index([startsAt])
+  @@index([parentEventId])
+}
+
+model Chore {
+  id                String             @id @default(cuid())
+  familyId          String
+  title             String
+  assignedTo        String
+  dueDay            String
+  isRecurring       Boolean            @default(false)
+  recurrencePattern RecurrencePattern?
+  recurrenceInterval Int?
+  recurrenceEndDate DateTime?
+  parentEventId     String?
+  completed         Boolean            @default(false)
+  completedAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, dueDay])
+  @@index([completed])
+  @@index([parentEventId])
+}
+
+model Recipe {
+  id          String   @id @default(cuid())
+  familyId    String
+  name        String
+  ingredients String
+  cookDay     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  family      Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, cookDay])
+}
+
+model ChoreTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+  familyId    String?  // null for system templates
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([name, familyId])
+  @@index([isSystem])
+  @@index([familyId])
+}
+
+model ChoreBoard {
+  id                    String   @id @default(cuid())
+  familyId              String
+  templateKey           String   // e.g., "clean_kitchen"
+  title                 String   // Display title
+  isRecurring           Boolean  @default(false)
+  frequencyType         FrequencyType @default(ONE_TIME)
+  customEveryDays       Int?     // Only used when frequencyType = CUSTOM
+  eligibilityMode       EligibilityMode @default(ALL)
+  eligibleMemberIds     String[] @default([]) // JSON array of member IDs
+  defaultAssigneeMemberId String? // Optional default assignee
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  family                Family   @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@unique([familyId, templateKey])
+  @@index([familyId])
+  @@index([templateKey])
+}
+
+enum EventType {
+  WORK
+  EVENT
+}
+
+enum RecurrencePattern {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum FrequencyType {
+  ONE_TIME
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+enum EligibilityMode {
+  ALL
+  SELECTED
+}

@@ -3,6 +3,7 @@ import { prisma } from '../../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../../lib/defaultFamily';
 import { generateChoreAssignments } from '../../../../lib/ai';
 import { assignChoresRuleBased } from '../../../../lib/choreAssignment';
+import { parseEligibleMembers } from '../../../../lib/choreTemplates';
 
 export async function GET() {
   try {
@@ -31,6 +32,28 @@ export async function GET() {
         suggestions: [],
         message: 'No incomplete chores found. All chores are done!'
       });
+    }
+
+    // Check if any chores have eligibility constraints with no eligible members
+    const invalidChores = unassignedChores.filter(chore => {
+      if (chore.eligibleMemberIds) {
+        const eligibleIds = parseEligibleMembers(chore.eligibleMemberIds);
+        const hasEligibleMembers = members.some(m => eligibleIds.includes(m.id));
+        return !hasEligibleMembers;
+      }
+      return false;
+    });
+
+    if (invalidChores.length > 0) {
+      return NextResponse.json({
+        suggestions: [],
+        error: `${invalidChores.length} chore(s) have eligibility constraints but no eligible members exist`,
+        invalidChores: invalidChores.map(c => ({
+          id: c.id,
+          title: c.title,
+          message: 'No eligible members found'
+        }))
+      }, { status: 422 });
     }
 
     // Try AI first, fallback to rule-based on error

@@ -2,8 +2,8 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import { useTheme } from '../providers/ThemeProvider';
 
+// Main navigation = destinations (NOT actions)
 const navItems = [
   { href: '/dashboard', label: '📊 Dashboard' },
   { href: '/', label: 'Weekly View' },
@@ -14,78 +14,88 @@ const navItems = [
   { href: '/ai', label: 'AI Assistant' },
   { href: '/setup', label: 'Setup' },
   { href: '/status', label: 'DB Status' }
+  { href: '/', label: 'Dashboard' },          // was "Weekly View"
+  { href: '/schedule', label: 'Calendar' },   // clearer
+  { href: '/chores', label: 'Chores' },
+  { href: '/recipes', label: 'Meals' },       // clearer
+  { href: '/family', label: 'Family' },       // shorter
+  { href: '/ai', label: 'Concierge' }         // aligns with your RISE vision
 ];
+
+// Admin/Dev links (hidden in production)
+const adminItems =
+  process.env.NODE_ENV !== 'production'
+    ? [
+        { href: '/setup', label: 'Setup' },
+        { href: '/status', label: 'DB Status' }
+      ]
+    : [];
 
 export default function HamburgerMenu() {
   const [open, setOpen] = useState(false);
-  const { isDarkMode, toggleTheme, theme } = useTheme();
 
   return (
     <>
       <button
         type="button"
-        aria-label="Open navigation menu"
-        style={{
-          ...styles.button,
-          background: theme.card.bg[0],
-          border: `1px solid ${theme.card.border}`
-        }}
+        aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
+        aria-expanded={open}
+        style={styles.button}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span style={{...styles.line, background: theme.card.text}} />
-        <span style={{...styles.line, background: theme.card.text}} />
-        <span style={{...styles.line, background: theme.card.text}} />
+        <span style={styles.line} />
+        <span style={styles.line} />
+        <span style={styles.line} />
       </button>
 
-      {open && <button type="button" aria-label="Close menu" style={styles.backdrop} onClick={() => setOpen(false)} />}
+      {open && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          style={styles.backdrop}
+          onClick={() => setOpen(false)}
+        />
+      )}
 
       <aside
         style={{
           ...styles.drawer,
-          transform: open ? 'translateX(0)' : 'translateX(-112%)',
-          background: theme.nav.bg,
-          borderRight: `1px solid ${theme.nav.border}`
+          transform: open ? 'translateX(0)' : 'translateX(-112%)'
         }}
       >
-        <h2 style={{...styles.title, color: theme.nav.text}}>Family Planner</h2>
-        <p style={{...styles.subtitle, color: theme.nav.text, opacity: 0.8}}>Navigate input pages</p>
+        <h2 style={styles.title}>Family Planner</h2>
+        <p style={styles.subtitle}>Jump to a section</p>
 
-        <nav style={styles.nav}>
+        <nav style={styles.nav} aria-label="Primary navigation">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              style={{
-                ...styles.link,
-                color: theme.nav.text,
-                background: theme.card.bg[0],
-                border: `1px solid ${theme.nav.border}`
-              }}
+              style={styles.link}
               onClick={() => setOpen(false)}
             >
               {item.label}
             </Link>
           ))}
-
-          <button
-            onClick={() => {
-              toggleTheme();
-            }}
-            style={{
-              ...styles.link,
-              color: theme.nav.text,
-              background: theme.card.bg[2],
-              border: `1px solid ${theme.nav.border}`,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between'
-            }}
-          >
-            <span>Theme</span>
-            <span style={{ fontSize: '1.2rem' }}>{isDarkMode ? '☀️' : '🌙'}</span>
-          </button>
         </nav>
+
+        {adminItems.length > 0 && (
+          <>
+            <div style={styles.sectionLabel}>Admin</div>
+            <nav style={styles.nav} aria-label="Admin navigation">
+              {adminItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  style={styles.link}
+                  onClick={() => setOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </>
+        )}
       </aside>
     </>
   );
@@ -145,6 +155,16 @@ const styles = {
     marginBottom: '1rem',
     color: '#5b4228'
   },
+  sectionLabel: {
+    marginTop: '1.2rem',
+    marginBottom: '0.5rem',
+    fontSize: 12,
+    fontWeight: 800,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#5b4228',
+    opacity: 0.8
+  },
   nav: {
     display: 'grid',
     gap: '0.6rem'
@@ -159,3 +179,4 @@ const styles = {
     fontWeight: 700
   }
 };
+

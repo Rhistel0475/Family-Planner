@@ -2,20 +2,23 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
 
-export async function GET(request) {
+export async function GET() {
   try {
     const family = await getOrCreateDefaultFamily();
 
     const members = await prisma.familyMember.findMany({
-      where: {
-        familyId: family.id
-      },
-      orderBy: {
-        createdAt: 'asc'
-      }
+      where: { familyId: family.id },
+      orderBy: { createdAt: 'asc' }
     });
 
-    return NextResponse.json({ members });
+    const enrichedMembers = members.map((member) => ({
+      ...member,
+      color: member.color || '#3b82f6',
+      avatar: member.avatar || '👤',
+      workingHours: member.workingHours || ''
+    }));
+
+    return NextResponse.json({ members: enrichedMembers });
   } catch (error) {
     console.error('Family members GET error:', error);
     return NextResponse.json(
@@ -28,13 +31,15 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, color, avatar } = body;
+
+    if (!body) {
+      return NextResponse.json({ error: 'Request body is required' }, { status: 400 });
+    }
+
+    const { name, color, avatar, workingHours } = body;
 
     if (!name || !name.trim()) {
-      return NextResponse.json(
-        { error: 'Name is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
     const family = await getOrCreateDefaultFamily();
@@ -44,7 +49,8 @@ export async function POST(request) {
         familyId: family.id,
         name: name.trim(),
         color: color || '#3b82f6',
-        avatar: avatar || null
+        avatar: avatar || '👤',
+        workingHours: workingHours ? String(workingHours).trim() : null
       }
     });
 
@@ -61,19 +67,25 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { id, name, color, avatar } = body;
+
+    if (!body) {
+      return NextResponse.json({ error: 'Request body is required' }, { status: 400 });
+    }
+
+    const { id, name, color, avatar, workingHours } = body;
 
     if (!id) {
-      return NextResponse.json(
-        { error: 'Member ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
     }
 
     const updateData = {};
-    if (name !== undefined) updateData.name = name.trim();
+    if (name !== undefined) updateData.name = String(name).trim();
     if (color !== undefined) updateData.color = color;
     if (avatar !== undefined) updateData.avatar = avatar;
+    if (workingHours !== undefined) {
+      const wh = String(workingHours || '').trim();
+      updateData.workingHours = wh ? wh : null;
+    }
 
     const member = await prisma.familyMember.update({
       where: { id },
@@ -85,10 +97,7 @@ export async function PATCH(request) {
     console.error('Family member PATCH error:', error);
 
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Family member not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Family member not found' }, { status: 404 });
     }
 
     return NextResponse.json(
@@ -104,25 +113,17 @@ export async function DELETE(request) {
     const id = searchParams.get('id');
 
     if (!id) {
-      return NextResponse.json(
-        { error: 'Member ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
     }
 
-    await prisma.familyMember.delete({
-      where: { id }
-    });
+    await prisma.familyMember.delete({ where: { id } });
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Family member DELETE error:', error);
 
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Family member not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Family member not found' }, { status: 404 });
     }
 
     return NextResponse.json(

@@ -3,85 +3,75 @@
 import { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 
+let checkcount = 0;
+
 export default function SetupCheck({ children }) {
   const pathname = usePathname();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [error, setError] = useState(null);
+  const [debugInfo, setDebugInfo] = useState('initializing...');
   const retryCount = useRef(0);
   const maxRetries = 3;
 
   useEffect(() => {
-    // Skip check on setup page itself
-    if (pathname === '/setup') {
-      setLoading(false);
-      return;
-    }
+    const init = async () => {
+      try {
+        const currentPathname = pathname;
+        setDebugInfo('checking setup on ' + currentPathname);
+        
+        // Skip check on setup page itself
+        if (currentPathname === '/setup') {
+          setDebugInfo('on setup page');
+          setLoading(false);
+          return;
+        }
 
-    // Skip check if URL has setupComplete parameter
-    if (typeof window !== 'undefined' && window.location.search.includes('setupComplete=true')) {
-      setLoading(false);
-      return;
-    }
+        // Skip check if URL has setupComplete parameter
+        if (typeof window !== 'undefined' && window.location.search.includes('setupComplete=true')) {
+          setDebugInfo('setupComplete param');
+          setLoading(false);
+          return;
+        }
 
-    checkSetupStatus();
-  }, [pathname]);
+        // Try to fetch, but don't wait too long
+        try {
+          const res = await Promise.race([
+            fetch('/api/setup'),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+          ]);
+          
+          if (res && res.ok) {
+            const data = await res.json();
+            if (!data.setupComplete && currentPathname !== '/setup') {
+              setDebugInfo('setup incomplete, redirecting');
+              router.push('/setup');
+              return;
+            }
+          }
+        } catch (e) {
+          setDebugInfo('fetch error: ' + e.message);
+        }
 
-  async function checkSetupStatus() {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-      const res = await fetch('/api/setup', {
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        throw new Error(`Setup check failed with status ${res.status}`);
-      }
-
-      const data = await res.json();
-
-      if (!data.setupComplete && pathname !== '/setup') {
-        setNeedsSetup(true);
-        router.push('/setup');
-      } else {
-        setNeedsSetup(false);
-      }
-
-      // Reset retry count on success
-      retryCount.current = 0;
-      setError(null);
-    } catch (error) {
-      console.error('Failed to check setup:', error);
-
-      // On error, allow app to load anyway after max retries
-      retryCount.current += 1;
-
-      if (retryCount.current >= maxRetries) {
-        console.warn('Max retries reached for setup check. Allowing app to load.');
-        setError('Could not verify setup status. Continuing anyway.');
-        setNeedsSetup(false);
-      } else {
-        // Retry after a short delay
-        setTimeout(() => checkSetupStatus(), 1000 * retryCount.current);
-        return; // Don't set loading to false yet
-      }
-    } finally {
-      if (retryCount.current >= maxRetries || retryCount.current === 0) {
+        // Always set loading to false, regardless of fetch result
+        setLoading(false);
+      } catch (err) {
+        console.error('[SetupCheck] error:', err);
+        setDebugInfo('error: ' + err.message);
         setLoading(false);
       }
-    }
-  }
+    };
+
+    init();
+  }, [pathname]);
 
   if (loading) {
     return (
       <div style={styles.loadingContainer}>
         <div style={styles.spinner} />
         <p>Loading...</p>
+        {process.env.NODE_ENV === 'development' && <p style={{fontSize: '12px', color: '#999'}}>{debugInfo}</p>}
       </div>
     );
   }

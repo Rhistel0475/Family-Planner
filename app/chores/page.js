@@ -1,598 +1,537 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useTheme } from '../providers/ThemeProvider';
+import { useEffect, useState } from 'react';
+import { getRotationAngle, getStatusString } from '../../lib/boardChores';
+import styles from './chores.module.css';
 
-export default function ChoreBoardPage() {
-  const { theme } = useTheme();
-  const [templates, setTemplates] = useState([]);
+const FREQUENCY_OPTIONS = [
+  { value: 'DAILY', label: 'Daily' },
+  { value: 'WEEKLY', label: 'Weekly' },
+  { value: 'BIWEEKLY', label: 'Biweekly' },
+  { value: 'MONTHLY', label: 'Monthly' },
+  { value: 'CUSTOM', label: 'Custom (every N days)' }
+];
+
+const DUE_DAY_OPTIONS = [
+  { value: 'SUN', label: 'Sunday' },
+  { value: 'MON', label: 'Monday' },
+  { value: 'TUE', label: 'Tuesday' },
+  { value: 'WED', label: 'Wednesday' },
+  { value: 'THU', label: 'Thursday' },
+  { value: 'FRI', label: 'Friday' },
+  { value: 'SAT', label: 'Saturday' }
+];
+
+export default function ChoresPage() {
+  const [settings, setSettings] = useState([]);
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [saving, setSaving] = useState(false);
 
-  // Default chore templates
-  const defaultChores = [
-    { templateKey: 'clean-kitchen', title: 'Clean Kitchen' },
-    { templateKey: 'clean-bathroom', title: 'Clean Bathroom' },
-    { templateKey: 'clean-bedroom', title: 'Clean Bedroom' },
-    { templateKey: 'clean-living-room', title: 'Clean Living Room' },
-    { templateKey: 'vacuum', title: 'Vacuum' },
-    { templateKey: 'sweep-mop', title: 'Sweep/Mop' },
-    { templateKey: 'dishes', title: 'Dishes' },
-    { templateKey: 'laundry', title: 'Laundry' },
-    { templateKey: 'dusting', title: 'Dusting' },
-    { templateKey: 'take-out-trash', title: 'Take Out Trash' },
-    { templateKey: 'wipe-counters', title: 'Wipe Counters' },
-    { templateKey: 'organize-declutter', title: 'Organize/Declutter' }
-  ];
+  const [saving, setSaving] = useState(false);
+  const [expandedKey, setExpandedKey] = useState(null);
+  const [message, setMessage] = useState(null);
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addLoading, setAddLoading] = useState(false);
+  const [setDueDayChecked, setSetDueDayChecked] = useState(false);
 
   useEffect(() => {
-    fetchTemplates();
+    fetchBoardSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const fetchTemplates = async () => {
+  const fetchBoardSettings = async () => {
     try {
-      const res = await fetch('/api/chore-board');
-      const data = await res.json();
+      setLoading(true);
 
-      if (res.ok) {
-        // If no templates exist, create defaults
-        if (data.templates.length === 0) {
-          await initializeDefaultTemplates();
-        } else {
-          setTemplates(data.templates);
-        }
-      }
+      const res = await fetch('/api/chore-board');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      if (data.error && !data.settings) throw new Error(data.error);
+
+      setSettings(Array.isArray(data.settings) ? data.settings : []);
+      setMembers(Array.isArray(data.members) ? data.members : []);
     } catch (error) {
-      console.error('Failed to fetch templates:', error);
+      console.error('Failed to fetch chore board:', error);
+      setMessage({ type: 'error', text: 'Failed to load chore board' });
     } finally {
       setLoading(false);
     }
   };
 
-  const initializeDefaultTemplates = async () => {
+  const handleSettingChange = (templateKey, updates) => {
+    setSettings((prev) =>
+      prev.map((s) => (s.templateKey === templateKey ? { ...s, ...updates } : s))
+    );
+  };
+
+  const handleFrequencyChange = (templateKey, frequencyType) => {
+    const updates = { frequencyType };
+    if (frequencyType !== 'CUSTOM') updates.customEveryDays = null;
+    handleSettingChange(templateKey, updates);
+  };
+
+  const handleEligibilityModeChange = (templateKey, mode) => {
+    const updates = { eligibilityMode: mode };
+    if (mode === 'ALL') updates.eligibleMemberIds = [];
+    handleSettingChange(templateKey, updates);
+  };
+
+  const handleToggleMember = (templateKey, memberId) => {
+    setSettings((prev) =>
+      prev.map((s) => {
+        if (s.templateKey !== templateKey) return s;
+        const current = s.eligibleMemberIds || [];
+        const next = current.includes(memberId)
+          ? current.filter((id) => id !== memberId)
+          : [...current, memberId];
+        return { ...s, eligibleMemberIds: next };
+      })
+    );
+  };
+
+  const handleSaveAll = async () => {
     try {
-      const newTemplates = [];
+      setSaving(true);
 
-      for (const chore of defaultChores) {
-        const res = await fetch('/api/chore-board', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            templateKey: chore.templateKey,
-            title: chore.title,
-            isRecurring: false,
-            frequencyType: 'ONE_TIME',
-            eligibilityMode: 'ALL',
-            eligibleMemberIds: []
-          })
-        });
+      // Validate settings before saving
+      for (const setting of settings) {
+        // If not recurring, force ONE_TIME
+        if (!setting.isRecurring && setting.frequencyType !== 'ONE_TIME') {
+          setMessage({ type: 'error', text: `${setting.title}: Disable recurring to use One-time` });
+          return;
+        }
 
-        const data = await res.json();
-        if (data.template) {
-          newTemplates.push(data.template);
+        if (setting.frequencyType === 'CUSTOM' && (!setting.customEveryDays || setting.customEveryDays < 1)) {
+          setMessage({ type: 'error', text: `${setting.title}: Custom frequency requires a valid day count` });
+          return;
+        }
+
+        if (setting.eligibilityMode === 'SELECTED' && (!setting.eligibleMemberIds || setting.eligibleMemberIds.length === 0)) {
+          setMessage({ type: 'error', text: `${setting.title}: SELECTED mode requires at least 1 member` });
+          return;
         }
       }
 
-      setTemplates(newTemplates);
-    } catch (error) {
-      console.error('Failed to initialize templates:', error);
-    }
-  };
-
-  const addNewTemplate = async (templateData) => {
-    try {
-      const res = await fetch('/api/chore-board', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(templateData)
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.template) {
-        setTemplates([...templates, data.template]);
-        setShowAddModal(false);
-      }
-    } catch (error) {
-      console.error('Failed to add template:', error);
-    }
-  };
-
-  const updateTemplate = async (id, updates) => {
-    try {
       const res = await fetch('/api/chore-board', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, ...updates })
+        body: JSON.stringify({ settings })
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Save failed');
 
-      if (res.ok && data.template) {
-        setTemplates(templates.map(t => t.id === id ? data.template : t));
-      }
+      setMessage({ type: 'success', text: `Saved ${data.updated} chore${data.updated !== 1 ? 's' : ''}` });
+      setExpandedKey(null);
+
+      setTimeout(() => {
+        fetchBoardSettings();
+        setMessage(null);
+      }, 1000);
     } catch (error) {
-      console.error('Failed to update template:', error);
+      console.error('Save error:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to save' });
+    } finally {
+      setSaving(false);
     }
   };
 
-  const deleteTemplate = async (id) => {
-    if (!confirm('Delete this chore template?')) return;
+  const handleAddChore = async (e) => {
+    e.preventDefault();
+    setAddLoading(true);
 
     try {
-      const res = await fetch(`/api/chore-board?id=${id}`, {
-        method: 'DELETE'
+      const formData = new FormData(e.target);
+
+      const title = (formData.get('title') || '').toString().trim();
+      const assignedMemberId = (formData.get('assignedTo') || '').toString() || null;
+
+      // You capture these for UI now; if you want persistence, add fields to schema + API
+      const setDueDay = formData.get('setDueDay') === 'on';
+      const dueDay = setDueDay ? (formData.get('dueDay') || '').toString() : null;
+
+      if (!title) {
+        setMessage({ type: 'error', text: 'Please enter a chore title' });
+        setAddLoading(false);
+        return;
+      }
+
+      const templateKey =
+        'custom_' +
+        title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '') +
+        '_' +
+        Date.now();
+
+      console.log('🔵 Adding custom chore:', title);
+      console.log('🔵 Generated templateKey:', templateKey);
+      console.log('🔵 Set Due Day:', setDueDay, 'Due Day:', dueDay);
+
+      const boardRes = await fetch('/api/chore-board', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          settings: [
+            {
+              templateKey,
+              title,
+              isRecurring: false,
+              frequencyType: 'ONE_TIME',
+              customEveryDays: null,
+              eligibilityMode: 'ALL',
+              eligibleMemberIds: [],
+              defaultAssigneeMemberId: assignedMemberId
+            }
+          ]
+        })
       });
 
-      if (res.ok) {
-        setTemplates(templates.filter(t => t.id !== id));
-      }
+      const boardData = await boardRes.json();
+      if (!boardRes.ok) throw new Error(boardData.error || 'Failed to add chore to board');
+
+      setMessage({ type: 'success', text: '✓ Chore added to board. Use "Smart Chore Assignment" to schedule it.' });
+      setShowAddModal(false);
+      setSetDueDayChecked(false);
+      e.target.reset();
+
+      setTimeout(() => {
+        fetchBoardSettings();
+        setMessage(null);
+      }, 1500);
     } catch (error) {
-      console.error('Failed to delete template:', error);
+      console.error('Add chore error:', error);
+      setMessage({ type: 'error', text: error.message || 'Failed to save chore' });
+    } finally {
+      setAddLoading(false);
     }
-  };
-
-  const toggleChoreActive = async (template) => {
-    const newActiveState = !template.isActive;
-    await updateTemplate(template.id, { isActive: newActiveState });
-  };
-
-  const saveAllSettings = async () => {
-    setSaving(true);
-    // All changes are auto-saved, this is just for UX feedback
-    setTimeout(() => {
-      setSaving(false);
-      alert('All settings saved! ✓');
-    }, 500);
   };
 
   if (loading) {
-    return (
-      <div style={{...styles.container, background: theme.body.bg}}>
-        <div style={{...styles.loading, color: theme.card.text}}>Loading chore board...</div>
-      </div>
-    );
+    return <div className={styles.loading}>Loading chore board...</div>;
   }
 
   return (
-    <div style={{...styles.container, background: theme.body.bg}}>
-      <div style={styles.header}>
+    <div className={styles.container}>
+      {/* HEADER */}
+      <div className={styles.header}>
         <div>
-          <h1 style={{...styles.title, color: theme.card.text}}>Chore Board</h1>
-          <p style={{...styles.subtitle, color: theme.card.subtext}}>
-            {templates.filter(t => t.isActive).length} active chore{templates.filter(t => t.isActive).length !== 1 ? 's' : ''} •
-            Click + to enable chores for AI assignment
-          </p>
+          <h1>Chores</h1>
+          <p>Configure your chore board, assignments, and schedules.</p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          style={{
-            ...styles.addButton,
-            background: theme.button.primary,
-            color: theme.button.primaryText
-          }}
-        >
-          +
-        </button>
+
+        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          <button
+            type="button"
+            className={styles.addButton}
+            onClick={() => setShowAddModal(true)}
+            aria-label="Add chore"
+            title="Add chore"
+          >
+            +
+          </button>
+
+          <button
+            type="button"
+            className={styles.saveButton}
+            onClick={handleSaveAll}
+            disabled={saving}
+            title="Save all changes"
+          >
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
       </div>
 
-      <div style={styles.grid}>
-        {templates.map(template => (
+      {/* MESSAGE */}
+      {message && (
+        <div
+          className={[
+            styles.message,
+            message.type === 'success' ? styles.message_success : styles.message_error
+          ].join(' ')}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {/* BOARD */}
+      <div className={styles.board}>
+        {settings.map((setting) => (
           <ChoreCard
-            key={template.id}
-            template={template}
-            theme={theme}
-            onToggle={() => toggleChoreActive(template)}
-            onUpdate={(updates) => updateTemplate(template.id, updates)}
-            onDelete={() => deleteTemplate(template.id)}
+            key={setting.templateKey}
+            setting={setting}
+            members={members}
+            expanded={expandedKey === setting.templateKey}
+            onToggleExpand={() =>
+              setExpandedKey(expandedKey === setting.templateKey ? null : setting.templateKey)
+            }
+            onChange={(updates) => handleSettingChange(setting.templateKey, updates)}
+            onFrequencyChange={(freq) => handleFrequencyChange(setting.templateKey, freq)}
+            onEligibilityModeChange={(mode) => handleEligibilityModeChange(setting.templateKey, mode)}
+            onToggleMember={(memberId) => handleToggleMember(setting.templateKey, memberId)}
           />
         ))}
       </div>
 
-      <button
-        onClick={saveAllSettings}
-        disabled={saving}
-        style={{
-          ...styles.saveButton,
-          background: theme.button.primary,
-          color: theme.button.primaryText
-        }}
-      >
-        {saving ? 'Saving...' : 'Save All Settings'}
-      </button>
-
-      {showAddModal && (
-        <AddChoreModal
-          theme={theme}
-          onClose={() => setShowAddModal(false)}
-          onSave={addNewTemplate}
-        />
-      )}
-    </div>
-  );
-}
-
-function ChoreCard({ template, theme, onToggle, onUpdate, onDelete }) {
-  const [expanded, setExpanded] = useState(false);
-
-  const frequencyLabel = template.isRecurring
-    ? `${template.frequencyType.charAt(0) + template.frequencyType.slice(1).toLowerCase()}`
-    : 'One-time';
-
-  const eligibilityLabel = template.eligibilityMode === 'ALL'
-    ? 'All'
-    : template.eligibilityMode === 'SELECTED'
-    ? 'Selected'
-    : 'Role-based';
-
-  const isActive = template.isActive;
-
-  return (
-    <div
-      style={{
-        ...styles.card,
-        background: isActive ? theme.card.bg[2] : theme.card.bg[0],
-        border: `2px solid ${isActive ? theme.button.primary : theme.card.border}`,
-        opacity: isActive ? 1 : 0.6
-      }}
-    >
-      <div style={styles.cardHeader}>
-        <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1}}>
-          {isActive && <span style={{fontSize: '1.2rem'}}>✓</span>}
-          <h3 style={{...styles.cardTitle, color: theme.card.text, margin: 0}}>{template.title}</h3>
-        </div>
-        <button
-          onClick={onToggle}
-          style={{
-            ...styles.cardAddButton,
-            background: isActive ? theme.toast.success.bg : theme.button.primary,
-            color: isActive ? '#fff' : theme.button.primaryText,
-            border: `2px solid ${isActive ? theme.toast.success.border : 'transparent'}`
-          }}
-        >
-          {isActive ? '✓' : '+'}
+      {/* FOOTER (optional extra save button at bottom for long pages) */}
+      <div className={styles.footer}>
+        <button type="button" className={styles.saveButton} onClick={handleSaveAll} disabled={saving}>
+          {saving ? 'Saving…' : 'Save All Changes'}
         </button>
       </div>
 
-      <div style={{...styles.cardMeta, color: theme.card.subtext}}>
-        {frequencyLabel} • Eligible: {eligibilityLabel}
+      {/* ADD CHORE MODAL */}
+      {showAddModal && (
+        <div
+          className={styles.modalOverlay}
+          role="presentation"
+          onClick={() => {
+            setShowAddModal(false);
+            setSetDueDayChecked(false);
+          }}
+        >
+          <div
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader}>
+              <h2>Add a chore</h2>
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={() => {
+                  setShowAddModal(false);
+                  setSetDueDayChecked(false);
+                }}
+                aria-label="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddChore} className={styles.modalForm}>
+              <div className={styles.formGroup}>
+                <label>Chore Title</label>
+                <input name="title" placeholder="e.g., Take out trash" />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Assign To (optional)</label>
+                <select name="assignedTo" defaultValue="">
+                  <option value="">No default assignee</option>
+                  {members.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <input
+                    type="checkbox"
+                    name="setDueDay"
+                    checked={setDueDayChecked}
+                    onChange={(e) => setSetDueDayChecked(e.target.checked)}
+                  />
+                  Set Due Day
+                </label>
+
+                {setDueDayChecked && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <label>Due Day</label>
+                    <select name="dueDay" defaultValue="MON">
+                      {DUE_DAY_OPTIONS.map((d) => (
+                        <option key={d.value} value={d.value}>
+                          {d.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setSetDueDayChecked(false);
+                  }}
+                  disabled={addLoading}
+                >
+                  Cancel
+                </button>
+
+                <button type="submit" className={styles.submitButton} disabled={addLoading}>
+                  {addLoading ? 'Adding…' : 'Add Chore'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChoreCard({
+  setting,
+  members,
+  expanded,
+  onToggleExpand,
+  onChange,
+  onFrequencyChange,
+  onEligibilityModeChange,
+  onToggleMember
+}) {
+  const rotation = getRotationAngle(setting.templateKey);
+  const statusStr = getStatusString(setting);
+
+  const cardClass = expanded ? `${styles.card} ${styles.expanded}` : styles.card;
+
+  return (
+    <div
+      className={cardClass}
+      style={{ '--rotation': rotation }}
+      onClick={onToggleExpand}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') onToggleExpand();
+      }}
+    >
+      <div className={styles.cardHeader}>
+        <h3>{setting.title}</h3>
+        <div className={styles.status}>{statusStr}</div>
+        <div className={styles.expandIcon}>{expanded ? '−' : '+'}</div>
       </div>
 
       {expanded && (
-        <div style={styles.cardDetails}>
-          <button
-            onClick={() => setExpanded(false)}
-            style={{...styles.editButton, color: theme.card.text}}
-          >
-            ✏️ Edit
-          </button>
-          <button
-            onClick={onDelete}
-            style={{...styles.deleteButton, color: '#ff4444'}}
-          >
-            🗑️ Delete
-          </button>
+        <div className={styles.cardContent} onClick={(e) => e.stopPropagation()}>
+          {/* Recurring */}
+          <div className={styles.section}>
+            <label className={styles.checkboxLabel}>
+              <input
+                type="checkbox"
+                checked={!!setting.isRecurring}
+                onChange={(e) => {
+                  const isRecurring = e.target.checked;
+                  onChange({
+                    isRecurring,
+                    frequencyType: isRecurring ? 'WEEKLY' : 'ONE_TIME',
+                    customEveryDays: isRecurring ? setting.customEveryDays : null
+                  });
+                }}
+              />
+              Recurring
+            </label>
+            <small>If unchecked, this becomes One-time and AI can schedule it when requested.</small>
+
+            {setting.isRecurring && (
+              <div className={styles.frequencyGroup}>
+                <label>Frequency</label>
+                <select
+                  value={setting.frequencyType || 'WEEKLY'}
+                  onChange={(e) => onFrequencyChange(e.target.value)}
+                >
+                  {FREQUENCY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+
+                {setting.frequencyType === 'CUSTOM' && (
+                  <div className={styles.customDays}>
+                    <label>Every</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={setting.customEveryDays ?? 1}
+                      onChange={(e) =>
+                        onChange({ customEveryDays: parseInt(e.target.value, 10) || 1 })
+                      }
+                    />
+                    <span>days</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Default Assignee */}
+          <div className={styles.section}>
+            <label>Default Assignee</label>
+            <select
+              value={setting.defaultAssigneeMemberId || ''}
+              onChange={(e) => onChange({ defaultAssigneeMemberId: e.target.value || null })}
+            >
+              <option value="">No default (AI decides)</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            <small>AI can still rotate or reassign based on eligibility and workload.</small>
+          </div>
+
+          {/* Eligibility */}
+          <div className={styles.section}>
+            <label>Eligible Members</label>
+
+            <div className={styles.eligibilityMode}>
+              <label className={styles.radioLabel}>
+                <input
+                  type="radio"
+                  name={`elig-${setting.templateKey}`}
+                  checked={setting.eligibilityMode !== 'SELECTED'}
+                  onChange={() => onEligibilityModeChange('ALL')}
+                />
+                All members
+              </label>
+
+              <label className={styles.radioLabel}>
+                <input
+                  type="radio"
+                  name={`elig-${setting.templateKey}`}
+                  checked={setting.eligibilityMode === 'SELECTED'}
+                  onChange={() => onEligibilityModeChange('SELECTED')}
+                />
+                Selected only
+              </label>
+            </div>
+
+            {setting.eligibilityMode === 'SELECTED' && (
+              <div className={styles.memberCheckboxes}>
+                {members.map((m) => (
+                  <label key={m.id} className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={(setting.eligibleMemberIds || []).includes(m.id)}
+                      onChange={() => onToggleMember(m.id)}
+                    />
+                    {m.name}
+                  </label>
+                ))}
+              </div>
+            )}
+
+            <small>
+              Use SELECTED if you only want certain people eligible for this chore.
+            </small>
+          </div>
         </div>
       )}
-
-      <button
-        onClick={() => setExpanded(!expanded)}
-        style={{...styles.expandButton, color: theme.card.subtext}}
-      >
-        {expanded ? '▲' : '▼'}
-      </button>
     </div>
   );
 }
-
-function AddChoreModal({ theme, onClose, onSave }) {
-  const [formData, setFormData] = useState({
-    templateKey: '',
-    title: '',
-    isRecurring: false,
-    frequencyType: 'ONE_TIME',
-    eligibilityMode: 'ALL',
-    eligibleMemberIds: []
-  });
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-
-    if (!formData.title.trim()) {
-      alert('Please enter a chore title');
-      return;
-    }
-
-    // Generate templateKey from title
-    const templateKey = formData.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-
-    onSave({
-      ...formData,
-      templateKey: templateKey || `chore-${Date.now()}`
-    });
-  };
-
-  return (
-    <div style={styles.modalOverlay} onClick={onClose}>
-      <div
-        style={{
-          ...styles.modal,
-          background: theme.card.bg[0],
-          border: `1px solid ${theme.card.border}`
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 style={{...styles.modalTitle, color: theme.card.text}}>Add New Chore</h2>
-
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <label style={{...styles.label, color: theme.card.text}}>Chore Name</label>
-          <input
-            type="text"
-            value={formData.title}
-            onChange={(e) => setFormData({...formData, title: e.target.value})}
-            style={{
-              ...styles.input,
-              background: theme.input.bg,
-              color: theme.input.text,
-              border: `1px solid ${theme.input.border}`
-            }}
-            placeholder="e.g., Water plants"
-            autoFocus
-          />
-
-          <label style={{...styles.label, color: theme.card.text}}>Frequency</label>
-          <select
-            value={formData.frequencyType}
-            onChange={(e) => setFormData({
-              ...formData,
-              frequencyType: e.target.value,
-              isRecurring: e.target.value !== 'ONE_TIME'
-            })}
-            style={{
-              ...styles.input,
-              background: theme.input.bg,
-              color: theme.input.text,
-              border: `1px solid ${theme.input.border}`
-            }}
-          >
-            <option value="ONE_TIME">One-time</option>
-            <option value="DAILY">Daily</option>
-            <option value="WEEKLY">Weekly</option>
-            <option value="MONTHLY">Monthly</option>
-          </select>
-
-          <label style={{...styles.label, color: theme.card.text}}>Who can do it?</label>
-          <select
-            value={formData.eligibilityMode}
-            onChange={(e) => setFormData({...formData, eligibilityMode: e.target.value})}
-            style={{
-              ...styles.input,
-              background: theme.input.bg,
-              color: theme.input.text,
-              border: `1px solid ${theme.input.border}`
-            }}
-          >
-            <option value="ALL">Anyone</option>
-            <option value="SELECTED">Selected members</option>
-            <option value="ROLE_BASED">Role-based</option>
-          </select>
-
-          <div style={styles.buttonRow}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                ...styles.cancelButton,
-                background: theme.button.secondary,
-                color: theme.card.text
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              style={{
-                ...styles.submitButton,
-                background: theme.button.primary,
-                color: theme.button.primaryText
-              }}
-            >
-              Add Chore
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
-
-const styles = {
-  container: {
-    minHeight: '100vh',
-    padding: '5rem 1.5rem 2rem 1.5rem'
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '3rem',
-    fontSize: '1.1rem'
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '2rem',
-    maxWidth: '1200px',
-    margin: '0 auto 2rem auto'
-  },
-  title: {
-    fontSize: '2rem',
-    fontWeight: 700,
-    marginBottom: '0.5rem'
-  },
-  subtitle: {
-    fontSize: '0.95rem',
-    opacity: 0.8
-  },
-  addButton: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '50%',
-    border: 'none',
-    fontSize: '1.5rem',
-    cursor: 'pointer',
-    fontWeight: 700,
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-    transition: 'all 0.2s ease'
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-    gap: '1rem',
-    maxWidth: '1200px',
-    margin: '0 auto 2rem auto'
-  },
-  card: {
-    padding: '1.25rem',
-    borderRadius: '12px',
-    position: 'relative',
-    transition: 'all 0.2s ease',
-    cursor: 'pointer'
-  },
-  cardHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: '0.75rem'
-  },
-  cardTitle: {
-    fontSize: '1.1rem',
-    fontWeight: 600,
-    flex: 1,
-    marginRight: '0.5rem'
-  },
-  cardAddButton: {
-    width: '32px',
-    height: '32px',
-    borderRadius: '50%',
-    border: 'none',
-    fontSize: '1.25rem',
-    cursor: 'pointer',
-    fontWeight: 700,
-    flexShrink: 0
-  },
-  cardMeta: {
-    fontSize: '0.85rem',
-    opacity: 0.7
-  },
-  cardDetails: {
-    marginTop: '1rem',
-    paddingTop: '1rem',
-    borderTop: '1px solid rgba(0,0,0,0.1)',
-    display: 'flex',
-    gap: '0.5rem'
-  },
-  editButton: {
-    padding: '0.5rem 0.75rem',
-    borderRadius: '6px',
-    border: '1px solid rgba(0,0,0,0.1)',
-    background: 'transparent',
-    fontSize: '0.85rem',
-    cursor: 'pointer',
-    flex: 1
-  },
-  deleteButton: {
-    padding: '0.5rem 0.75rem',
-    borderRadius: '6px',
-    border: '1px solid rgba(255,68,68,0.3)',
-    background: 'transparent',
-    fontSize: '0.85rem',
-    cursor: 'pointer'
-  },
-  expandButton: {
-    position: 'absolute',
-    bottom: '0.5rem',
-    right: '0.5rem',
-    background: 'transparent',
-    border: 'none',
-    fontSize: '0.75rem',
-    cursor: 'pointer',
-    opacity: 0.5
-  },
-  saveButton: {
-    display: 'block',
-    width: '100%',
-    maxWidth: '400px',
-    margin: '2rem auto',
-    padding: '1rem',
-    borderRadius: '12px',
-    border: 'none',
-    fontSize: '1rem',
-    fontWeight: 700,
-    cursor: 'pointer',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0,0,0,0.5)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000
-  },
-  modal: {
-    width: '90%',
-    maxWidth: '500px',
-    borderRadius: '16px',
-    padding: '2rem',
-    boxShadow: '0 8px 32px rgba(0,0,0,0.2)'
-  },
-  modalTitle: {
-    fontSize: '1.5rem',
-    fontWeight: 700,
-    marginBottom: '1.5rem'
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem'
-  },
-  label: {
-    fontSize: '0.85rem',
-    fontWeight: 600,
-    marginBottom: '-0.5rem'
-  },
-  input: {
-    padding: '0.75rem',
-    borderRadius: '8px',
-    fontSize: '1rem',
-    outline: 'none'
-  },
-  buttonRow: {
-    display: 'flex',
-    gap: '1rem',
-    marginTop: '1rem'
-  },
-  cancelButton: {
-    flex: 1,
-    padding: '0.75rem',
-    borderRadius: '8px',
-    border: 'none',
-    fontSize: '0.95rem',
-    fontWeight: 600,
-    cursor: 'pointer'
-  },
-  submitButton: {
-    flex: 1,
-    padding: '0.75rem',
-    borderRadius: '8px',
-    border: 'none',
-    fontSize: '0.95rem',
-    fontWeight: 700,
-    cursor: 'pointer'
-  }
-};
