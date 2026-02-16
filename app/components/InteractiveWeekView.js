@@ -9,6 +9,39 @@ import QuickAddButton from './QuickAddButton';
 import DraggableItem from './DraggableItem';
 import DroppableDay from './DroppableDay';
 
+const EVENT_CATEGORIES = [
+  'Doctor Appointment',
+  'Dentist Appointment',
+  'School Event',
+  'Church',
+  'Family Event',
+  'Birthday',
+  'Sports / Practice',
+  'Meeting',
+  'Other'
+];
+
+function pad(n) {
+  return String(n).padStart(2, '0');
+}
+
+function timeToMinutes(t) {
+  // "HH:MM" -> minutes
+  if (!t) return null;
+  const [h, m] = t.split(':').map((x) => parseInt(x, 10));
+  if (Number.isNaN(h) || Number.isNaN(m)) return null;
+  return h * 60 + m;
+}
+
+function formatTimeRange(startsAt, endsAt) {
+  const s = new Date(startsAt);
+  const startStr = s.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  if (!endsAt) return startStr;
+  const e = new Date(endsAt);
+  const endStr = e.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  return `${startStr}–${endStr}`;
+}
+
 export default function InteractiveWeekView() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [events, setEvents] = useState([]);
@@ -17,17 +50,27 @@ export default function InteractiveWeekView() {
   const [selectedMember, setSelectedMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState(null);
+
   const [quickAddModal, setQuickAddModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
+
   const [newItem, setNewItem] = useState({
+    // For chores:
     title: '',
     assignedTo: '',
     day: 'Monday',
-    type: 'EVENT',
     choreTemplate: 'Clean Bedroom',
     availableToAll: true,
-    frequency: 'ONCE'
+    frequency: 'ONCE',
+
+    // For events:
+    category: EVENT_CATEGORIES[0],
+    startTime: '09:00',
+    endTime: '',
+    location: '',
+    description: ''
   });
+
   const [activeItem, setActiveItem] = useState(null);
 
   const defaultChoreTemplates = [
@@ -43,17 +86,9 @@ export default function InteractiveWeekView() {
   const noteColors = ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7'];
   const noteRotations = ['rotate(-1deg)', 'rotate(0.8deg)', 'rotate(-0.6deg)', 'rotate(0.6deg)'];
 
-  // Configure drag & drop sensors
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 }
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5
-      }
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(KeyboardSensor)
   );
 
@@ -64,12 +99,11 @@ export default function InteractiveWeekView() {
 
     const monday = new Date(now);
     monday.setHours(0, 0, 0, 0);
-    monday.setDate(now.getDate() - daysFromMonday + (offset * 7));
+    monday.setDate(now.getDate() - daysFromMonday + offset * 7);
 
     return DAY_NAMES.map((day, index) => {
       const date = new Date(monday);
       date.setDate(monday.getDate() + index);
-
       return {
         day,
         dateLabel: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
@@ -77,6 +111,18 @@ export default function InteractiveWeekView() {
       };
     });
   }, []);
+
+  const showToast = (message, type = 'success', action = null) => {
+    setToast({ message, type, action });
+  };
+
+  const showToastWithUndo = (message, undoAction) => {
+    setToast({
+      message,
+      type: 'success',
+      action: { label: 'Undo', onClick: undoAction }
+    });
+  };
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -95,11 +141,14 @@ export default function InteractiveWeekView() {
 
       if (eventsRes.ok) {
         const eventsData = await eventsRes.json();
-        const filteredEvents = (eventsData.events || []).filter(e => {
-          const eventDate = new Date(e.startsAt);
-          return eventDate >= weekStart && eventDate <= weekEnd;
+        const filtered = (eventsData.events || []).filter((e) => {
+          const d = new Date(e.startsAt);
+          return d >= weekStart && d <= weekEnd;
         });
-        setEvents(filteredEvents);
+
+        // Sort by startsAt
+        filtered.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+        setEvents(filtered);
       }
 
       if (choresRes.ok) {
@@ -123,33 +172,19 @@ export default function InteractiveWeekView() {
     fetchData();
   }, [fetchData]);
 
-  const showToast = (message, type = 'success', action = null) => {
-    setToast({ message, type, action });
-  };
-
-  const showToastWithUndo = (message, undoAction) => {
-    setToast({
-      message,
-      type: 'success',
-      action: {
-        label: 'Undo',
-        onClick: undoAction
-      }
-    });
-  };
-
   const getMemberColor = (assignedTo) => {
-    const member = members.find(m => m.name === assignedTo);
+    const member = members.find((m) => m.name === assignedTo);
     return member ? member.color : '#94a3b8';
   };
 
   const toggleChoreCompletion = async (chore) => {
     const newCompleted = !chore.completed;
 
-    // Optimistic update
-    setChores(chores.map(c =>
-      c.id === chore.id ? { ...c, completed: newCompleted, completedAt: newCompleted ? new Date() : null } : c
-    ));
+    setChores(
+      chores.map((c) =>
+        c.id === chore.id ? { ...c, completed: newCompleted, completedAt: newCompleted ? new Date() : null } : c
+      )
+    );
 
     try {
       const res = await fetch('/api/chores', {
@@ -162,10 +197,7 @@ export default function InteractiveWeekView() {
 
       showToast(newCompleted ? '✓ Chore completed!' : 'Chore unmarked');
     } catch (error) {
-      // Revert on error
-      setChores(chores.map(c =>
-        c.id === chore.id ? chore : c
-      ));
+      setChores(chores.map((c) => (c.id === chore.id ? chore : c)));
       showToast('Failed to update chore', 'error');
     }
   };
@@ -177,7 +209,7 @@ export default function InteractiveWeekView() {
       const res = await fetch(`/api/chores?id=${choreId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
 
-      setChores(chores.filter(c => c.id !== choreId));
+      setChores(chores.filter((c) => c.id !== choreId));
       showToast('Chore deleted');
     } catch (error) {
       showToast('Failed to delete chore', 'error');
@@ -191,95 +223,20 @@ export default function InteractiveWeekView() {
       const res = await fetch(`/api/schedule?id=${eventId}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
 
-      setEvents(events.filter(e => e.id !== eventId));
+      setEvents(events.filter((e) => e.id !== eventId));
       showToast('Event deleted');
     } catch (error) {
       showToast('Failed to delete event', 'error');
     }
   };
 
-  const handleQuickAdd = async () => {
-    const choreTitle = newItem.choreTemplate === 'CUSTOM' ? newItem.title.trim() : newItem.choreTemplate;
-    const itemTitle = quickAddModal === 'chore' ? choreTitle : newItem.title.trim();
-
-    if (!itemTitle) {
-      showToast('Please enter a title', 'error');
-      return;
-    }
-
-    try {
-      const endpoint = quickAddModal === 'chore' ? '/api/chores' : '/api/schedule';
-      const chorePayload = {
-        title: itemTitle,
-        assignedTo: newItem.availableToAll ? 'All Members' : (newItem.assignedTo || 'Unassigned'),
-        dueDay: newItem.day,
-        isRecurring: newItem.frequency !== 'ONCE',
-        recurrencePattern: newItem.frequency !== 'ONCE' ? newItem.frequency : null,
-        recurrenceInterval: newItem.frequency !== 'ONCE' ? 1 : null
-      };
-
-      const payload = quickAddModal === 'chore'
-        ? chorePayload
-        : { title: itemTitle, type: newItem.type, startsAt: new Date(), day: newItem.day, event: itemTitle };
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) throw new Error('Failed to create');
-
-      showToast(`${quickAddModal === 'chore' ? 'Chore' : 'Event'} added!`);
-      setQuickAddModal(null);
-      setNewItem({
-        title: '',
-        assignedTo: '',
-        day: 'Monday',
-        type: 'EVENT',
-        choreTemplate: 'Clean Bedroom',
-        availableToAll: true,
-        frequency: 'ONCE'
-      });
-      fetchData();
-    } catch (error) {
-      showToast(`Failed to add ${quickAddModal}`, 'error');
-    }
+  const toDayName = (date) => {
+    const dayIndex = new Date(date).getDay();
+    return DAY_NAMES[(dayIndex + 6) % 7];
   };
 
-  const handleEventEdit = async () => {
-    if (!editModal || !editModal.title.trim()) {
-      showToast('Please enter a title', 'error');
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/schedule', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editModal.id,
-          title: editModal.title,
-          type: editModal.type,
-          description: editModal.description
-        })
-      });
-
-      if (!res.ok) throw new Error('Failed to update');
-
-      showToast('Event updated!');
-      setEditModal(null);
-      fetchData();
-    } catch (error) {
-      showToast('Failed to update event', 'error');
-    }
-  };
-
-  // Drag & Drop Handlers
   const vibrate = () => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(10);
-    }
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
   };
 
   const handleDragStart = (event) => {
@@ -302,7 +259,7 @@ export default function InteractiveWeekView() {
 
     if (item.type === 'chore') {
       await handleChoreDrop(item.id, newDay, item.originalChore);
-    } else if (item.type === 'event' || item.type === 'work') {
+    } else if (item.type === 'event') {
       await handleEventDrop(item.id, newDay, item.originalEvent);
     }
   };
@@ -310,9 +267,7 @@ export default function InteractiveWeekView() {
   const handleChoreDrop = async (choreId, newDay, originalChore) => {
     const originalDay = originalChore.dueDay;
 
-    setChores(chores.map(c =>
-      c.id === choreId ? { ...c, dueDay: newDay } : c
-    ));
+    setChores(chores.map((c) => (c.id === choreId ? { ...c, dueDay: newDay } : c)));
 
     try {
       const res = await fetch('/api/chores', {
@@ -323,102 +278,242 @@ export default function InteractiveWeekView() {
 
       if (!res.ok) throw new Error('Update failed');
 
-      showToastWithUndo(
-        `Chore moved to ${newDay}`,
-        async () => {
-          setChores(chores.map(c =>
-            c.id === choreId ? { ...c, dueDay: originalDay } : c
-          ));
+      showToastWithUndo(`Chore moved to ${newDay}`, async () => {
+        setChores(chores.map((c) => (c.id === choreId ? { ...c, dueDay: originalDay } : c)));
 
-          await fetch('/api/chores', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: choreId, dueDay: originalDay })
-          });
+        await fetch('/api/chores', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: choreId, dueDay: originalDay })
+        });
 
-          showToast('Move undone', 'info');
-        }
-      );
+        showToast('Move undone', 'info');
+      });
     } catch (error) {
-      setChores(chores.map(c =>
-        c.id === choreId ? originalChore : c
-      ));
+      setChores(chores.map((c) => (c.id === choreId ? originalChore : c)));
       showToast('Failed to move chore', 'error');
     }
   };
 
   const handleEventDrop = async (eventId, newDay, originalEvent) => {
     const weekDates = getWeekDates(weekOffset);
-    const newDayData = weekDates.find(d => d.day === newDay);
-
+    const newDayData = weekDates.find((d) => d.day === newDay);
     if (!newDayData) return;
 
-    const oldDate = new Date(originalEvent.startsAt);
-    const newDate = new Date(newDayData.date);
-    newDate.setHours(oldDate.getHours(), oldDate.getMinutes(), 0, 0);
+    const oldStart = new Date(originalEvent.startsAt);
+    const oldEnd = originalEvent.endsAt ? new Date(originalEvent.endsAt) : null;
 
-    setEvents(events.map(e =>
-      e.id === eventId ? { ...e, startsAt: newDate } : e
-    ));
+    const newStart = new Date(newDayData.date);
+    newStart.setHours(oldStart.getHours(), oldStart.getMinutes(), 0, 0);
+
+    let newEnd = null;
+    if (oldEnd) {
+      // preserve duration
+      const durationMs = oldEnd.getTime() - oldStart.getTime();
+      newEnd = new Date(newStart.getTime() + durationMs);
+    }
+
+    setEvents(events.map((e) => (e.id === eventId ? { ...e, startsAt: newStart, endsAt: newEnd } : e)));
 
     try {
       const res = await fetch('/api/schedule', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: eventId, startsAt: newDate.toISOString() })
+        body: JSON.stringify({
+          id: eventId,
+          startsAt: newStart.toISOString(),
+          endsAt: newEnd ? newEnd.toISOString() : null
+        })
       });
 
       if (!res.ok) throw new Error('Update failed');
 
-      showToastWithUndo(
-        `Event moved to ${newDay}`,
-        async () => {
-          setEvents(events.map(e =>
-            e.id === eventId ? { ...e, startsAt: originalEvent.startsAt } : e
-          ));
+      showToastWithUndo(`Event moved to ${newDay}`, async () => {
+        setEvents(events.map((e) => (e.id === eventId ? originalEvent : e)));
 
-          await fetch('/api/schedule', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: eventId, startsAt: originalEvent.startsAt })
-          });
+        await fetch('/api/schedule', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: eventId,
+            startsAt: new Date(originalEvent.startsAt).toISOString(),
+            endsAt: originalEvent.endsAt ? new Date(originalEvent.endsAt).toISOString() : null
+          })
+        });
 
-          showToast('Move undone', 'info');
-        }
-      );
+        showToast('Move undone', 'info');
+      });
     } catch (error) {
-      setEvents(events.map(e =>
-        e.id === eventId ? originalEvent : e
-      ));
+      setEvents(events.map((e) => (e.id === eventId ? originalEvent : e)));
       showToast('Failed to move event', 'error');
     }
   };
 
-  const weekDates = getWeekDates(weekOffset);
-  const toDayName = (date) => {
-    const dayIndex = new Date(date).getDay();
-    return DAY_NAMES[(dayIndex + 6) % 7];
+  const handleQuickAdd = async () => {
+    if (quickAddModal === 'chore') {
+      const choreTitle = newItem.choreTemplate === 'CUSTOM' ? newItem.title.trim() : newItem.choreTemplate;
+      if (!choreTitle) {
+        showToast('Please enter a title', 'error');
+        return;
+      }
+
+      try {
+        const chorePayload = {
+          title: choreTitle,
+          assignedTo: newItem.availableToAll ? 'All Members' : newItem.assignedTo || 'Unassigned',
+          dueDay: newItem.day,
+          isRecurring: newItem.frequency !== 'ONCE',
+          recurrencePattern: newItem.frequency !== 'ONCE' ? newItem.frequency : null,
+          recurrenceInterval: newItem.frequency !== 'ONCE' ? 1 : null
+        };
+
+        const res = await fetch('/api/chores', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(chorePayload)
+        });
+
+        if (!res.ok) throw new Error('Failed to create chore');
+
+        showToast('Chore added!');
+        setQuickAddModal(null);
+        setNewItem((p) => ({
+          ...p,
+          title: '',
+          assignedTo: '',
+          day: 'Monday',
+          choreTemplate: 'Clean Bedroom',
+          availableToAll: true,
+          frequency: 'ONCE'
+        }));
+        fetchData();
+      } catch (error) {
+        showToast('Failed to add chore', 'error');
+      }
+      return;
+    }
+
+    // Event quick add
+    const title = newItem.title.trim();
+    if (!title) {
+      showToast('Please enter an event name', 'error');
+      return;
+    }
+
+    const weekDates = getWeekDates(weekOffset);
+    const dayData = weekDates.find((d) => d.day === newItem.day);
+    if (!dayData) {
+      showToast('Invalid day selected', 'error');
+      return;
+    }
+
+    const startMin = timeToMinutes(newItem.startTime);
+    if (startMin === null) {
+      showToast('Start time is required', 'error');
+      return;
+    }
+
+    const startsAt = new Date(dayData.date);
+    startsAt.setHours(Math.floor(startMin / 60), startMin % 60, 0, 0);
+
+    let endsAt = null;
+    const endMin = timeToMinutes(newItem.endTime);
+    if (endMin !== null) {
+      endsAt = new Date(dayData.date);
+      endsAt.setHours(Math.floor(endMin / 60), endMin % 60, 0, 0);
+      if (endsAt <= startsAt) {
+        showToast('End time must be after start time', 'error');
+        return;
+      }
+    }
+
+    try {
+      const payload = {
+        type: 'EVENT',
+        category: newItem.category,
+        title,
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt ? endsAt.toISOString() : null,
+        location: newItem.location?.trim() || null,
+        description: newItem.description?.trim() || null
+      };
+
+      const res = await fetch('/api/schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to create event');
+
+      showToast('Event added!');
+      setQuickAddModal(null);
+      setNewItem((p) => ({
+        ...p,
+        title: '',
+        day: 'Monday',
+        category: EVENT_CATEGORIES[0],
+        startTime: '09:00',
+        endTime: '',
+        location: '',
+        description: ''
+      }));
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || 'Failed to add event', 'error');
+    }
+  };
+
+  const handleEventEdit = async () => {
+    if (!editModal?.title?.trim()) {
+      showToast('Please enter a title', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/schedule', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editModal.id,
+          title: editModal.title,
+          category: editModal.category ?? null,
+          location: editModal.location ?? null,
+          description: editModal.description ?? null,
+          startsAt: editModal.startsAt ? new Date(editModal.startsAt).toISOString() : undefined,
+          endsAt: editModal.endsAt ? new Date(editModal.endsAt).toISOString() : null
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || 'Failed to update');
+
+      showToast('Event updated!');
+      setEditModal(null);
+      fetchData();
+    } catch (error) {
+      showToast(error.message || 'Failed to update event', 'error');
+    }
   };
 
   // Filter chores by selected member
-  const filteredChores = selectedMember 
-    ? chores.filter(c => c.assignedTo === selectedMember)
-    : chores;
+  const filteredChores = selectedMember ? chores.filter((c) => c.assignedTo === selectedMember) : chores;
+
+  const weekDates = getWeekDates(weekOffset);
 
   const boardDays = weekDates.map((day) => {
     const dayEvents = events.filter((item) => toDayName(item.startsAt) === day.day);
     const dayChores = filteredChores.filter((item) => item.dueDay === day.day);
-    const workItems = dayEvents.filter((item) => item.type === 'WORK');
-    const eventItems = dayEvents.filter((item) => item.type === 'EVENT');
 
-    const completedCount = dayChores.filter(c => c.completed).length;
+    const completedCount = dayChores.filter((c) => c.completed).length;
     const totalCount = dayChores.length;
 
     return {
       day: day.day,
       date: day.dateLabel,
-      workEvents: workItems,
-      events: eventItems,
+      events: dayEvents,
       chores: dayChores,
       progress: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
       completedCount,
@@ -426,36 +521,33 @@ export default function InteractiveWeekView() {
     };
   });
 
-  // Calculate member statistics
-  const memberStats = members.map(member => {
-    const memberChores = chores.filter(c => c.assignedTo === member.name);
-    const completed = memberChores.filter(c => c.completed).length;
+  // Member stats
+  const memberStats = members.map((member) => {
+    const memberChores = chores.filter((c) => c.assignedTo === member.name);
+    const completed = memberChores.filter((c) => c.completed).length;
     const total = memberChores.length;
-    return {
-      ...member,
-      completed,
-      total,
-      percentage: total > 0 ? Math.round((completed / total) * 100) : 0
-    };
+    return { ...member, completed, total, percentage: total > 0 ? Math.round((completed / total) * 100) : 0 };
   });
 
-  const isCurrentWeek = weekOffset === 0;
-  const weekLabel = weekOffset === 0 ? 'This Week' :
-    weekOffset === 1 ? 'Next Week' :
-    weekOffset === -1 ? 'Last Week' :
-    weekOffset > 0 ? `${weekOffset} weeks ahead` : `${Math.abs(weekOffset)} weeks ago`;
+  const weekLabel =
+    weekOffset === 0
+      ? 'This Week'
+      : weekOffset === 1
+      ? 'Next Week'
+      : weekOffset === -1
+      ? 'Last Week'
+      : weekOffset > 0
+      ? `${weekOffset} weeks ahead`
+      : `${Math.abs(weekOffset)} weeks ago`;
 
   return (
     <main style={styles.main}>
       <section style={styles.hero}>
         <p style={styles.badge}>Deployed with Vercel</p>
         <h1 style={styles.title}>Family Planner</h1>
-        <p style={styles.subtitle}>
-          Your smart family organizer - track chores, events, and schedules all in one place.
-        </p>
+        <p style={styles.subtitle}>Track chores and events in one place.</p>
       </section>
 
-      {/* Week Navigation */}
       <section style={styles.controls}>
         <div style={styles.weekNav}>
           <button onClick={() => setWeekOffset(weekOffset - 1)} style={styles.navButton}>
@@ -467,7 +559,6 @@ export default function InteractiveWeekView() {
           </button>
         </div>
 
-        {/* Member Filter */}
         {members.length > 0 && (
           <div style={styles.memberFilter}>
             <button
@@ -480,7 +571,7 @@ export default function InteractiveWeekView() {
             >
               All
             </button>
-            {members.map(member => (
+            {members.map((member) => (
               <button
                 key={member.id}
                 onClick={() => setSelectedMember(member.name)}
@@ -497,14 +588,11 @@ export default function InteractiveWeekView() {
           </div>
         )}
 
-        {/* Member Stats */}
         {members.length > 0 && !selectedMember && (
           <div style={styles.statsGrid}>
-            {memberStats.map(stat => (
+            {memberStats.map((stat) => (
               <div key={stat.id} style={styles.statCard}>
-                <div style={{...styles.statAvatar, background: stat.color}}>
-                  {stat.avatar}
-                </div>
+                <div style={{ ...styles.statAvatar, background: stat.color }}>{stat.avatar}</div>
                 <div style={styles.statInfo}>
                   <div style={styles.statName}>{stat.name}</div>
                   <div style={styles.statProgress}>
@@ -517,29 +605,15 @@ export default function InteractiveWeekView() {
         )}
 
         <div style={styles.quickActions}>
-          <QuickAddButton
-            onClick={() => setQuickAddModal('chore')}
-            icon="+"
-            label="Add Chore"
-            color="#c9f7a5"
-          />
-          <QuickAddButton
-            onClick={() => setQuickAddModal('event')}
-            icon="+"
-            label="Add Event"
-            color="#ffd9a8"
-          />
+          <QuickAddButton onClick={() => setQuickAddModal('chore')} icon="+" label="Add Chore" color="#c9f7a5" />
+          <QuickAddButton onClick={() => setQuickAddModal('event')} icon="+" label="Add Event" color="#ffd9a8" />
         </div>
       </section>
 
       {loading && <div style={styles.loading}>Loading...</div>}
 
       {!loading && (
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <section style={styles.weekWrapper}>
             <div style={styles.weekGrid} className="week-grid">
               {boardDays.map((day, index) => (
@@ -555,43 +629,7 @@ export default function InteractiveWeekView() {
                   <div style={styles.dayHeader}>
                     <h2 style={styles.dayTitle}>{day.day}</h2>
                     <p style={styles.dayDate}>{day.date}</p>
-                    {day.totalCount > 0 && (
-                      <div style={styles.progressBadge}>
-                        {day.completedCount}/{day.totalCount} done
-                      </div>
-                    )}
-                  </div>
-
-                  <div style={styles.sectionBlock}>
-                    <p style={styles.label}>Work</p>
-                    {day.workEvents.length > 0 ? (
-                      <ul style={styles.eventList}>
-                        {day.workEvents.map((work) => (
-                          <DraggableItem
-                            key={work.id}
-                            id={work.id}
-                            type="work"
-                            data={{
-                              originalDay: day.day,
-                              originalEvent: work
-                            }}
-                            style={styles.eventItem}
-                          >
-                            <div style={styles.eventContent}>
-                              <span>{work.title}</span>
-                              <button
-                                onClick={() => deleteEvent(work.id)}
-                                style={styles.miniDeleteBtn}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          </DraggableItem>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p style={styles.noItems}>Not set</p>
-                    )}
+                    {day.totalCount > 0 && <div style={styles.progressBadge}>{day.completedCount}/{day.totalCount} done</div>}
                   </div>
 
                   <div style={styles.sectionBlock}>
@@ -603,24 +641,34 @@ export default function InteractiveWeekView() {
                             key={event.id}
                             id={event.id}
                             type="event"
-                            data={{
-                              originalDay: day.day,
-                              originalEvent: event
-                            }}
+                            data={{ originalDay: day.day, originalEvent: event }}
                             style={styles.eventItem}
                           >
-                            <div style={styles.eventContent}>
-                              <span
-                                style={styles.eventTitle}
-                                onClick={() => setEditModal(event)}
-                              >
-                                {event.title}
-                              </span>
+                            <div style={styles.eventRow}>
                               <button
-                                onClick={() => deleteEvent(event.id)}
-                                style={styles.miniDeleteBtn}
+                                type="button"
+                                style={styles.eventMainBtn}
+                                onClick={() => setEditModal(event)}
+                                title="Edit event"
                               >
-                                ×
+                                <div style={styles.eventTitleRow}>
+                                  <span style={styles.eventTimeChip}>
+                                    {formatTimeRange(event.startsAt, event.endsAt)}
+                                  </span>
+                                  <span style={styles.eventTitleText}>{event.title}</span>
+                                </div>
+                                <div style={styles.eventMeta}>
+                                  {(event.category || 'Event')}{event.location ? ` • ${event.location}` : ''}
+                                </div>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => deleteEvent(event.id)}
+                                style={styles.deletePill}
+                                aria-label="Delete event"
+                              >
+                                Delete
                               </button>
                             </div>
                           </DraggableItem>
@@ -640,10 +688,7 @@ export default function InteractiveWeekView() {
                             key={chore.id}
                             id={chore.id}
                             type="chore"
-                            data={{
-                              originalDay: day.day,
-                              originalChore: chore
-                            }}
+                            data={{ originalDay: day.day, originalChore: chore }}
                             style={styles.choreItem}
                           >
                             <label style={styles.choreLabel}>
@@ -653,14 +698,17 @@ export default function InteractiveWeekView() {
                                 onChange={() => toggleChoreCompletion(chore)}
                                 style={styles.checkbox}
                               />
-                              <span style={{
-                                ...styles.choreText,
-                                textDecoration: chore.completed ? 'line-through' : 'none',
-                                opacity: chore.completed ? 0.6 : 1
-                              }}>
+                              <span
+                                style={{
+                                  ...styles.choreText,
+                                  textDecoration: chore.completed ? 'line-through' : 'none',
+                                  opacity: chore.completed ? 0.6 : 1
+                                }}
+                              >
                                 {chore.title}
                               </span>
                             </label>
+
                             <div style={styles.choreActions}>
                               <span
                                 style={{
@@ -676,11 +724,8 @@ export default function InteractiveWeekView() {
                               >
                                 {chore.assignedTo}
                               </span>
-                              <button
-                                onClick={() => deleteChore(chore.id)}
-                                style={styles.deleteBtn}
-                                aria-label="Delete chore"
-                              >
+
+                              <button onClick={() => deleteChore(chore.id)} style={styles.deleteBtn} aria-label="Delete chore">
                                 ×
                               </button>
                             </div>
@@ -698,16 +743,18 @@ export default function InteractiveWeekView() {
 
           <DragOverlay>
             {activeItem && (
-              <div style={{
-                ...styles.card,
-                background: noteColors[0],
-                transform: 'rotate(2deg)',
-                opacity: 0.9,
-                cursor: 'grabbing',
-                boxShadow: '0 20px 40px rgba(70, 45, 11, 0.4)',
-                padding: '0.75rem',
-                minHeight: 'auto'
-              }}>
+              <div
+                style={{
+                  ...styles.card,
+                  background: noteColors[0],
+                  transform: 'rotate(2deg)',
+                  opacity: 0.9,
+                  cursor: 'grabbing',
+                  boxShadow: '0 20px 40px rgba(70, 45, 11, 0.4)',
+                  padding: '0.75rem',
+                  minHeight: 'auto'
+                }}
+              >
                 <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
                   {activeItem.originalChore?.title || activeItem.originalEvent?.title || 'Moving...'}
                 </div>
@@ -717,7 +764,6 @@ export default function InteractiveWeekView() {
         </DndContext>
       )}
 
-      {/* Quick Add Modal */}
       {quickAddModal && (
         <Modal
           isOpen={true}
@@ -735,7 +781,9 @@ export default function InteractiveWeekView() {
                   onChange={(e) => setNewItem({ ...newItem, choreTemplate: e.target.value })}
                 >
                   {defaultChoreTemplates.map((chore) => (
-                    <option key={chore} value={chore}>{chore}</option>
+                    <option key={chore} value={chore}>
+                      {chore}
+                    </option>
                   ))}
                   <option value="CUSTOM">Custom chore...</option>
                 </select>
@@ -773,7 +821,7 @@ export default function InteractiveWeekView() {
                         onChange={(e) => setNewItem({ ...newItem, assignedTo: e.target.value })}
                       >
                         <option value="">Select member...</option>
-                        {members.map(member => (
+                        {members.map((member) => (
                           <option key={member.id} value={member.name}>
                             {member.avatar} {member.name}
                           </option>
@@ -804,28 +852,58 @@ export default function InteractiveWeekView() {
               </>
             ) : (
               <>
-                <label style={styles.modalLabel}>Event Title</label>
+                <label style={styles.modalLabel}>Category</label>
+                <select
+                  style={styles.modalInput}
+                  value={newItem.category}
+                  onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
+                >
+                  {EVENT_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+
+                <label style={styles.modalLabel}>Event Name</label>
                 <input
                   style={styles.modalInput}
-                  placeholder="Enter event title..."
+                  placeholder="Ex: Noah - Dentist"
                   value={newItem.title}
                   onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
                   autoFocus
                 />
-              </>
-            )}
 
-            {quickAddModal === 'event' && (
-              <>
-                <label style={styles.modalLabel}>Event Type</label>
-                <select
+                <label style={styles.modalLabel}>Start Time</label>
+                <input
+                  type="time"
                   style={styles.modalInput}
-                  value={newItem.type}
-                  onChange={(e) => setNewItem({ ...newItem, type: e.target.value })}
-                >
-                  <option value="EVENT">Personal Event</option>
-                  <option value="WORK">Work</option>
-                </select>
+                  value={newItem.startTime}
+                  onChange={(e) => setNewItem({ ...newItem, startTime: e.target.value })}
+                />
+
+                <label style={styles.modalLabel}>End Time (optional)</label>
+                <input
+                  type="time"
+                  style={styles.modalInput}
+                  value={newItem.endTime}
+                  onChange={(e) => setNewItem({ ...newItem, endTime: e.target.value })}
+                />
+
+                <label style={styles.modalLabel}>Location (optional)</label>
+                <input
+                  style={styles.modalInput}
+                  placeholder="Ex: Rome Family Dental"
+                  value={newItem.location}
+                  onChange={(e) => setNewItem({ ...newItem, location: e.target.value })}
+                />
+
+                <label style={styles.modalLabel}>Notes (optional)</label>
+                <textarea
+                  style={{ ...styles.modalInput, minHeight: 80 }}
+                  value={newItem.description}
+                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                />
               </>
             )}
 
@@ -835,8 +913,10 @@ export default function InteractiveWeekView() {
               value={newItem.day}
               onChange={(e) => setNewItem({ ...newItem, day: e.target.value })}
             >
-              {DAY_NAMES.map(day => (
-                <option key={day} value={day}>{day}</option>
+              {DAY_NAMES.map((day) => (
+                <option key={day} value={day}>
+                  {day}
+                </option>
               ))}
             </select>
 
@@ -847,48 +927,83 @@ export default function InteractiveWeekView() {
         </Modal>
       )}
 
-      {/* Event Edit Modal */}
       {editModal && (
-        <Modal
-          isOpen={true}
-          onClose={() => setEditModal(null)}
-          title="Edit Event"
-          size="small"
-        >
+        <Modal isOpen={true} onClose={() => setEditModal(null)} title="Edit Event" size="small">
           <div style={styles.modalForm}>
-            <label style={styles.modalLabel}>Event Title</label>
+            <label style={styles.modalLabel}>Category</label>
+            <select
+              style={styles.modalInput}
+              value={editModal.category || EVENT_CATEGORIES[0]}
+              onChange={(e) => setEditModal({ ...editModal, category: e.target.value })}
+            >
+              {EVENT_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+
+            <label style={styles.modalLabel}>Event Name</label>
             <input
               style={styles.modalInput}
               value={editModal.title}
               onChange={(e) => setEditModal({ ...editModal, title: e.target.value })}
             />
 
-            <label style={styles.modalLabel}>Type</label>
-            <select
+            <label style={styles.modalLabel}>Start</label>
+            <input
+              type="datetime-local"
               style={styles.modalInput}
-              value={editModal.type}
-              onChange={(e) => setEditModal({ ...editModal, type: e.target.value })}
-            >
-              <option value="EVENT">Personal Event</option>
-              <option value="WORK">Work</option>
-            </select>
+              value={(() => {
+                const d = new Date(editModal.startsAt);
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+              })()}
+              onChange={(e) => setEditModal({ ...editModal, startsAt: e.target.value })}
+            />
 
-            <label style={styles.modalLabel}>Description</label>
+            <label style={styles.modalLabel}>End (optional)</label>
+            <input
+              type="datetime-local"
+              style={styles.modalInput}
+              value={
+                editModal.endsAt
+                  ? (() => {
+                      const d = new Date(editModal.endsAt);
+                      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+                    })()
+                  : ''
+              }
+              onChange={(e) => setEditModal({ ...editModal, endsAt: e.target.value })}
+            />
+
+            <label style={styles.modalLabel}>Location (optional)</label>
+            <input
+              style={styles.modalInput}
+              value={editModal.location || ''}
+              onChange={(e) => setEditModal({ ...editModal, location: e.target.value })}
+            />
+
+            <label style={styles.modalLabel}>Notes (optional)</label>
             <textarea
-              style={{...styles.modalInput, minHeight: '80px'}}
+              style={{ ...styles.modalInput, minHeight: '80px' }}
               value={editModal.description || ''}
               onChange={(e) => setEditModal({ ...editModal, description: e.target.value })}
-              placeholder="Optional description..."
             />
 
             <button onClick={handleEventEdit} style={styles.modalButton}>
               Update Event
             </button>
+
+            <button
+              onClick={() => deleteEvent(editModal.id)}
+              style={{ ...styles.modalButton, background: 'rgba(186, 62, 62, 0.14)', color: '#8b1f1f', border: '1px solid rgba(186, 62, 62, 0.55)' }}
+            >
+              Delete Event
+            </button>
           </div>
         </Modal>
       )}
 
-      {/* Toast Notification */}
       {toast && (
         <Toast
           message={toast.message}
@@ -903,6 +1018,7 @@ export default function InteractiveWeekView() {
 }
 
 const styles = {
+  // keep your existing styles, with only event UI tweaks added:
   main: {
     height: '100vh',
     padding: '1.5rem 1.5rem 1rem 1.5rem',
@@ -932,24 +1048,10 @@ const styles = {
     color: '#52351d',
     fontSize: '0.85rem'
   },
-  title: {
-    margin: 0,
-    fontSize: 'clamp(1.4rem, 5vw, 2rem)',
-    letterSpacing: '0.01em'
-  },
-  subtitle: {
-    marginTop: '0.4rem',
-    lineHeight: 1.5,
-    maxWidth: 620,
-    marginInline: 'auto'
-  },
-  controls: {
-    maxWidth: 980,
-    margin: '0 auto 0.75rem auto',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem'
-  },
+  title: { margin: 0, fontSize: 'clamp(1.4rem, 5vw, 2rem)', letterSpacing: '0.01em' },
+  subtitle: { marginTop: '0.4rem', lineHeight: 1.5, maxWidth: 620, marginInline: 'auto' },
+
+  controls: { maxWidth: 980, margin: '0 auto 0.75rem auto', display: 'flex', flexDirection: 'column', gap: '1rem' },
   weekNav: {
     display: 'flex',
     alignItems: 'center',
@@ -970,12 +1072,8 @@ const styles = {
     cursor: 'pointer',
     fontSize: '0.9rem'
   },
-  weekLabel: {
-    fontWeight: 700,
-    fontSize: '1.1rem',
-    minWidth: '150px',
-    textAlign: 'center'
-  },
+  weekLabel: { fontWeight: 700, fontSize: '1.1rem', minWidth: '150px', textAlign: 'center' },
+
   memberFilter: {
     display: 'flex',
     gap: '0.5rem',
@@ -998,245 +1096,56 @@ const styles = {
     gap: '0.3rem',
     transition: 'all 0.2s ease'
   },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '0.75rem',
-    padding: '0.75rem',
-    background: 'rgba(255, 255, 255, 0.4)',
-    borderRadius: 10,
-    border: '1px solid rgba(98, 73, 24, 0.2)'
-  },
-  statCard: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '0.75rem',
-    background: 'rgba(255, 255, 255, 0.6)',
-    borderRadius: 8,
-    border: '1px solid rgba(98, 73, 24, 0.15)'
-  },
-  statAvatar: {
-    width: '40px',
-    height: '40px',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    fontSize: '1.3rem',
-    border: '2px solid rgba(255, 255, 255, 0.8)'
-  },
-  statInfo: {
-    flex: 1
-  },
-  statName: {
-    fontWeight: 700,
-    fontSize: '0.9rem',
-    marginBottom: '0.2rem'
-  },
-  statProgress: {
-    fontSize: '0.75rem',
-    opacity: 0.8
-  },
-  quickActions: {
-    display: 'flex',
-    gap: '0.75rem',
-    justifyContent: 'center',
-    flexWrap: 'wrap'
-  },
-  weekWrapper: {
-    maxWidth: 980,
-    margin: '0 auto',
-    overflowX: 'auto',
-    paddingBottom: '0.5rem'
-  },
-  weekGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '1rem'
-  },
-  card: {
-    padding: '1.2rem',
-    borderRadius: 6,
-    border: '1px solid rgba(98, 73, 24, 0.2)',
-    boxShadow: '0 10px 20px rgba(70, 45, 11, 0.2)',
-    transition: 'transform 120ms ease',
-    transformOrigin: 'center top',
-    minHeight: 'auto'
-  },
-  dayHeader: {
-    marginBottom: '0.85rem',
-    paddingBottom: '0.5rem',
-    borderBottom: '1px dashed rgba(98, 73, 24, 0.4)'
-  },
-  dayTitle: {
-    margin: 0,
-    fontSize: '1.15rem'
-  },
-  dayDate: {
-    fontSize: '0.85rem',
-    opacity: 0.8,
-    margin: '0.2rem 0'
-  },
-  progressBadge: {
-    fontSize: '0.75rem',
-    background: 'rgba(63, 152, 76, 0.2)',
-    padding: '0.25rem 0.5rem',
-    borderRadius: 4,
-    display: 'inline-block',
-    marginTop: '0.3rem',
-    fontWeight: 700
-  },
-  sectionBlock: {
-    marginBottom: '0.9rem'
-  },
-  label: {
-    fontSize: '0.78rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    marginBottom: '0.3rem',
-    fontWeight: 700
-  },
-  eventList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-    display: 'grid',
-    gap: '0.5rem'
-  },
-  eventItem: {
-    background: 'rgba(255,255,255,0.45)',
-    border: '1px solid rgba(98, 73, 24, 0.18)',
-    borderRadius: 4,
-    padding: '0.45rem 0.5rem',
-    fontSize: '0.92rem'
-  },
-  eventContent: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '0.5rem'
-  },
-  eventTitle: {
-    flex: 1,
-    cursor: 'pointer',
-    textDecoration: 'underline',
-    textDecorationStyle: 'dotted'
-  },
-  miniDeleteBtn: {
-    background: 'rgba(186, 62, 62, 0.15)',
-    border: '1px solid rgba(186, 62, 62, 0.3)',
-    borderRadius: 3,
-    color: '#8b1f1f',
-    cursor: 'pointer',
-    fontSize: '1rem',
-    lineHeight: 1,
-    padding: '0 0.25rem',
-    width: '18px',
-    height: '18px'
-  },
-  noItems: {
-    fontSize: '0.85rem',
-    opacity: 0.6,
-    fontStyle: 'italic',
-    margin: 0
-  },
-  choreList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-    display: 'grid',
-    gap: '0.4rem'
-  },
-  choreItem: {
-    background: 'rgba(255,255,255,0.5)',
-    border: '1px solid rgba(98, 73, 24, 0.18)',
-    borderRadius: 4,
-    padding: '0.4rem 0.5rem',
-    fontSize: '0.85rem'
-  },
-  choreLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    cursor: 'pointer',
-    marginBottom: '0.2rem'
-  },
-  checkbox: {
-    width: '16px',
-    height: '16px',
-    cursor: 'pointer'
-  },
-  choreText: {
-    flex: 1,
-    fontSize: '0.9rem'
-  },
-  choreActions: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: '0.2rem',
-    paddingLeft: '1.5rem',
-    gap: '0.5rem'
-  },
-  assignee: {
-    fontSize: '0.7rem',
-    fontWeight: 700
-  },
-  deleteBtn: {
-    background: 'rgba(186, 62, 62, 0.15)',
-    border: '1px solid rgba(186, 62, 62, 0.3)',
-    borderRadius: 3,
-    color: '#8b1f1f',
-    cursor: 'pointer',
-    fontSize: '1.2rem',
-    lineHeight: 1,
-    padding: '0 0.3rem',
-    width: '20px',
-    height: '20px'
-  },
-  noChores: {
-    fontSize: '0.85rem',
-    opacity: 0.6,
-    fontStyle: 'italic',
-    margin: 0
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '3rem',
-    fontSize: '1.2rem',
-    color: '#5b4228'
-  },
-  modalForm: {
-    display: 'grid',
-    gap: '0.75rem'
-  },
-  modalLabel: {
-    fontSize: '0.8rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    fontWeight: 700,
-    color: '#3f2d1d'
-  },
-  modalInput: {
-    width: '100%',
-    padding: '0.7rem',
-    borderRadius: 6,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
-    background: 'rgba(255,255,255,0.9)',
-    color: '#3f2d1d',
-    fontSize: '0.95rem'
-  },
-  modalButton: {
-    width: '100%',
-    padding: '0.75rem',
-    borderRadius: 8,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    background: '#c9f7a5',
-    color: '#2b4d1f',
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontSize: '0.95rem',
-    marginTop: '0.5rem'
-  }
+
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255, 255, 255, 0.4)', borderRadius: 10, border: '1px solid rgba(98, 73, 24, 0.2)' },
+  statCard: { display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255, 255, 255, 0.6)', borderRadius: 8, border: '1px solid rgba(98, 73, 24, 0.15)' },
+  statAvatar: { width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', border: '2px solid rgba(255, 255, 255, 0.8)' },
+  statInfo: { flex: 1 },
+  statName: { fontWeight: 700, fontSize: '0.9rem', marginBottom: '0.2rem' },
+  statProgress: { fontSize: '0.75rem', opacity: 0.8 },
+
+  quickActions: { display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' },
+
+  weekWrapper: { maxWidth: 980, margin: '0 auto', overflowX: 'auto', paddingBottom: '0.5rem' },
+  weekGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' },
+  card: { padding: '1.2rem', borderRadius: 6, border: '1px solid rgba(98, 73, 24, 0.2)', boxShadow: '0 10px 20px rgba(70, 45, 11, 0.2)', transition: 'transform 120ms ease', transformOrigin: 'center top', minHeight: 'auto' },
+
+  dayHeader: { marginBottom: '0.85rem', paddingBottom: '0.5rem', borderBottom: '1px dashed rgba(98, 73, 24, 0.4)' },
+  dayTitle: { margin: 0, fontSize: '1.15rem' },
+  dayDate: { fontSize: '0.85rem', opacity: 0.8, margin: '0.2rem 0' },
+  progressBadge: { fontSize: '0.75rem', background: 'rgba(63, 152, 76, 0.2)', padding: '0.25rem 0.5rem', borderRadius: 4, display: 'inline-block', marginTop: '0.3rem', fontWeight: 700 },
+
+  sectionBlock: { marginBottom: '0.9rem' },
+  label: { fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '0.3rem', fontWeight: 700 },
+
+  eventList: { listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '0.5rem' },
+  eventItem: { background: 'rgba(255,255,255,0.45)', border: '1px solid rgba(98, 73, 24, 0.18)', borderRadius: 6, padding: '0.55rem 0.6rem', fontSize: '0.92rem' },
+
+  eventRow: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.6rem' },
+  eventMainBtn: { flex: 1, border: 'none', background: 'transparent', padding: 0, textAlign: 'left', cursor: 'pointer' },
+  eventTitleRow: { display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' },
+  eventTimeChip: { fontSize: '0.72rem', fontWeight: 900, padding: '0.15rem 0.4rem', borderRadius: 9999, border: '1px solid rgba(98, 73, 24, 0.22)', background: 'rgba(255,255,255,0.7)' },
+  eventTitleText: { fontWeight: 900 },
+  eventMeta: { marginTop: '0.15rem', opacity: 0.85, fontSize: '0.8rem' },
+
+  deletePill: { borderRadius: 9999, border: '1px solid rgba(186, 62, 62, 0.55)', padding: '0.35rem 0.65rem', background: 'rgba(186, 62, 62, 0.14)', color: '#8b1f1f', fontWeight: 900, cursor: 'pointer' },
+
+  noItems: { fontSize: '0.85rem', opacity: 0.6, fontStyle: 'italic', margin: 0 },
+
+  choreList: { listStyle: 'none', padding: 0, margin: 0, display: 'grid', gap: '0.4rem' },
+  choreItem: { background: 'rgba(255,255,255,0.5)', border: '1px solid rgba(98, 73, 24, 0.18)', borderRadius: 4, padding: '0.4rem 0.5rem', fontSize: '0.85rem' },
+  choreLabel: { display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginBottom: '0.2rem' },
+  checkbox: { width: '16px', height: '16px', cursor: 'pointer' },
+  choreText: { flex: 1, fontSize: '0.9rem' },
+  choreActions: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.2rem', paddingLeft: '1.5rem', gap: '0.5rem' },
+  assignee: { fontSize: '0.7rem', fontWeight: 700 },
+  deleteBtn: { background: 'rgba(186, 62, 62, 0.15)', border: '1px solid rgba(186, 62, 62, 0.3)', borderRadius: 3, color: '#8b1f1f', cursor: 'pointer', fontSize: '1.2rem', lineHeight: 1, padding: '0 0.3rem', width: '20px', height: '20px' },
+  noChores: { fontSize: '0.85rem', opacity: 0.6, fontStyle: 'italic', margin: 0 },
+
+  loading: { textAlign: 'center', padding: '3rem', fontSize: '1.2rem', color: '#5b4228' },
+
+  modalForm: { display: 'grid', gap: '0.75rem' },
+  modalLabel: { fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 700, color: '#3f2d1d' },
+  modalInput: { width: '100%', padding: '0.7rem', borderRadius: 6, border: '1px solid rgba(98, 73, 24, 0.24)', background: 'rgba(255,255,255,0.9)', color: '#3f2d1d', fontSize: '0.95rem' },
+  modalButton: { width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid rgba(98, 73, 24, 0.32)', background: '#c9f7a5', color: '#2b4d1f', fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem', marginTop: '0.5rem' }
 };
