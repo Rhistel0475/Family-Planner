@@ -135,22 +135,20 @@ export default function InteractiveWeekView() {
       const weekEnd = new Date(weekDates[6].date);
       weekEnd.setHours(23, 59, 59, 999);
 
+      // Format dates for API query params (YYYY-MM-DD)
+      const startParam = weekStart.toISOString().split('T')[0];
+      const endParam = weekEnd.toISOString().split('T')[0];
+
       const [eventsRes, choresRes, membersRes] = await Promise.all([
-        fetch('/api/schedule'),
+        fetch(`/api/schedule?start=${startParam}&end=${endParam}`),
         fetch('/api/chores'),
         fetch('/api/family-members')
       ]);
 
       if (eventsRes.ok) {
         const eventsData = await eventsRes.json();
-        const filtered = (eventsData.events || []).filter((e) => {
-          const d = new Date(e.startsAt);
-          return d >= weekStart && d <= weekEnd;
-        });
-
-        // Sort by startsAt
-        filtered.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
-        setEvents(filtered);
+        // API now filters by date range - no client-side filtering needed
+        setEvents(eventsData.events || []);
       }
 
       if (choresRes.ok) {

@@ -88,7 +88,18 @@ export default function SchedulePage({ searchParams }) {
   const fetchEvents = async () => {
     try {
       setListLoading(true);
-      const res = await fetch('/api/schedule', { method: 'GET' });
+
+      // Fetch events from last 30 days to next 6 months
+      const now = new Date();
+      const start = new Date(now);
+      start.setDate(now.getDate() - 30);
+      const end = new Date(now);
+      end.setDate(now.getDate() + 180);
+
+      const startParam = start.toISOString().split('T')[0];
+      const endParam = end.toISOString().split('T')[0];
+
+      const res = await fetch(`/api/schedule?start=${startParam}&end=${endParam}`, { method: 'GET' });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to load events');
       setEvents(Array.isArray(data.events) ? data.events : []);
