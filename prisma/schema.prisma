@@ -44,6 +44,33 @@ model FamilyMember {
 }
 
 model Event {
+  id          String    @id @default(cuid())
+  familyId    String
+  type        EventType @default(EVENT)
+  title       String
+  description String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  location    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, startsAt])
+  @@index([startsAt])
+}
+
+model Chore {
+  id          String    @id @default(cuid())
+  familyId    String
+  title       String
+  assignedTo  String
+  dueDay      String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
   id       String @id @default(cuid())
   familyId String
 
@@ -103,7 +130,6 @@ model Chore {
 
   @@index([familyId, dueDay])
   @@index([completed])
-  @@index([parentEventId])
 }
 
 model Recipe {
@@ -147,6 +173,9 @@ model ChoreBoard {
 
 enum EventType {
   WORK
+  PERSONAL
+  APPOINTMENT
+  OTHER
   EVENT
 }
 
@@ -179,4 +208,5 @@ enum FrequencyType {
 enum EligibilityMode {
   ALL
   SELECTED
+  ROLE_BASED
 }

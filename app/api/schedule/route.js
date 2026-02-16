@@ -7,6 +7,12 @@ export async function GET(request) {
     const family = await getOrCreateDefaultFamily();
 
     const events = await prisma.event.findMany({
+      where: {
+        familyId: family.id
+      },
+      orderBy: {
+        startsAt: 'asc'
+      }
       where: { familyId: family.id },
       orderBy: { startsAt: 'asc' }
     });
@@ -24,6 +30,31 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
+    const { title, type, startsAt, description } = body;
+
+    if (!title || !startsAt) {
+      return NextResponse.json(
+        { error: 'Title and start time are required' },
+        { status: 400 }
+      );
+    }
+
+    const family = await getOrCreateDefaultFamily();
+
+    const event = await prisma.event.create({
+      data: {
+        familyId: family.id,
+        type: type || 'PERSONAL',
+        title: title.trim(),
+        description: description?.trim() || null,
+        startsAt: new Date(startsAt)
+      }
+    });
+
+    return NextResponse.json(
+      { success: true, event },
+      { status: 200 }
+    );
 
     const title = String(body.title || '').trim();
     const category = body.category ? String(body.category).trim() : null;
@@ -67,6 +98,7 @@ export async function POST(request) {
   } catch (error) {
     console.error('Schedule POST error:', error);
     return NextResponse.json(
+      { error: 'Failed to create event', details: error.message },
       { error: 'Failed to save event', details: error.message },
       { status: 500 }
     );
@@ -76,6 +108,7 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
+    const { id, title, type, description, startsAt } = body;
     const { id } = body;
 
     if (!id) {
@@ -83,6 +116,10 @@ export async function PATCH(request) {
     }
 
     const updateData = {};
+    if (title !== undefined) updateData.title = title;
+    if (type !== undefined) updateData.type = type;
+    if (description !== undefined) updateData.description = description;
+    if (startsAt !== undefined) updateData.startsAt = new Date(startsAt);
 
     if (body.title !== undefined) updateData.title = String(body.title || '').trim();
     if (body.description !== undefined) updateData.description = body.description ? String(body.description) : null;

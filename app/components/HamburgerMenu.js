@@ -5,6 +5,15 @@ import { useState } from 'react';
 
 // Main navigation = destinations (NOT actions)
 const navItems = [
+  { href: '/dashboard', label: '📊 Dashboard' },
+  { href: '/', label: 'Weekly View' },
+  { href: '/schedule', label: 'Add Schedule' },
+  { href: '/chores', label: 'Add Chores' },
+  { href: '/recipes', label: 'Add Recipes' },
+  { href: '/family', label: 'Family Members' },
+  { href: '/ai', label: 'AI Assistant' },
+  { href: '/setup', label: 'Setup' },
+  { href: '/status', label: 'DB Status' }
   { href: '/', label: 'Dashboard' },          // was "Weekly View"
   { href: '/schedule', label: 'Calendar' },   // clearer
   { href: '/chores', label: 'Chores' },
