@@ -147,7 +147,7 @@ A simple family "weekly board" that makes it easy to:
 
 ---
 
-### Phase 2 — Events UX Upgrade (HIGH PRIORITY ⏭)
+### Phase 2 — Events UX Upgrade (DONE ✅)
 **Make events feel real (time + type + category presets)**
 
 #### Event Form Requirements
@@ -295,4 +295,4 @@ A task is "Done" when:
 ---
 
 **Last Updated:** 2026-02-16
-**Current Focus:** Phase 2 (Events UX Upgrade) - HIGH PRIORITY
+**Current Focus:** Phase 3 (Performance & Data Scoping) or Phase 4 (Work Hours)
