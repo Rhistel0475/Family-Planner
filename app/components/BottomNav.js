@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTheme } from '../providers/ThemeProvider';
 
 export default function BottomNav() {
+  const { theme } = useTheme();
   const pathname = usePathname();
 
   const navItems = [
@@ -19,7 +21,7 @@ export default function BottomNav() {
       {/* Spacer to prevent content from being hidden behind fixed nav */}
       <div style={styles.spacer} />
 
-      <nav style={styles.nav}>
+      <nav style={{...styles.nav, background: theme.nav.bg, borderTop: `2px solid ${theme.nav.border}`}}>
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -28,8 +30,8 @@ export default function BottomNav() {
               href={item.href}
               style={{
                 ...styles.navItem,
-                background: isActive ? 'rgba(255, 255, 255, 0.9)' : 'transparent',
-                color: isActive ? '#3f2d1d' : '#5b4228'
+                background: isActive ? theme.nav.hover : 'transparent',
+                color: theme.nav.text
               }}
             >
               <span style={styles.icon}>{item.icon}</span>

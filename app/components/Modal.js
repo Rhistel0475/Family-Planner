@@ -1,8 +1,11 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useTheme } from '../providers/ThemeProvider';
 
 export default function Modal({ isOpen, onClose, title, children, size = 'medium' }) {
+  const { theme } = useTheme();
+
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -37,13 +40,15 @@ export default function Modal({ isOpen, onClose, title, children, size = 'medium
       <div style={styles.backdrop} onClick={onClose} />
       <div style={{
         ...styles.modal,
-        maxWidth: sizes[size] || sizes.medium
+        maxWidth: sizes[size] || sizes.medium,
+        background: theme.hero.bg,
+        border: `2px solid ${theme.card.border}`
       }}>
-        <div style={styles.header}>
-          <h2 style={styles.title}>{title}</h2>
+        <div style={{...styles.header, borderBottom: `1px solid ${theme.card.border}`, background: theme.controls.bg}}>
+          <h2 style={{...styles.title, color: theme.card.text}}>{title}</h2>
           <button
             onClick={onClose}
-            style={styles.closeButton}
+            style={{...styles.closeButton, color: theme.card.text}}
             aria-label="Close modal"
           >
             ×
