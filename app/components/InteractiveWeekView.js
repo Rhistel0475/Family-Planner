@@ -48,6 +48,24 @@ function formatTimeRange(startsAt, endsAt) {
   return `${startStr}–${endStr}`;
 }
 
+// Parse working hours string (e.g., "9:00 AM - 5:00 PM") and return simplified display
+function parseWorkingHours(workingHoursStr) {
+  if (!workingHoursStr || !workingHoursStr.trim()) return null;
+
+  // Already formatted (e.g., "9:00 AM - 5:00 PM")
+  if (workingHoursStr.includes(' - ')) {
+    return workingHoursStr;
+  }
+
+  // Simple format (e.g., "9-5")
+  const match = workingHoursStr.match(/(\d+)-(\d+)/);
+  if (match) {
+    return `${match[1]}:00 - ${match[2]}:00`;
+  }
+
+  return workingHoursStr;
+}
+
 export default function InteractiveWeekView() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [events, setEvents] = useState([]);
@@ -691,6 +709,37 @@ export default function InteractiveWeekView() {
                     )}
                   </div>
 
+                  {/* Work Hours Section */}
+                  {members.some(m => m.workingHours && m.workingHours.trim()) && (
+                    <div style={styles.sectionBlock}>
+                      <p style={styles.label}>🕐 Work Hours</p>
+                      <div style={styles.workHoursList}>
+                        {members
+                          .filter(m => m.workingHours && m.workingHours.trim())
+                          .map(member => {
+                            const workHours = parseWorkingHours(member.workingHours);
+                            if (!workHours) return null;
+                            return (
+                              <div
+                                key={member.id}
+                                style={{
+                                  ...styles.workHourBlock,
+                                  borderLeft: `3px solid ${member.color || '#888'}`,
+                                  background: `${member.color || '#888'}15`
+                                }}
+                              >
+                                <span style={styles.workHourAvatar}>{member.avatar}</span>
+                                <div style={styles.workHourInfo}>
+                                  <span style={styles.workHourName}>{member.name}</span>
+                                  <span style={styles.workHourTime}>{workHours}</span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
+
                   <div style={styles.sectionBlock}>
                     <p style={styles.label}>Events</p>
                     {day.events.length > 0 ? (
@@ -1289,6 +1338,40 @@ const styles = {
     letterSpacing: '0.06em',
     marginBottom: '0.3rem',
     fontWeight: 700
+  },
+  workHoursList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.4rem',
+    marginBottom: '0.5rem'
+  },
+  workHourBlock: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.5rem 0.6rem',
+    borderRadius: 6,
+    fontSize: '0.8rem',
+    opacity: 0.85
+  },
+  workHourAvatar: {
+    fontSize: '1.2rem',
+    flexShrink: 0
+  },
+  workHourInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.1rem',
+    flex: 1
+  },
+  workHourName: {
+    fontWeight: 700,
+    fontSize: '0.8rem'
+  },
+  workHourTime: {
+    fontSize: '0.7rem',
+    opacity: 0.8,
+    fontStyle: 'italic'
   },
   eventList: {
     listStyle: 'none',
