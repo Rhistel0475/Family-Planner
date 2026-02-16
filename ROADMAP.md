@@ -180,7 +180,7 @@ A simple family "weekly board" that makes it easy to:
 
 ---
 
-### Phase 3 — Performance & Data Scoping (IMPORTANT 🚀)
+### Phase 3 — Performance & Data Scoping (DONE ✅)
 **Stop fetching entire history; fetch only what we need**
 
 #### API improvements
@@ -295,4 +295,4 @@ A task is "Done" when:
 ---
 
 **Last Updated:** 2026-02-16
-**Current Focus:** Phase 3 (Performance & Data Scoping) or Phase 4 (Work Hours)
+**Current Focus:** Phase 4 (Work Hours) or Phase 6 (Recurrence System)
