@@ -87,7 +87,7 @@ export default function FamilyPage() {
     return () => {
       mounted = false;
     };
-  }, [error]);
+  }, []);
 
   const fetchMembers = async () => {
     setLoading(true);
