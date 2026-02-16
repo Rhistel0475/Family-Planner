@@ -1,6 +1,6 @@
 'use client';
 
-import { CATEGORY_CONFIG } from '../../lib/categoryConfig';
+import { EVENT_CATEGORIES } from '../../lib/eventConfig';
 
 export default function TodayOverview({ events }) {
   // Get today's events
@@ -46,16 +46,15 @@ export default function TodayOverview({ events }) {
   };
 
   const EventCard = ({ event }) => {
-    const category = CATEGORY_CONFIG[event.type] || CATEGORY_CONFIG.PERSONAL;
-    const Icon = category.icon;
+    const category = EVENT_CATEGORIES[event.type] || EVENT_CATEGORIES.PERSONAL;
 
     return (
       <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
         <div
-          className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: `${category.color}15` }}
+          className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-xl"
+          style={{ backgroundColor: `${category.lightColor}40` }}
         >
-          <Icon className="w-5 h-5" style={{ color: category.color }} />
+          {category.icon}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2">
