@@ -195,7 +195,7 @@ A simple family "weekly board" that makes it easy to:
 
 ---
 
-### Phase 4 — Work Hours on Member Page (FEATURE ⏭)
+### Phase 4 — Work Hours on Member Page (DONE ✅)
 **Move "Work Hours" into Family Members, not Schedule**
 
 #### Data model
@@ -295,4 +295,4 @@ A task is "Done" when:
 ---
 
 **Last Updated:** 2026-02-16
-**Current Focus:** Phase 4 (Work Hours) or Phase 6 (Recurrence System)
+**Current Focus:** Phase 6 (Recurrence System) or Refinement/Testing
