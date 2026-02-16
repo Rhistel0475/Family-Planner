@@ -15,6 +15,9 @@ import DroppableDay from './DroppableDay';
 import StatsWidget from './StatsWidget';
 import FilterBar from './FilterBar';
 import SmartTaskModal from './SmartTaskModal';
+import DateTimePicker from './DateTimePicker';
+import CategorySelector from './CategorySelector';
+import { getEventCategory } from '../../lib/eventConfig';
 
 export default function InteractiveWeekView() {
   const { theme } = useTheme();
@@ -27,7 +30,13 @@ export default function InteractiveWeekView() {
   const [toast, setToast] = useState(null);
   const [quickAddModal, setQuickAddModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
-  const [newItem, setNewItem] = useState({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
+  const [newItem, setNewItem] = useState({
+    title: '',
+    assignedTo: '',
+    day: 'Monday',
+    type: 'PERSONAL',
+    startsAt: new Date()
+  });
   const [activeItem, setActiveItem] = useState(null);
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
@@ -205,7 +214,13 @@ export default function InteractiveWeekView() {
       const endpoint = quickAddModal === 'chore' ? '/api/chores' : '/api/schedule';
       const payload = quickAddModal === 'chore'
         ? { title: newItem.title, assignedTo: newItem.assignedTo || 'Unassigned', dueDay: newItem.day }
-        : { title: newItem.title, type: newItem.type, startsAt: new Date(), day: newItem.day, event: newItem.title };
+        : {
+            title: newItem.title,
+            type: newItem.type,
+            startsAt: newItem.startsAt.toISOString(),
+            day: newItem.day,
+            event: newItem.title
+          };
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -217,7 +232,13 @@ export default function InteractiveWeekView() {
 
       showToast(`${quickAddModal === 'chore' ? 'Chore' : 'Event'} added!`);
       setQuickAddModal(null);
-      setNewItem({ title: '', assignedTo: '', day: 'Monday', type: 'EVENT' });
+      setNewItem({
+        title: '',
+        assignedTo: '',
+        day: 'Monday',
+        type: 'PERSONAL',
+        startsAt: new Date()
+      });
       fetchData();
     } catch (error) {
       showToast(`Failed to add ${quickAddModal}`, 'error');
@@ -292,7 +313,8 @@ export default function InteractiveWeekView() {
           id: editModal.id,
           title: editModal.title,
           type: editModal.type,
-          description: editModal.description
+          description: editModal.description,
+          startsAt: editModal.startsAt ? new Date(editModal.startsAt).toISOString() : undefined
         })
       });
 
@@ -614,28 +636,41 @@ export default function InteractiveWeekView() {
                     <p style={styles.label}>Work</p>
                     {day.workEvents.length > 0 ? (
                       <ul style={styles.eventList}>
-                        {day.workEvents.map((work) => (
-                          <DraggableItem
-                            key={work.id}
-                            id={work.id}
-                            type="work"
-                            data={{
-                              originalDay: day.day,
-                              originalEvent: work
-                            }}
-                            style={styles.eventItem}
-                          >
-                            <div style={styles.eventContent}>
-                              <span>{work.title}</span>
-                              <button
-                                onClick={() => deleteEvent(work.id)}
-                                style={styles.miniDeleteBtn}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          </DraggableItem>
-                        ))}
+                        {day.workEvents.map((work) => {
+                          const category = getEventCategory(work.type || 'WORK');
+                          return (
+                            <DraggableItem
+                              key={work.id}
+                              id={work.id}
+                              type="work"
+                              data={{
+                                originalDay: day.day,
+                                originalEvent: work
+                              }}
+                              style={{
+                                ...styles.eventItem,
+                                background: `linear-gradient(135deg, ${category.lightColor} 0%, ${category.lightColor}dd 100%)`,
+                                borderLeft: `4px solid ${category.darkColor}`
+                              }}
+                            >
+                              <div style={styles.eventContent}>
+                                <span style={styles.eventIcon}>{category.icon}</span>
+                                <span
+                                  style={styles.eventTitle}
+                                  onClick={() => setEditModal(work)}
+                                >
+                                  {work.title}
+                                </span>
+                                <button
+                                  onClick={() => deleteEvent(work.id)}
+                                  style={styles.miniDeleteBtn}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </DraggableItem>
+                          );
+                        })}
                       </ul>
                     ) : (
                       <p style={styles.noItems}>Not set</p>
@@ -646,33 +681,41 @@ export default function InteractiveWeekView() {
                     <p style={styles.label}>Events</p>
                     {day.events.length > 0 ? (
                       <ul style={styles.eventList}>
-                        {day.events.map((event) => (
-                          <DraggableItem
-                            key={event.id}
-                            id={event.id}
-                            type="event"
-                            data={{
-                              originalDay: day.day,
-                              originalEvent: event
-                            }}
-                            style={styles.eventItem}
-                          >
-                            <div style={styles.eventContent}>
-                              <span
-                                style={styles.eventTitle}
-                                onClick={() => setEditModal(event)}
-                              >
-                                {event.title}
-                              </span>
-                              <button
-                                onClick={() => deleteEvent(event.id)}
-                                style={styles.miniDeleteBtn}
-                              >
-                                ×
-                              </button>
-                            </div>
-                          </DraggableItem>
-                        ))}
+                        {day.events.map((event) => {
+                          const category = getEventCategory(event.type || 'PERSONAL');
+                          return (
+                            <DraggableItem
+                              key={event.id}
+                              id={event.id}
+                              type="event"
+                              data={{
+                                originalDay: day.day,
+                                originalEvent: event
+                              }}
+                              style={{
+                                ...styles.eventItem,
+                                background: `linear-gradient(135deg, ${category.lightColor} 0%, ${category.lightColor}dd 100%)`,
+                                borderLeft: `4px solid ${category.darkColor}`
+                              }}
+                            >
+                              <div style={styles.eventContent}>
+                                <span style={styles.eventIcon}>{category.icon}</span>
+                                <span
+                                  style={styles.eventTitle}
+                                  onClick={() => setEditModal(event)}
+                                >
+                                  {event.title}
+                                </span>
+                                <button
+                                  onClick={() => deleteEvent(event.id)}
+                                  style={styles.miniDeleteBtn}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </DraggableItem>
+                          );
+                        })}
                       </ul>
                     ) : (
                       <p style={styles.noItems}>No events</p>
@@ -683,57 +726,71 @@ export default function InteractiveWeekView() {
                     <p style={styles.label}>Chores ({day.chores.length})</p>
                     {day.chores.length > 0 ? (
                       <ul style={styles.choreList}>
-                        {day.chores.map((chore) => (
-                          <DraggableItem
-                            key={chore.id}
-                            id={chore.id}
-                            type="chore"
-                            data={{
-                              originalDay: day.day,
-                              originalChore: chore
-                            }}
-                            style={styles.choreItem}
-                          >
-                            <label style={styles.choreLabel}>
-                              <input
-                                type="checkbox"
-                                checked={chore.completed}
-                                onChange={() => toggleChoreCompletion(chore)}
-                                style={styles.checkbox}
-                              />
-                              <span style={{
-                                ...styles.choreText,
-                                textDecoration: chore.completed ? 'line-through' : 'none',
-                                opacity: chore.completed ? 0.6 : 1
-                              }}>
-                                {chore.title}
-                              </span>
-                            </label>
-                            <div style={styles.choreActions}>
-                              <span
-                                style={{
-                                  ...styles.assignee,
-                                  background: `${getMemberColor(chore.assignedTo)}33`,
-                                  color: getMemberColor(chore.assignedTo),
-                                  border: `1px solid ${getMemberColor(chore.assignedTo)}`,
-                                  padding: '0.15rem 0.4rem',
-                                  borderRadius: 4,
-                                  fontSize: '0.7rem',
-                                  fontWeight: 700
-                                }}
-                              >
-                                {chore.assignedTo}
-                              </span>
-                              <button
-                                onClick={() => deleteChore(chore.id)}
-                                style={styles.deleteBtn}
-                                aria-label="Delete chore"
-                              >
-                                ×
-                              </button>
-                            </div>
-                          </DraggableItem>
-                        ))}
+                        {day.chores.map((chore) => {
+                          const memberColor = getMemberColor(chore.assignedTo);
+                          return (
+                            <DraggableItem
+                              key={chore.id}
+                              id={chore.id}
+                              type="chore"
+                              data={{
+                                originalDay: day.day,
+                                originalChore: chore
+                              }}
+                              style={{
+                                ...styles.choreItem,
+                                background: chore.completed
+                                  ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9dd 100%)'
+                                  : 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%)',
+                                borderLeft: `4px solid ${chore.completed ? '#66bb6a' : memberColor}`,
+                                opacity: chore.completed ? 0.85 : 1
+                              }}
+                            >
+                              <label style={styles.choreLabel}>
+                                <input
+                                  type="checkbox"
+                                  checked={chore.completed}
+                                  onChange={() => toggleChoreCompletion(chore)}
+                                  style={styles.checkbox}
+                                />
+                                <span style={styles.choreIcon}>
+                                  {chore.completed ? '✓' : '○'}
+                                </span>
+                                <span style={{
+                                  ...styles.choreText,
+                                  textDecoration: chore.completed ? 'line-through' : 'none',
+                                  opacity: chore.completed ? 0.7 : 1,
+                                  fontWeight: chore.completed ? 400 : 600
+                                }}>
+                                  {chore.title}
+                                </span>
+                              </label>
+                              <div style={styles.choreActions}>
+                                <span
+                                  style={{
+                                    ...styles.assignee,
+                                    background: `${memberColor}22`,
+                                    color: memberColor,
+                                    border: `1.5px solid ${memberColor}`,
+                                    padding: '0.2rem 0.5rem',
+                                    borderRadius: 6,
+                                    fontSize: '0.7rem',
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  {chore.assignedTo}
+                                </span>
+                                <button
+                                  onClick={() => deleteChore(chore.id)}
+                                  style={styles.deleteBtn}
+                                  aria-label="Delete chore"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            </DraggableItem>
+                          );
+                        })}
                       </ul>
                     ) : (
                       <p style={styles.noChores}>No chores</p>
@@ -824,15 +881,20 @@ export default function InteractiveWeekView() {
 
             {quickAddModal === 'event' && (
               <>
-                <label style={{...styles.modalLabel, color: theme.card.text}}>Event Type</label>
-                <select
-                  style={{...styles.modalInput, background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
+                <CategorySelector
+                  label="Event Category"
                   value={newItem.type}
-                  onChange={(e) => setNewItem({ ...newItem, type: e.target.value })}
-                >
-                  <option value="EVENT">Personal Event</option>
-                  <option value="WORK">Work</option>
-                </select>
+                  onChange={(type) => setNewItem({ ...newItem, type })}
+                  required
+                />
+
+                <DateTimePicker
+                  label="Date & Time"
+                  value={newItem.startsAt}
+                  onChange={(startsAt) => setNewItem({ ...newItem, startsAt })}
+                  includeTime={true}
+                  required
+                />
               </>
             )}
 
@@ -868,17 +930,24 @@ export default function InteractiveWeekView() {
               style={{...styles.modalInput, background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
               value={editModal.title}
               onChange={(e) => setEditModal({ ...editModal, title: e.target.value })}
+              placeholder="Enter event title..."
+              autoFocus
             />
 
-            <label style={{...styles.modalLabel, color: theme.card.text}}>Type</label>
-            <select
-              style={{...styles.modalInput, background: theme.input.bg, color: theme.input.text, border: `1px solid ${theme.input.border}`}}
-              value={editModal.type}
-              onChange={(e) => setEditModal({ ...editModal, type: e.target.value })}
-            >
-              <option value="EVENT">Personal Event</option>
-              <option value="WORK">Work</option>
-            </select>
+            <CategorySelector
+              label="Event Category"
+              value={editModal.type || 'PERSONAL'}
+              onChange={(type) => setEditModal({ ...editModal, type })}
+              required
+            />
+
+            <DateTimePicker
+              label="Date & Time"
+              value={editModal.startsAt || new Date()}
+              onChange={(startsAt) => setEditModal({ ...editModal, startsAt })}
+              includeTime={true}
+              required
+            />
 
             <label style={{...styles.modalLabel, color: theme.card.text}}>Description</label>
             <textarea
@@ -1125,6 +1194,11 @@ const styles = {
     justifyContent: 'space-between',
     gap: '0.5rem'
   },
+  eventIcon: {
+    fontSize: '1.1rem',
+    marginRight: '0.25rem',
+    flexShrink: 0
+  },
   eventTitle: {
     flex: 1,
     cursor: 'pointer',
@@ -1159,9 +1233,10 @@ const styles = {
   choreItem: {
     background: 'rgba(255,255,255,0.5)',
     border: '1px solid rgba(98, 73, 24, 0.18)',
-    borderRadius: 4,
-    padding: '0.4rem 0.5rem',
-    fontSize: '0.85rem'
+    borderRadius: 8,
+    padding: '0.6rem 0.7rem',
+    fontSize: '0.85rem',
+    transition: 'all 0.2s ease'
   },
   choreLabel: {
     display: 'flex',
@@ -1174,6 +1249,12 @@ const styles = {
     width: '16px',
     height: '16px',
     cursor: 'pointer'
+  },
+  choreIcon: {
+    fontSize: '1rem',
+    fontWeight: 700,
+    color: '#66bb6a',
+    marginLeft: '-0.2rem'
   },
   choreText: {
     flex: 1,
