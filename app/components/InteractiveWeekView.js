@@ -112,17 +112,17 @@ export default function InteractiveWeekView() {
     });
   }, []);
 
-  const showToast = (message, type = 'success', action = null) => {
+  const showToast = useCallback((message, type = 'success', action = null) => {
     setToast({ message, type, action });
-  };
+  }, []);
 
-  const showToastWithUndo = (message, undoAction) => {
+  const showToastWithUndo = useCallback((message, undoAction) => {
     setToast({
       message,
       type: 'success',
       action: { label: 'Undo', onClick: undoAction }
     });
-  };
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -166,7 +166,7 @@ export default function InteractiveWeekView() {
     } finally {
       setLoading(false);
     }
-  }, [weekOffset, getWeekDates]);
+  }, [weekOffset, getWeekDates, showToast]);
 
   useEffect(() => {
     fetchData();

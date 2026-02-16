@@ -64,7 +64,7 @@ export default function SetupCheck({ children }) {
     };
 
     init();
-  }, [pathname, router]);
+  }, [pathname]);
 
   if (loading) {
     return (
