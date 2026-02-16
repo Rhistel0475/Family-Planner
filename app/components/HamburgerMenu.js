@@ -7,18 +7,11 @@ import { useState } from 'react';
 const navItems = [
   { href: '/dashboard', label: '📊 Dashboard' },
   { href: '/', label: 'Weekly View' },
-  { href: '/schedule', label: 'Add Schedule' },
-  { href: '/chores', label: 'Add Chores' },
-  { href: '/recipes', label: 'Add Recipes' },
-  { href: '/family', label: 'Family Members' },
-  { href: '/ai', label: 'AI Assistant' },
-  { href: '/setup', label: 'Setup' },
-  { href: '/', label: 'Dashboard' },          // was "Weekly View"
-  { href: '/schedule', label: 'Calendar' },   // clearer
+  { href: '/schedule', label: 'Calendar' },
   { href: '/chores', label: 'Chores' },
-  { href: '/recipes', label: 'Meals' },       // clearer
-  { href: '/family', label: 'Family' },       // shorter
-  { href: '/ai', label: 'Concierge' }         // aligns with your RISE vision
+  { href: '/recipes', label: 'Meals' },
+  { href: '/family', label: 'Family' },
+  { href: '/ai', label: 'AI Assistant' }
 ];
 
 // Admin/Dev links (hidden in production)
