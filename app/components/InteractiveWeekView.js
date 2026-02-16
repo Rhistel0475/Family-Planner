@@ -715,19 +715,36 @@ export default function InteractiveWeekView() {
                               }}
                             >
                               <div style={styles.eventContent}>
-                                <span style={styles.eventIcon}>{category.icon}</span>
-                                <span
-                                  style={styles.eventTitle}
-                                  onClick={() => setEditModal(event)}
-                                >
-                                  {event.title}
-                                </span>
-                                <button
-                                  onClick={() => deleteEvent(event.id)}
-                                  style={styles.miniDeleteBtn}
-                                >
-                                  ×
-                                </button>
+                                <div style={styles.eventHeader}>
+                                  <span style={styles.eventIcon}>{category.icon}</span>
+                                  <span
+                                    style={styles.eventTitle}
+                                    onClick={() => setEditModal(event)}
+                                  >
+                                    {event.title}
+                                  </span>
+                                  <button
+                                    onClick={() => deleteEvent(event.id)}
+                                    style={styles.miniDeleteBtn}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                                {event.startsAt && (
+                                  <div style={styles.eventMeta}>
+                                    <span style={styles.eventTime}>
+                                      {formatTimeRange(event.startsAt, event.endsAt)}
+                                    </span>
+                                    {event.category && (
+                                      <span style={styles.eventBadge}>{event.category}</span>
+                                    )}
+                                  </div>
+                                )}
+                                {event.location && (
+                                  <div style={styles.eventLocation}>
+                                    📍 {event.location}
+                                  </div>
+                                )}
                               </div>
                             </DraggableItem>
                           );
@@ -1291,6 +1308,11 @@ const styles = {
   },
   eventContent: {
     display: 'flex',
+    flexDirection: 'column',
+    gap: '0.35rem'
+  },
+  eventHeader: {
+    display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: '0.5rem'
@@ -1304,7 +1326,33 @@ const styles = {
     flex: 1,
     cursor: 'pointer',
     textDecoration: 'underline',
-    textDecorationStyle: 'dotted'
+    textDecorationStyle: 'dotted',
+    fontWeight: 600
+  },
+  eventMeta: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.4rem',
+    fontSize: '0.75rem',
+    opacity: 0.9
+  },
+  eventTime: {
+    fontWeight: 700,
+    whiteSpace: 'nowrap'
+  },
+  eventBadge: {
+    background: 'rgba(0,0,0,0.08)',
+    borderRadius: 4,
+    padding: '0.15rem 0.35rem',
+    fontSize: '0.7rem',
+    fontWeight: 800,
+    textTransform: 'uppercase',
+    letterSpacing: '0.02em'
+  },
+  eventLocation: {
+    fontSize: '0.75rem',
+    opacity: 0.85,
+    fontStyle: 'italic'
   },
   miniDeleteBtn: {
     background: 'rgba(186, 62, 62, 0.15)',

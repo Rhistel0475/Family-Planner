@@ -3,14 +3,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 const EVENT_PRESETS = [
-  { value: 'DOCTOR', label: 'Doctor Appointment', icon: '🩺' },
-  { value: 'DENTIST', label: 'Dentist Appointment', icon: '🦷' },
-  { value: 'SCHOOL', label: 'School Event', icon: '🏫' },
-  { value: 'CHURCH', label: 'Church', icon: '⛪' },
-  { value: 'FAMILY', label: 'Family Event', icon: '👨‍👩‍👧‍👦' },
-  { value: 'SPORTS', label: 'Sports', icon: '🏅' },
-  { value: 'BIRTHDAY', label: 'Birthday', icon: '🎂' },
-  { value: 'GENERAL', label: 'General', icon: '📌' }
+  { value: 'Doctor Appointment', label: 'Doctor Appointment', icon: '🩺' },
+  { value: 'Dentist Appointment', label: 'Dentist Appointment', icon: '🦷' },
+  { value: 'School Event', label: 'School Event', icon: '🏫' },
+  { value: 'Church', label: 'Church', icon: '⛪' },
+  { value: 'Family Event', label: 'Family Event', icon: '👨‍👩‍👧‍👦' },
+  { value: 'Sports / Practice', label: 'Sports / Practice', icon: '🏅' },
+  { value: 'Birthday', label: 'Birthday', icon: '🎂' },
+  { value: 'Meeting', label: 'Meeting', icon: '💼' },
+  { value: 'Other', label: 'Other', icon: '📌' }
 ];
 
 function fmtDateTime(d) {
@@ -49,7 +50,7 @@ export default function SchedulePage({ searchParams }) {
   const [events, setEvents] = useState([]);
 
   // Form state
-  const [preset, setPreset] = useState('GENERAL');
+  const [preset, setPreset] = useState('Other');
   const [title, setTitle] = useState('');
   const [day, setDay] = useState('Monday');
   const [startTime, setStartTime] = useState('09:00');
@@ -159,19 +160,12 @@ export default function SchedulePage({ searchParams }) {
 
       const { startsAt, endsAt } = computeStartsEnds();
 
-      // API expects: day, event, isRecurring..., plus anything extra we include
       const payload = {
-        day,
-        event: `${chosen.icon} ${name}`.trim(),
-        // new fields for PATCH/DB (your prisma supports endsAt already)
         type: 'EVENT',
-        category: preset, // maps to EventCategory enum (GENERAL, SPORTS, BIRTHDAY, APPOINTMENT)
+        category: preset,
+        title: name,
         startsAt: startsAt.toISOString(),
-        endsAt: endsAt.toISOString(),
-        isRecurring: false,
-        recurrencePattern: null,
-        recurrenceInterval: null,
-        recurrenceEndDate: null
+        endsAt: endsAt.toISOString()
       };
 
       const res = await fetch('/api/schedule', {
@@ -184,7 +178,7 @@ export default function SchedulePage({ searchParams }) {
 
       showToast('success', data?.message || '✓ Saved.');
       setTitle('');
-      setPreset('GENERAL');
+      setPreset('Other');
 
       await fetchEvents();
     } catch (err) {

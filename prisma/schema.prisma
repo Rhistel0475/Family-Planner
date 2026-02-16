@@ -39,6 +39,7 @@ model Event {
   id          String    @id @default(cuid())
   familyId    String
   type        EventType @default(EVENT)
+  category    String?   // e.g., "Doctor Appointment", "Dentist", "School Event"
   title       String
   description String?
   startsAt    DateTime
