@@ -13,8 +13,6 @@ export async function GET(request) {
       orderBy: {
         startsAt: 'asc'
       }
-      where: { familyId: family.id },
-      orderBy: { startsAt: 'asc' }
     });
 
     return NextResponse.json({ events });

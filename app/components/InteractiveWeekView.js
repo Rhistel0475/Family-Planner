@@ -14,6 +14,7 @@ import SmartTaskModal from './SmartTaskModal';
 import DateTimePicker from './DateTimePicker';
 import CategorySelector from './CategorySelector';
 import { getEventCategory } from '../../lib/eventConfig';
+import { createSmartTaskInstances } from '../../lib/smartAssignment';
 
 const EVENT_CATEGORIES = [
   'Doctor Appointment',
@@ -59,14 +60,6 @@ export default function InteractiveWeekView() {
 
   const [quickAddModal, setQuickAddModal] = useState(null);
   const [editModal, setEditModal] = useState(null);
-  const [newItem, setNewItem] = useState({
-    title: '',
-    assignedTo: '',
-    day: 'Monday',
-    type: 'PERSONAL',
-    startsAt: new Date()
-  });
-  const [activeItem, setActiveItem] = useState(null);
   const [statsExpanded, setStatsExpanded] = useState(false);
   const [filtersExpanded, setFiltersExpanded] = useState(false);
   const [filters, setFilters] = useState({
@@ -91,7 +84,6 @@ export default function InteractiveWeekView() {
     location: '',
     description: ''
   });
-
   const [activeItem, setActiveItem] = useState(null);
 
   const defaultChoreTemplates = [
@@ -251,47 +243,6 @@ export default function InteractiveWeekView() {
     }
   };
 
-  const handleQuickAdd = async () => {
-    if (!newItem.title.trim()) {
-      showToast('Please enter a title', 'error');
-      return;
-    }
-
-    try {
-      const endpoint = quickAddModal === 'chore' ? '/api/chores' : '/api/schedule';
-      const payload = quickAddModal === 'chore'
-        ? { title: newItem.title, assignedTo: newItem.assignedTo || 'Unassigned', dueDay: newItem.day }
-        : {
-            title: newItem.title,
-            type: newItem.type,
-            startsAt: newItem.startsAt.toISOString(),
-            day: newItem.day,
-            event: newItem.title
-          };
-
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) throw new Error('Failed to create');
-
-      showToast(`${quickAddModal === 'chore' ? 'Chore' : 'Event'} added!`);
-      setQuickAddModal(null);
-      setNewItem({
-        title: '',
-        assignedTo: '',
-        day: 'Monday',
-        type: 'PERSONAL',
-        startsAt: new Date()
-      });
-      fetchData();
-    } catch (error) {
-      showToast(`Failed to add ${quickAddModal}`, 'error');
-    }
-  };
-
   const handleSmartTaskSubmit = async (taskData) => {
     try {
       // Create smart task instances using AI assignment
@@ -343,35 +294,6 @@ export default function InteractiveWeekView() {
     } catch (error) {
       console.error('Failed to create smart tasks:', error);
       showToast('Failed to create tasks', 'error');
-    }
-  };
-
-  const handleEventEdit = async () => {
-    if (!editModal || !editModal.title.trim()) {
-      showToast('Please enter a title', 'error');
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/schedule', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: editModal.id,
-          title: editModal.title,
-          type: editModal.type,
-          description: editModal.description,
-          startsAt: editModal.startsAt ? new Date(editModal.startsAt).toISOString() : undefined
-        })
-      });
-
-      if (!res.ok) throw new Error('Failed to update');
-
-      showToast('Event updated!');
-      setEditModal(null);
-      fetchData();
-    } catch (error) {
-      showToast('Failed to update event', 'error');
     }
   };
 
