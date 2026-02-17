@@ -1,37 +1,45 @@
-import { auth } from './lib/auth';
+import { withAuth } from 'next-auth/middleware';
 import { NextResponse } from 'next/server';
 
-export default auth((req) => {
-  const { pathname } = req.nextUrl;
-  const isLoggedIn = !!req.auth;
+export default withAuth(
+  function middleware(req) {
+    const { pathname } = req.nextUrl;
+    const token = req.nextauth.token;
 
-  // Public routes that don't require authentication
-  const publicRoutes = ['/auth/signin', '/auth/signup', '/auth/error'];
-  const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+    // If user is logged in but doesn't have a family, redirect to setup
+    if (token && !token.familyId && pathname !== '/setup') {
+      return NextResponse.redirect(new URL('/setup', req.url));
+    }
 
-  // API routes that should be public
-  const publicApiRoutes = ['/api/auth'];
-  const isPublicApi = publicApiRoutes.some((route) => pathname.startsWith(route));
+    return NextResponse.next();
+  },
+  {
+    callbacks: {
+      authorized: ({ req, token }) => {
+        const { pathname } = req.nextUrl;
 
-  // If user is not logged in and trying to access a protected route
-  if (!isLoggedIn && !isPublicRoute && !isPublicApi) {
-    const signInUrl = new URL('/auth/signin', req.url);
-    signInUrl.searchParams.set('callbackUrl', pathname);
-    return NextResponse.redirect(signInUrl);
+        // Public routes that don't require authentication
+        const publicRoutes = ['/auth/signin', '/auth/signup', '/auth/error'];
+        const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
+
+        // If it's a public route, allow access
+        if (isPublicRoute) {
+          // If user is already logged in, redirect to home
+          if (token) {
+            return false; // Will trigger redirect in pages config
+          }
+          return true;
+        }
+
+        // For protected routes, require a token
+        return !!token;
+      },
+    },
+    pages: {
+      signIn: '/auth/signin',
+    },
   }
-
-  // If user is logged in but doesn't have a family, redirect to setup
-  if (isLoggedIn && !req.auth.user?.familyId && pathname !== '/setup' && !isPublicRoute) {
-    return NextResponse.redirect(new URL('/setup', req.url));
-  }
-
-  // If user is logged in and on signin page, redirect to home
-  if (isLoggedIn && isPublicRoute) {
-    return NextResponse.redirect(new URL('/', req.url));
-  }
-
-  return NextResponse.next();
-});
+);
 
 export const config = {
   matcher: [
@@ -41,7 +49,8 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      * - public folder
+     * - api routes (except /api/protected/*)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
