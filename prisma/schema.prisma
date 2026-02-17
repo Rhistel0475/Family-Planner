@@ -36,37 +36,55 @@ model FamilyMember {
 }
 
 model Event {
-  id          String    @id @default(cuid())
-  familyId    String
-  type        EventType @default(EVENT)
-  category    String?   // e.g., "Doctor Appointment", "Dentist", "School Event"
-  title       String
-  description String?
-  startsAt    DateTime
-  endsAt      DateTime?
-  location    String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id                 String             @id @default(cuid())
+  familyId           String
+  type               EventType          @default(EVENT)
+  category           String?            // e.g., "Doctor Appointment", "Dentist", "School Event"
+  title              String
+  description        String?
+  startsAt           DateTime
+  endsAt             DateTime?
+  location           String?
+
+  // Recurrence fields
+  isRecurring        Boolean            @default(false)
+  recurrencePattern  RecurrencePattern?
+  recurrenceInterval Int?               // e.g., 1 for weekly, 2 for biweekly
+  recurrenceEndDate  DateTime?
+  parentEventId      String?            // Links to parent recurring event
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  family             Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, startsAt])
   @@index([startsAt])
+  @@index([parentEventId])
 }
 
 model Chore {
-  id          String    @id @default(cuid())
-  familyId    String
-  title       String
-  assignedTo  String
-  dueDay      String
-  completed   Boolean   @default(false)
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  id                 String             @id @default(cuid())
+  familyId           String
+  title              String
+  assignedTo         String
+  dueDay             String
+  completed          Boolean            @default(false)
+  completedAt        DateTime?
+
+  // Recurrence fields
+  isRecurring        Boolean            @default(false)
+  recurrencePattern  RecurrencePattern?
+  recurrenceInterval Int?
+  recurrenceEndDate  DateTime?
+  parentChoreId      String?            // Links to parent recurring chore
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  family             Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, dueDay])
   @@index([completed])
+  @@index([parentChoreId])
 }
 
 model Recipe {
@@ -122,4 +140,11 @@ enum EligibilityMode {
   ALL
   SELECTED
   ROLE_BASED
+}
+
+enum RecurrencePattern {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
 }

@@ -63,6 +63,12 @@ export default function SchedulePage({ searchParams }) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   });
 
+  // Recurrence state
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurrencePattern, setRecurrencePattern] = useState('WEEKLY');
+  const [recurrenceInterval, setRecurrenceInterval] = useState(1);
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
+
   const initialToast = useMemo(() => {
     const saved = searchParams?.saved === '1';
     const error = searchParams?.error === '1';
@@ -176,7 +182,11 @@ export default function SchedulePage({ searchParams }) {
         category: preset,
         title: name,
         startsAt: startsAt.toISOString(),
-        endsAt: endsAt.toISOString()
+        endsAt: endsAt.toISOString(),
+        isRecurring,
+        recurrencePattern: isRecurring ? recurrencePattern : null,
+        recurrenceInterval: isRecurring ? recurrenceInterval : null,
+        recurrenceEndDate: isRecurring && recurrenceEndDate ? new Date(recurrenceEndDate).toISOString() : null
       };
 
       const res = await fetch('/api/schedule', {
@@ -364,6 +374,59 @@ export default function SchedulePage({ searchParams }) {
               <label style={styles.label}>End</label>
               <input style={styles.input} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
             </div>
+          </div>
+
+          <div style={styles.recurrenceSection}>
+            <label style={{...styles.label, display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer'}}>
+              <input
+                type="checkbox"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+              />
+              🔄 Recurring Event
+            </label>
+
+            {isRecurring && (
+              <div style={styles.recurrenceFields}>
+                <label style={styles.label}>Repeat Pattern</label>
+                <select
+                  style={styles.input}
+                  value={recurrencePattern}
+                  onChange={(e) => setRecurrencePattern(e.target.value)}
+                >
+                  <option value="DAILY">Daily</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="MONTHLY">Monthly</option>
+                  <option value="YEARLY">Yearly</option>
+                </select>
+
+                <label style={styles.label}>Every (interval)</label>
+                <input
+                  style={styles.input}
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={recurrenceInterval}
+                  onChange={(e) => setRecurrenceInterval(parseInt(e.target.value) || 1)}
+                  placeholder="1"
+                />
+                <small style={styles.helpText}>
+                  E.g., "1" for weekly, "2" for every 2 weeks
+                </small>
+
+                <label style={styles.label}>End Date (optional)</label>
+                <input
+                  style={styles.input}
+                  type="date"
+                  value={recurrenceEndDate}
+                  onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                  placeholder="Leave empty for 1 year"
+                />
+                <small style={styles.helpText}>
+                  Leave empty to repeat for 1 year
+                </small>
+              </div>
+            )}
           </div>
 
           <button type="submit" style={styles.button} disabled={loading}>
@@ -555,5 +618,20 @@ const styles = {
     color: '#4b2f17',
     fontWeight: 900,
     cursor: 'pointer'
+  },
+
+  recurrenceSection: {
+    marginTop: '1rem',
+    padding: '1rem',
+    borderRadius: 8,
+    background: 'rgba(255, 255, 255, 0.3)',
+    border: '1px solid rgba(98, 73, 24, 0.2)'
+  },
+
+  recurrenceFields: {
+    marginTop: '1rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '0.5rem'
   }
 };

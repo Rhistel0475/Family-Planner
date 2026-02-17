@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
+import { generateRecurringInstances } from '../../../lib/recurring';
 
 export async function GET(request) {
   try {
@@ -54,6 +55,12 @@ export async function POST(request) {
     const startsAt = body.startsAt ? new Date(body.startsAt) : null;
     const endsAt = body.endsAt ? new Date(body.endsAt) : null;
 
+    // Recurrence fields
+    const isRecurring = body.isRecurring === true;
+    const recurrencePattern = isRecurring ? body.recurrencePattern : null;
+    const recurrenceInterval = isRecurring ? parseInt(body.recurrenceInterval) || 1 : null;
+    const recurrenceEndDate = isRecurring && body.recurrenceEndDate ? new Date(body.recurrenceEndDate) : null;
+
     if (!title) {
       return NextResponse.json({ error: 'Event title is required.' }, { status: 400 });
     }
@@ -69,7 +76,37 @@ export async function POST(request) {
 
     const family = await getOrCreateDefaultFamily();
 
-    const event = await prisma.event.create({
+    // If not recurring, create single event
+    if (!isRecurring) {
+      const event = await prisma.event.create({
+        data: {
+          familyId: family.id,
+          type: 'EVENT',
+          category,
+          title,
+          description,
+          location,
+          startsAt,
+          endsAt,
+          isRecurring: false
+        }
+      });
+
+      return NextResponse.json({ success: true, event }, { status: 200 });
+    }
+
+    // Generate recurring instances
+    const instances = generateRecurringInstances({
+      pattern: recurrencePattern,
+      interval: recurrenceInterval,
+      startDate: startsAt,
+      endDate: recurrenceEndDate,
+      startTime: startsAt,
+      endTime: endsAt
+    });
+
+    // Create parent event
+    const parentEvent = await prisma.event.create({
       data: {
         familyId: family.id,
         type: 'EVENT',
@@ -78,11 +115,36 @@ export async function POST(request) {
         description,
         location,
         startsAt,
-        endsAt
+        endsAt,
+        isRecurring: true,
+        recurrencePattern,
+        recurrenceInterval,
+        recurrenceEndDate
       }
     });
 
-    return NextResponse.json({ success: true, event }, { status: 200 });
+    // Create child instances
+    const childEvents = await prisma.event.createMany({
+      data: instances.map(instance => ({
+        familyId: family.id,
+        type: 'EVENT',
+        category,
+        title,
+        description,
+        location,
+        startsAt: instance.startsAt,
+        endsAt: instance.endsAt,
+        isRecurring: false,
+        parentEventId: parentEvent.id
+      }))
+    });
+
+    return NextResponse.json({
+      success: true,
+      event: parentEvent,
+      instanceCount: instances.length
+    }, { status: 200 });
+
   } catch (error) {
     console.error('Schedule POST error:', error);
     return NextResponse.json(
