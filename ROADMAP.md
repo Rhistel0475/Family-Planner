@@ -221,20 +221,22 @@ A simple family "weekly board" that makes it easy to:
 
 ---
 
-### Phase 6 — Recurrence System (ADVANCED)
-**Choose one approach:**
+### Phase 6 — Recurrence System (DONE ✅)
+**Instance-Based Approach Implemented (Option A Enhanced)**
 
-#### Option A (Simple)
-Store recurring as duplicated instances (limited range)
-* **Pros:** simple
-* **Cons:** can bloat DB
+✅ Chosen Approach: Store recurring as instances with parent reference
+* Creates N instances on creation (up to 365, defaults to 1 year)
+* Each instance is a real DB record
+* Parent event stores recurrence rule
+* **Pros:** Simple queries, easy to edit/delete individual instances, works with existing code
+* **Cons:** More DB rows (mitigated by 365 instance limit and date range filtering)
 
-#### Option B (Best Practice)
-Store recurrence rule, generate instances virtually per week
-* **Pros:** clean DB
-* **Cons:** more logic
-
-**Decision pending.**
+✅ Implementation Complete:
+* RecurrencePattern enum (DAILY, WEEKLY, MONTHLY, YEARLY)
+* lib/recurring.js with full recurrence generation logic
+* API support in /api/schedule POST
+* UI with recurring event checkbox and configuration
+* Schema updated with recurrence fields on Event and Chore models
 
 ---
 
@@ -294,5 +296,5 @@ A task is "Done" when:
 
 ---
 
-**Last Updated:** 2026-02-16
-**Current Focus:** Phase 6 (Recurrence System) or Refinement/Testing
+**Last Updated:** 2026-02-17
+**Current Focus:** Testing & Polish, or Phase 7 (Auth & Multi-Family)
