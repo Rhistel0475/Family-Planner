@@ -26,15 +26,23 @@ export default function SetupDonePage() {
     async function run() {
       try {
         if (typeof updateSession === 'function') {
-          await updateSession({ familyId });
+          await Promise.race([
+            updateSession({ familyId }),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
+          ]);
         }
         if (cancelled) return;
         setStatus('Taking you home...');
         window.location.href = '/?setupComplete=true';
       } catch (e) {
         if (!cancelled) {
-          setStatus('Something went wrong — redirecting to setup');
-          window.location.href = '/setup';
+          if (e?.message === 'timeout') {
+            setStatus('Taking you home...');
+            window.location.href = '/?setupComplete=true';
+          } else {
+            setStatus('Something went wrong — redirecting to setup');
+            window.location.href = '/setup';
+          }
         }
       }
     }

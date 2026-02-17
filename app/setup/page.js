@@ -63,6 +63,8 @@ export default function SetupPage() {
       }
 
       // Single API call: create family, link user, create members, set work hours, mark complete
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000);
       const res = await fetch('/api/setup/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -70,8 +72,10 @@ export default function SetupPage() {
           familyName: familyName.trim() || 'My Family',
           members: members.map((m) => ({ name: m.name, role: m.role })),
           workSchedules
-        })
+        }),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -87,7 +91,8 @@ export default function SetupPage() {
       window.location.href = `/setup/done?familyId=${encodeURIComponent(familyId)}`;
     } catch (error) {
       console.error('Setup error:', error);
-      alert(error.message || 'Failed to complete setup');
+      const message = error.name === 'AbortError' ? 'Request timed out. Please try again.' : (error.message || 'Failed to complete setup');
+      alert(message);
       setLoading(false);
     }
   };
