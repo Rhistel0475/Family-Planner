@@ -12,7 +12,7 @@ export default function QuickActions() {
   const actions = [
     {
       name: 'View Calendar',
-      href: '/schedule-viewer',
+      href: '/schedule',
       icon: CalendarDaysIcon,
       description: 'Browse your weekly schedule',
       color: 'blue'
@@ -26,16 +26,16 @@ export default function QuickActions() {
     },
     {
       name: 'Add Event',
-      href: '/schedule-viewer',
+      href: '/schedule',
       icon: PlusCircleIcon,
       description: 'Create a new event',
       color: 'purple'
     },
     {
-      name: 'Reports',
-      href: '/reports',
+      name: 'Dashboard',
+      href: '/dashboard',
       icon: ChartBarIcon,
-      description: 'View activity reports',
+      description: 'View today\'s overview and progress',
       color: 'orange'
     }
   ];

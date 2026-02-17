@@ -13,7 +13,7 @@ This document tracks the build plan for the Family Planner app (Next.js + Prisma
    * Add / Edit / Delete
    * Avatar + color support
    * Undo delete (toast)
-   * API validation + default family creation
+   * API validation + auth-scoped family (setup flow)
 * **Week View Board (Dnd-kit)**
    * Drag chores across days
    * Drag events across days

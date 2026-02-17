@@ -222,7 +222,7 @@ Visit: http://localhost:3000
 
 ### **Test 7: Meal Planning** 🍳
 
-1. Go to `/meals`
+1. Go to `/recipes`
 
    **Add Recipe:**
    - ✅ Click "+ Add Recipe"

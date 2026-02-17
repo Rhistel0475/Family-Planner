@@ -97,7 +97,7 @@ export default function DashboardPage() {
       {/* Navigation Footer */}
       <div className="mt-8 flex gap-4 justify-center">
         <Link
-          href="/schedule-viewer"
+          href="/schedule"
           className="text-blue-600 hover:text-blue-700 font-medium"
         >
           View Full Calendar →
