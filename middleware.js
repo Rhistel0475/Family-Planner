@@ -6,8 +6,8 @@ export default withAuth(
     const { pathname } = req.nextUrl;
     const token = req.nextauth.token;
 
-    // If user is logged in but doesn't have a family, redirect to setup
-    if (token && !token.familyId && pathname !== '/setup') {
+    // If user is logged in but doesn't have a family, redirect to setup (allow /setup and /setup/done)
+    if (token && !token.familyId && pathname !== '/setup' && pathname !== '/setup/done') {
       return NextResponse.redirect(new URL('/setup', req.url));
     }
 

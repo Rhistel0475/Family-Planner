@@ -21,9 +21,9 @@ export default function SetupCheck({ children }) {
         const currentPathname = pathname;
         setDebugInfo('checking setup on ' + currentPathname);
         
-        // Skip check on setup page itself
-        if (currentPathname === '/setup') {
-          setDebugInfo('on setup page');
+        // Skip check on setup and setup/done (done page updates session then redirects)
+        if (currentPathname === '/setup' || currentPathname === '/setup/done') {
+          setDebugInfo(currentPathname === '/setup/done' ? 'on setup done page' : 'on setup page');
           setLoading(false);
           return;
         }

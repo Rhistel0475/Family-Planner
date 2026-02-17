@@ -52,65 +52,37 @@ export default function SetupPage() {
 
   const handleComplete = async () => {
     if (loading) return;
-    
+
     setLoading(true);
-    
+
     try {
       if (members.length === 0) {
         alert('Please add at least one family member');
         setLoading(false);
         return;
       }
-      
-      // Save family members
-      for (const member of members) {
-        const res = await fetch('/api/family-members', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: member.name, role: member.role })
-        });
-        if (!res.ok) {
-          const error = await res.json();
-          throw new Error(`Failed to save member: ${error.error || res.status}`);
-        }
-      }
 
-      // Save work schedules
-      for (const [memberName, schedule] of Object.entries(workSchedules)) {
-        for (const [day, hours] of Object.entries(schedule)) {
-          if (hours.trim()) {
-            const res = await fetch('/api/schedule', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                day,
-                workHours: hours
-              })
-            });
-            if (!res.ok) {
-              const error = await res.json();
-              throw new Error(`Failed to save schedule: ${error.error || res.status}`);
-            }
-          }
-        }
-      }
-
-      // Mark setup as complete
-      const res = await fetch('/api/setup', {
+      // Single API call: create family, link user, create members, set work hours, mark complete
+      const res = await fetch('/api/setup/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ familyName })
+        body: JSON.stringify({
+          familyName: familyName.trim() || 'My Family',
+          members: members.map((m) => ({ name: m.name, role: m.role })),
+          workSchedules
+        })
       });
+
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const error = await res.json();
-        throw new Error(`Failed to complete setup: ${error.error || res.status}`);
+        throw new Error(data.error || data.message || `Setup failed (${res.status})`);
       }
 
-      // Redirect to home
-      window.location.href = '/?setupComplete=true';
+      // Send user to /setup/done so session is updated in the browser before loading home
+      window.location.href = `/setup/done?familyId=${encodeURIComponent(data.familyId)}`;
     } catch (error) {
       console.error('Setup error:', error);
-      alert(`Failed to complete setup: ${error.message}`);
+      alert(error.message || 'Failed to complete setup');
       setLoading(false);
     }
   };

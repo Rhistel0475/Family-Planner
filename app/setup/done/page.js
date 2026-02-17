@@ -1,0 +1,76 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+
+/**
+ * Landing page after setup: update session with familyId, then redirect to home.
+ * Kept separate so middleware allows it without familyId; session is updated here before going to /.
+ */
+export default function SetupDonePage() {
+  const searchParams = useSearchParams();
+  const { update: updateSession } = useSession();
+  const [status, setStatus] = useState('Updating session...');
+
+  useEffect(() => {
+    const familyId = searchParams.get('familyId');
+    if (!familyId) {
+      setStatus('Missing familyId — redirecting to setup');
+      window.location.href = '/setup';
+      return;
+    }
+
+    let cancelled = false;
+
+    async function run() {
+      try {
+        if (typeof updateSession === 'function') {
+          await updateSession({ familyId });
+        }
+        if (cancelled) return;
+        setStatus('Taking you home...');
+        window.location.href = '/?setupComplete=true';
+      } catch (e) {
+        if (!cancelled) {
+          setStatus('Something went wrong — redirecting to setup');
+          window.location.href = '/setup';
+        }
+      }
+    }
+
+    run();
+    return () => { cancelled = true; };
+  }, [searchParams, updateSession]);
+
+  return (
+    <div style={styles.container}>
+      <div style={styles.spinner} />
+      <p style={styles.text}>{status}</p>
+    </div>
+  );
+}
+
+const styles = {
+  container: {
+    minHeight: '100vh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f4e3bf',
+    color: '#3f2d1d'
+  },
+  spinner: {
+    width: '40px',
+    height: '40px',
+    border: '4px solid rgba(98, 73, 24, 0.2)',
+    borderTop: '4px solid #3f2d1d',
+    borderRadius: '50%',
+    animation: 'spin 1s linear infinite',
+    marginBottom: '1rem'
+  },
+  text: {
+    fontSize: '1rem'
+  }
+};

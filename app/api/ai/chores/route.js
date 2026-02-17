@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { getOrCreateDefaultFamily } from '../../../../lib/defaultFamily';
+import { requireAuthAndFamily, apiError } from '../../../../lib/sessionFamily';
 import { generateChoreAssignments } from '../../../../lib/ai';
 import { assignChoresRuleBased } from '../../../../lib/choreAssignment';
-import { parseEligibleMembers } from '../../../../lib/choreTemplates';
 
 export async function GET() {
+  const auth = await requireAuthAndFamily();
+  if (auth instanceof Response) return auth;
+  const { family } = auth;
+
   try {
-    const family = await getOrCreateDefaultFamily();
-    
     const members = await prisma.familyMember.findMany({
       where: { familyId: family.id }
     });
@@ -34,74 +35,45 @@ export async function GET() {
       });
     }
 
-    // Check if any chores have eligibility constraints with no eligible members
-    const invalidChores = unassignedChores.filter(chore => {
-      if (chore.eligibleMemberIds) {
-        const eligibleIds = parseEligibleMembers(chore.eligibleMemberIds);
-        const hasEligibleMembers = members.some(m => eligibleIds.includes(m.id));
-        return !hasEligibleMembers;
-      }
-      return false;
-    });
-
-    if (invalidChores.length > 0) {
-      return NextResponse.json({
-        suggestions: [],
-        error: `${invalidChores.length} chore(s) have eligibility constraints but no eligible members exist`,
-        invalidChores: invalidChores.map(c => ({
-          id: c.id,
-          title: c.title,
-          message: 'No eligible members found'
-        }))
-      }, { status: 422 });
-    }
-
-    // Try AI first, fallback to rule-based on error
     try {
       const suggestions = await generateChoreAssignments(members, unassignedChores);
       return NextResponse.json(suggestions);
     } catch (aiError) {
       console.log('AI unavailable, using rule-based assignment:', aiError.message);
-      // Use rule-based fallback
       const suggestions = assignChoresRuleBased(members, unassignedChores);
       return NextResponse.json(suggestions);
     }
   } catch (error) {
-    console.error('Chore assignment error:', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to generate chore assignments',
-        details: error?.message || 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return apiError(error, 'Failed to generate chore assignments', 500);
   }
 }
 
 export async function POST(request) {
-  try {
-    const { choreId, assignedTo } = await request.json();
+  const auth = await requireAuthAndFamily();
+  if (auth instanceof Response) return auth;
+  const { family } = auth;
 
-    if (!choreId || !assignedTo) {
+  try {
+    const body = await request.json();
+    const { choreId, assignedTo } = body;
+    if (!choreId || assignedTo == null || assignedTo === '') {
       return NextResponse.json(
         { error: 'Missing choreId or assignedTo' },
         { status: 400 }
       );
     }
 
+    const existing = await prisma.chore.findUnique({ where: { id: choreId } });
+    if (!existing || existing.familyId !== family.id) {
+      return NextResponse.json({ error: 'Chore not found' }, { status: 404 });
+    }
+
     const updatedChore = await prisma.chore.update({
       where: { id: choreId },
-      data: { assignedTo }
+      data: { assignedTo: String(assignedTo) }
     });
-
     return NextResponse.json(updatedChore);
   } catch (error) {
-    return NextResponse.json(
-      {
-        error: 'Failed to assign chore',
-        details: error?.message || 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return apiError(error, 'Failed to assign chore', 500);
   }
 }

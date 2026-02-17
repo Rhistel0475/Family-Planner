@@ -3,6 +3,7 @@ import HamburgerMenu from './components/HamburgerMenu';
 import BottomNav from './components/BottomNav';
 import SetupCheck from './components/SetupCheck';
 import { ThemeProvider } from './providers/ThemeProvider';
+import { SessionProvider } from './providers/SessionProvider';
 
 export const metadata = {
   title: 'Family Planner',
@@ -13,13 +14,15 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body>
-        <SetupCheck>
-          <ThemeProvider>
-            <HamburgerMenu />
-            {children}
-            <BottomNav />
-          </ThemeProvider>
-        </SetupCheck>
+        <SessionProvider>
+          <SetupCheck>
+            <ThemeProvider>
+              <HamburgerMenu />
+              {children}
+              <BottomNav />
+            </ThemeProvider>
+          </SetupCheck>
+        </SessionProvider>
       </body>
     </html>
   );

@@ -1,81 +1,68 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
-import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
+import { requireAuthAndFamily, apiError } from '../../../lib/sessionFamily';
+import { validateRequest, choreSchema, choreUpdateSchema } from '../../../lib/validators';
 
-export async function GET(request) {
+export async function GET() {
+  const auth = await requireAuthAndFamily();
+  if (auth instanceof Response) return auth;
+  const { family } = auth;
+
   try {
-    const family = await getOrCreateDefaultFamily();
-
-    // Get all chores for the family
     const chores = await prisma.chore.findMany({
-      where: {
-        familyId: family.id
-      },
-      orderBy: {
-        createdAt: 'asc'
-      }
+      where: { familyId: family.id },
+      orderBy: { createdAt: 'asc' }
     });
-
     return NextResponse.json({ chores });
   } catch (error) {
-    console.error('Chores GET error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch chores', details: error.message },
-      { status: 500 }
-    );
+    return apiError(error, 'Failed to fetch chores', 500);
   }
 }
 
 export async function POST(request) {
+  const auth = await requireAuthAndFamily();
+  if (auth instanceof Response) return auth;
+  const { family } = auth;
+
   try {
     const body = await request.json();
-    const { title, assignedTo, dueDay } = body;
-
-    if (!title || !dueDay) {
-      return NextResponse.json(
-        { error: 'Title and due day are required' },
-        { status: 400 }
-      );
+    const validation = validateRequest(choreSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
-
-    const family = await getOrCreateDefaultFamily();
+    const data = validation.data;
 
     const chore = await prisma.chore.create({
       data: {
         familyId: family.id,
-        title: title.trim(),
-        assignedTo: assignedTo?.trim() || 'Unassigned',
-        dueDay: dueDay.trim(),
+        title: data.title.trim(),
+        assignedTo: (data.assignedTo && String(data.assignedTo).trim()) || 'Unassigned',
+        dueDay: data.dueDay,
         completed: false
       }
     });
-
-    return NextResponse.json(
-      { success: true, chore },
-      { status: 200 }
-    );
+    return NextResponse.json({ success: true, chore }, { status: 200 });
   } catch (error) {
-    console.error('Chores POST error:', error);
-    return NextResponse.json(
-      {
-        error: 'Failed to create chore',
-        details: error.message || 'Unknown error'
-      },
-      { status: 500 }
-    );
+    return apiError(error, 'Failed to create chore', 500);
   }
 }
 
 export async function PATCH(request) {
+  const auth = await requireAuthAndFamily();
+  if (auth instanceof Response) return auth;
+  const { family } = auth;
+
   try {
     const body = await request.json();
-    const { id, completed, title, assignedTo, dueDay } = body;
+    const validation = validateRequest(choreUpdateSchema, body);
+    if (!validation.success) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
+    }
+    const { id, completed, title, assignedTo, dueDay } = validation.data;
 
-    if (!id) {
-      return NextResponse.json(
-        { error: 'Chore ID is required' },
-        { status: 400 }
-      );
+    const existing = await prisma.chore.findUnique({ where: { id } });
+    if (!existing || existing.familyId !== family.id) {
+      return NextResponse.json({ error: 'Chore not found' }, { status: 404 });
     }
 
     const updateData = {};
@@ -91,55 +78,38 @@ export async function PATCH(request) {
       where: { id },
       data: updateData
     });
-
     return NextResponse.json({ success: true, chore });
   } catch (error) {
-    console.error('Chore PATCH error:', error);
-
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Chore not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Chore not found' }, { status: 404 });
     }
-
-    return NextResponse.json(
-      { error: 'Failed to update chore', details: error.message },
-      { status: 500 }
-    );
+    return apiError(error, 'Failed to update chore', 500);
   }
 }
 
 export async function DELETE(request) {
+  const auth = await requireAuthAndFamily();
+  if (auth instanceof Response) return auth;
+  const { family } = auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-
     if (!id) {
-      return NextResponse.json(
-        { error: 'Chore ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Chore ID is required' }, { status: 400 });
     }
 
-    await prisma.chore.delete({
-      where: { id }
-    });
+    const existing = await prisma.chore.findUnique({ where: { id } });
+    if (!existing || existing.familyId !== family.id) {
+      return NextResponse.json({ error: 'Chore not found' }, { status: 404 });
+    }
 
+    await prisma.chore.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Chore DELETE error:', error);
-
     if (error.code === 'P2025') {
-      return NextResponse.json(
-        { error: 'Chore not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Chore not found' }, { status: 404 });
     }
-
-    return NextResponse.json(
-      { error: 'Failed to delete chore', details: error.message },
-      { status: 500 }
-    );
+    return apiError(error, 'Failed to delete chore', 500);
   }
 }

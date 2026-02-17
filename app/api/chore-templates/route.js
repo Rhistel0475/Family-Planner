@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
-import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
+import { requireAuthAndFamily, apiError } from '../../../lib/sessionFamily';
 import { PREDEFINED_CHORES } from '../../../lib/boardChores';
 
-export async function GET(request) {
+export async function GET() {
+  const auth = await requireAuthAndFamily();
+  if (auth instanceof Response) return auth;
+  const { family } = auth;
+
   try {
-    const family = await getOrCreateDefaultFamily();
 
     // Fetch family members (required for enriching the data)
     const members = await prisma.familyMember.findMany({
@@ -91,20 +94,18 @@ export async function GET(request) {
       family: { id: family.id, name: family.name }
     });
   } catch (error) {
-    console.error('Chore Board GET error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch chore board settings', details: error.message },
-      { status: 500 }
-    );
+    return apiError(error, 'Failed to fetch chore board settings', 500);
   }
 }
 
 export async function PATCH(request) {
+  const auth = await requireAuthAndFamily();
+  if (auth instanceof Response) return auth;
+  const { family } = auth;
+
   try {
     const body = await request.json();
     const { settings } = body;
-
-    console.log('📝 ChoreBoard PATCH: Received', settings?.length, 'settings to update');
 
     if (!Array.isArray(settings)) {
       return NextResponse.json(
@@ -112,8 +113,6 @@ export async function PATCH(request) {
         { status: 400 }
       );
     }
-
-    const family = await getOrCreateDefaultFamily();
 
     // Validate each setting
     for (const setting of settings) {
@@ -194,10 +193,6 @@ export async function PATCH(request) {
       settings: updated
     });
   } catch (error) {
-    console.error('Chore Board PATCH error:', error);
-    return NextResponse.json(
-      { error: 'Failed to save chore board settings', details: error.message },
-      { status: 500 }
-    );
+    return apiError(error, 'Failed to save chore board settings', 500);
   }
 }
