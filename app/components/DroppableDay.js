@@ -2,7 +2,7 @@
 
 import { useDroppable } from '@dnd-kit/core';
 
-export default function DroppableDay({ id, children, style = {} }) {
+export default function DroppableDay({ id, children, style = {}, className = '' }) {
   const { setNodeRef, isOver } = useDroppable({
     id,
   });
@@ -20,7 +20,7 @@ export default function DroppableDay({ id, children, style = {} }) {
   };
 
   return (
-    <article ref={setNodeRef} style={dropStyle}>
+    <article ref={setNodeRef} style={dropStyle} className={className}>
       {children}
     </article>
   );

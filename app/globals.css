@@ -45,6 +45,209 @@ p {
   }
 }
 
+/* ===== POST-IT THEME: Cork Board ===== */
+.cork-board {
+  background-color: #b8956a;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(0, 0, 0, 0.03) 0px,
+      rgba(0, 0, 0, 0.03) 1px,
+      transparent 1px,
+      transparent 4px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      rgba(0, 0, 0, 0.02) 0px,
+      rgba(0, 0, 0, 0.02) 1px,
+      transparent 1px,
+      transparent 5px
+    ),
+    radial-gradient(ellipse at 15% 25%, rgba(160, 120, 60, 0.4) 0%, transparent 50%),
+    radial-gradient(ellipse at 75% 15%, rgba(180, 140, 80, 0.3) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 80%, rgba(140, 100, 50, 0.25) 0%, transparent 50%),
+    radial-gradient(ellipse at 90% 70%, rgba(170, 130, 70, 0.2) 0%, transparent 35%);
+}
+
+/* ===== POST-IT THEME: Day Card (base for pseudo-elements) ===== */
+.day-card {
+  position: relative !important;
+  overflow: visible !important;
+}
+
+/* Push pin */
+.day-card::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  background: radial-gradient(circle at 38% 35%, #ff6659, #e53935 55%, #b71c1c);
+  border-radius: 50%;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.35),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.2),
+    inset 0 1px 2px rgba(255, 255, 255, 0.4);
+  z-index: 2;
+}
+
+/* Pin color variants */
+.day-card.pin-red::before {
+  background: radial-gradient(circle at 38% 35%, #ff6659, #e53935 55%, #b71c1c);
+}
+.day-card.pin-blue::before {
+  background: radial-gradient(circle at 38% 35%, #64b5f6, #1e88e5 55%, #0d47a1);
+}
+.day-card.pin-green::before {
+  background: radial-gradient(circle at 38% 35%, #81c784, #43a047 55%, #1b5e20);
+}
+.day-card.pin-orange::before {
+  background: radial-gradient(circle at 38% 35%, #ffb74d, #fb8c00 55%, #e65100);
+}
+.day-card.pin-purple::before {
+  background: radial-gradient(circle at 38% 35%, #ba68c8, #8e24aa 55%, #4a148c);
+}
+.day-card.pin-teal::before {
+  background: radial-gradient(circle at 38% 35%, #4dd0e1, #00acc1 55%, #006064);
+}
+.day-card.pin-amber::before {
+  background: radial-gradient(circle at 38% 35%, #ffd54f, #ffb300 55%, #ff6f00);
+}
+
+/* Metallic pin point (tiny dark dot beneath the head) */
+.day-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 22px 22px;
+  border-color: transparent transparent rgba(0, 0, 0, 0.08) transparent;
+  border-bottom-right-radius: 3px;
+  z-index: 1;
+}
+
+/* ===== POST-IT THEME: Sticky Note Texture (faint ruled lines + shadow) ===== */
+.sticky-note-texture {
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      transparent,
+      transparent 26px,
+      rgba(120, 90, 50, 0.06) 26px,
+      rgba(120, 90, 50, 0.06) 27px
+    ) !important;
+  background-blend-mode: multiply;
+  box-shadow:
+    2px 3px 8px rgba(70, 45, 11, 0.2),
+    4px 6px 16px rgba(70, 45, 11, 0.12),
+    0 1px 2px rgba(70, 45, 11, 0.15) !important;
+}
+
+/* ===== POST-IT THEME: Washi Tape Section Headers ===== */
+.washi-tape {
+  display: inline-block;
+  padding: 0.15rem 0.75rem !important;
+  margin-bottom: 0.35rem !important;
+  border-radius: 2px;
+  transform: rotate(-1deg);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  font-family: var(--font-handwritten), 'Permanent Marker', cursive !important;
+  font-size: 0.75rem !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  font-weight: 400 !important;
+  position: relative;
+}
+
+.washi-tape::before,
+.washi-tape::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+.washi-tape::before {
+  left: -1px;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%, transparent 15%,
+    currentColor 15%, transparent 18%,
+    transparent 35%, currentColor 35%, transparent 38%,
+    transparent 55%, currentColor 55%, transparent 58%,
+    transparent 75%, currentColor 75%, transparent 78%,
+    transparent 100%
+  );
+  opacity: 0.15;
+}
+.washi-tape::after {
+  right: -1px;
+  background: linear-gradient(
+    to bottom,
+    transparent 5%, currentColor 5%, transparent 8%,
+    transparent 25%, currentColor 25%, transparent 28%,
+    transparent 45%, currentColor 45%, transparent 48%,
+    transparent 65%, currentColor 65%, transparent 68%,
+    transparent 85%, currentColor 85%, transparent 88%,
+    transparent 100%
+  );
+  opacity: 0.15;
+}
+
+.washi-work {
+  background: rgba(100, 181, 246, 0.4);
+  color: #1565c0;
+}
+.washi-events {
+  background: rgba(255, 183, 77, 0.4);
+  color: #e65100;
+}
+.washi-chores {
+  background: rgba(129, 199, 132, 0.4);
+  color: #2e7d32;
+}
+
+/* ===== POST-IT THEME: Hero Tape Strip ===== */
+.hero-tape {
+  position: relative;
+  overflow: visible;
+}
+.hero-tape::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-2deg);
+  width: 80px;
+  height: 22px;
+  background: rgba(255, 255, 220, 0.55);
+  border: 1px solid rgba(200, 200, 160, 0.25);
+  border-radius: 1px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  z-index: 2;
+}
+
+/* ===== POST-IT THEME: Handwritten Font ===== */
+.handwritten {
+  font-family: var(--font-handwritten), 'Permanent Marker', cursive;
+}
+
+/* Ensure pin and corner stay visible during drag */
+.day-card:hover::before {
+  filter: brightness(1.1);
+}
+.day-card:hover {
+  box-shadow:
+    3px 4px 10px rgba(70, 45, 11, 0.25),
+    5px 8px 20px rgba(70, 45, 11, 0.15),
+    0 1px 3px rgba(70, 45, 11, 0.2) !important;
+}
+
 /* Allow scrolling on all pages; Weekly View handles its own internal scroll */
 html, body {
   overflow: visible !important;

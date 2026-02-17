@@ -96,8 +96,9 @@ export default function InteractiveWeekView() {
     'Vacuum Floors'
   ];
 
-  const noteColors = ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7'];
-  const noteRotations = ['rotate(-1deg)', 'rotate(0.8deg)', 'rotate(-0.6deg)', 'rotate(0.6deg)'];
+  const noteColors = ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7', '#b3e5fc', '#e1bee7', '#ffeaa7'];
+  const noteRotations = ['rotate(-1.5deg)', 'rotate(1deg)', 'rotate(-0.8deg)', 'rotate(1.2deg)', 'rotate(-0.5deg)', 'rotate(0.9deg)', 'rotate(-1.1deg)'];
+  const pinColors = ['pin-red', 'pin-blue', 'pin-green', 'pin-orange', 'pin-purple', 'pin-teal', 'pin-amber'];
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -612,8 +613,8 @@ export default function InteractiveWeekView() {
       : `${Math.abs(weekOffset)} weeks ago`;
 
   return (
-    <main style={styles.main}>
-      <section style={styles.hero}>
+    <main style={styles.main} className="cork-board">
+      <section style={styles.hero} className="hero-tape handwritten">
         <h1 style={styles.title}>Family Planner</h1>
         <p style={styles.subtitle}>Track chores and events in one place.</p>
       </section>
@@ -645,6 +646,7 @@ export default function InteractiveWeekView() {
                 <DroppableDay
                   key={day.day}
                   id={day.day}
+                  className={`day-card sticky-note-texture handwritten ${pinColors[index % pinColors.length]}`}
                   style={{
                     ...styles.card,
                     background: noteColors[index % noteColors.length],
@@ -662,7 +664,7 @@ export default function InteractiveWeekView() {
                   </div>
 
                   <div style={styles.sectionBlock}>
-                    <p style={styles.label}>Work</p>
+                    <p style={styles.label} className="washi-tape washi-work">Work</p>
                     {day.workEvents.length > 0 ? (
                       <ul style={styles.eventList}>
                         {day.workEvents.map((work) => {
@@ -708,7 +710,7 @@ export default function InteractiveWeekView() {
                   </div>
 
                   <div style={styles.sectionBlock}>
-                    <p style={styles.label}>Events</p>
+                    <p style={styles.label} className="washi-tape washi-events">Events</p>
                     {day.events.length > 0 ? (
                       <ul style={styles.eventList}>
                         {day.events.map((event) => {
@@ -753,7 +755,7 @@ export default function InteractiveWeekView() {
                   </div>
 
                   <div style={styles.sectionBlock}>
-                    <p style={styles.label}>Chores ({day.chores.length})</p>
+                    <p style={styles.label} className="washi-tape washi-chores">Chores ({day.chores.length})</p>
                     {day.chores.length > 0 ? (
                       <ul style={styles.choreList}>
                         {day.chores.map((chore) => {
@@ -850,7 +852,7 @@ export default function InteractiveWeekView() {
                   minHeight: 'auto'
                 }}
               >
-                <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>
+                <div style={{ fontWeight: 400, fontSize: '0.95rem', fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive" }}>
                   {activeItem.originalChore?.title || activeItem.originalEvent?.title || 'Moving...'}
                 </div>
               </div>
@@ -1195,24 +1197,35 @@ const styles = {
     height: '100vh',
     padding: '1rem 0.75rem 1rem 0.75rem',
     overflow: 'auto',
-    backgroundColor: '#f4e3bf',
-    backgroundImage:
-      'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.22), transparent 45%)',
     color: '#3f2d1d'
   },
   hero: {
     maxWidth: 780,
-    margin: '0 auto 0.5rem auto',
+    margin: '0.75rem auto 0.75rem auto',
     textAlign: 'center',
     background: '#ffef7d',
-    padding: '0.6rem 1rem',
-    borderRadius: 10,
-    boxShadow: '0 10px 20px rgba(102, 68, 18, 0.15)',
-    border: '1px solid rgba(105, 67, 16, 0.18)',
-    transform: 'rotate(-1deg)'
+    padding: '1rem 1.25rem 0.75rem',
+    borderRadius: 3,
+    boxShadow: '2px 3px 8px rgba(102, 68, 18, 0.2), 4px 6px 16px rgba(102, 68, 18, 0.12)',
+    border: '1px solid rgba(105, 67, 16, 0.15)',
+    transform: 'rotate(-0.8deg)'
   },
-  title: { margin: 0, fontSize: 'clamp(1.4rem, 5vw, 1.8rem)', letterSpacing: '0.01em' },
-  subtitle: { marginTop: '0.2rem', lineHeight: 1.4, maxWidth: 620, marginInline: 'auto', fontSize: '0.9rem' },
+  title: {
+    margin: 0,
+    fontSize: 'clamp(1.6rem, 5vw, 2.2rem)',
+    letterSpacing: '0.02em',
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
+    fontWeight: 400
+  },
+  subtitle: {
+    marginTop: '0.3rem',
+    lineHeight: 1.4,
+    maxWidth: 620,
+    marginInline: 'auto',
+    fontSize: '0.95rem',
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
+    fontWeight: 400
+  },
 
   controls: { maxWidth: 780, margin: '0 auto 0.5rem auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' },
   bottomControls: { maxWidth: 780, margin: '1rem auto 0 auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' },
@@ -1227,16 +1240,25 @@ const styles = {
     border: 'none'
   },
   navButton: {
-    padding: '0.35rem 0.85rem',
-    borderRadius: 6,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
+    padding: '0.4rem 0.9rem',
+    borderRadius: 3,
+    border: '1px solid rgba(98, 73, 24, 0.2)',
     background: '#fff59d',
     color: '#3f2d1d',
-    fontWeight: 700,
+    fontWeight: 400,
     cursor: 'pointer',
-    fontSize: '0.85rem'
+    fontSize: '0.9rem',
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
+    boxShadow: '1px 2px 4px rgba(70, 45, 11, 0.15)',
+    transition: 'all 0.15s ease'
   },
-  weekLabel: { fontWeight: 700, fontSize: '1rem', minWidth: '140px', textAlign: 'center' },
+  weekLabel: {
+    fontWeight: 400,
+    fontSize: '1.1rem',
+    minWidth: '140px',
+    textAlign: 'center',
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive"
+  },
 
   memberFilter: {
     display: 'flex',
@@ -1315,50 +1337,57 @@ const styles = {
   weekGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(7, 1fr)',
-    gap: '0.5rem'
+    gap: '0.6rem',
+    paddingTop: '0.5rem'
   },
   card: {
-    padding: '0.5rem',
-    borderRadius: 6,
-    border: '1px solid rgba(98, 73, 24, 0.2)',
-    boxShadow: '0 6px 14px rgba(70, 45, 11, 0.15)',
+    padding: '0.75rem 0.5rem 0.5rem 0.5rem',
+    borderRadius: 3,
+    border: '1px solid rgba(98, 73, 24, 0.15)',
+    boxShadow: '2px 3px 8px rgba(70, 45, 11, 0.2), 4px 6px 16px rgba(70, 45, 11, 0.12)',
     transition: 'transform 120ms ease',
     transformOrigin: 'center top',
     minHeight: 'auto',
-    height: 'fit-content'
+    height: 'fit-content',
+    marginTop: '10px'
   },
   dayHeader: {
     marginBottom: '0.5rem',
     paddingBottom: '0.35rem',
-    borderBottom: '1px dashed rgba(98, 73, 24, 0.4)'
+    borderBottom: '2px dashed rgba(98, 73, 24, 0.25)'
   },
   dayTitle: {
     margin: 0,
-    fontSize: '0.95rem'
+    fontSize: '1.05rem',
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
+    fontWeight: 400
   },
   dayDate: {
-    fontSize: '0.75rem',
-    opacity: 0.8,
-    margin: '0.1rem 0'
+    fontSize: '0.78rem',
+    opacity: 0.75,
+    margin: '0.1rem 0',
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
+    fontWeight: 400
   },
   progressBadge: {
-    fontSize: '0.7rem',
+    fontSize: '0.72rem',
     background: 'rgba(63, 152, 76, 0.2)',
     padding: '0.15rem 0.4rem',
     borderRadius: 4,
     display: 'inline-block',
     marginTop: '0.3rem',
-    fontWeight: 700
+    fontWeight: 400,
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive"
   },
   sectionBlock: {
     marginBottom: '0.6rem'
   },
   label: {
-    fontSize: '0.7rem',
+    fontSize: '0.75rem',
     textTransform: 'uppercase',
-    letterSpacing: '0.04em',
-    marginBottom: '0.2rem',
-    fontWeight: 700
+    letterSpacing: '0.06em',
+    marginBottom: '0.3rem',
+    fontWeight: 400
   },
   eventList: {
     listStyle: 'none',
@@ -1389,7 +1418,9 @@ const styles = {
     flex: 1,
     cursor: 'pointer',
     textDecoration: 'underline',
-    textDecorationStyle: 'dotted'
+    textDecorationStyle: 'dotted',
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
+    fontWeight: 400
   },
   miniDeleteBtn: {
     background: 'rgba(186, 62, 62, 0.15)',
@@ -1405,9 +1436,11 @@ const styles = {
   },
   noItems: {
     fontSize: '0.85rem',
-    opacity: 0.6,
+    opacity: 0.5,
     fontStyle: 'italic',
-    margin: 0
+    margin: 0,
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
+    fontWeight: 400
   },
   choreList: {
     listStyle: 'none',
@@ -1444,7 +1477,9 @@ const styles = {
   },
   choreText: {
     flex: 1,
-    fontSize: '0.9rem'
+    fontSize: '0.9rem',
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
+    fontWeight: 400
   },
   choreActions: {
     display: 'flex',
@@ -1455,8 +1490,9 @@ const styles = {
     gap: '0.5rem'
   },
   assignee: {
-    fontSize: '0.7rem',
-    fontWeight: 700
+    fontSize: '0.75rem',
+    fontWeight: 400,
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive"
   },
   deleteBtn: {
     background: 'rgba(186, 62, 62, 0.15)',
@@ -1472,9 +1508,11 @@ const styles = {
   },
   noChores: {
     fontSize: '0.85rem',
-    opacity: 0.6,
+    opacity: 0.5,
     fontStyle: 'italic',
-    margin: 0
+    margin: 0,
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
+    fontWeight: 400
   },
   loading: {
     textAlign: 'center',
