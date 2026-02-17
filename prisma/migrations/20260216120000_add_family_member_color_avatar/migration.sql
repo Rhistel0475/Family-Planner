@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "FamilyMember" ADD COLUMN IF NOT EXISTS "color" TEXT DEFAULT '#3b82f6';
+ALTER TABLE "FamilyMember" ADD COLUMN IF NOT EXISTS "avatar" TEXT DEFAULT '👤';
