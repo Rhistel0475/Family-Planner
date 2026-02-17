@@ -29,14 +29,24 @@ export async function POST(request) {
       });
     }
     if (!family) {
-      // No family yet, or session had stale familyId: use existing by name or create
+      // No family yet: use existing by name or create. Handle race when two users
+      // complete setup with same name (Family.name is @unique) — on P2002, use existing.
       family = await prisma.family.findFirst({
         where: { name: familyName }
       });
       if (!family) {
-        family = await prisma.family.create({
-          data: { name: familyName, setupComplete: false }
-        });
+        try {
+          family = await prisma.family.create({
+            data: { name: familyName, setupComplete: false }
+          });
+        } catch (createErr) {
+          if (createErr.code === 'P2002' && createErr.meta?.target?.includes('name')) {
+            family = await prisma.family.findFirst({
+              where: { name: familyName }
+            });
+          }
+          if (!family) throw createErr;
+        }
       }
       await prisma.user.update({
         where: { id: session.user.id },
