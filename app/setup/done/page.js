@@ -15,8 +15,8 @@ export default function SetupDonePage() {
 
   useEffect(() => {
     const familyId = searchParams.get('familyId');
-    if (!familyId) {
-      setStatus('Missing familyId — redirecting to setup');
+    if (!familyId || familyId === 'undefined' || familyId === 'null') {
+      setStatus('Session update failed — redirecting to setup');
       window.location.href = '/setup';
       return;
     }

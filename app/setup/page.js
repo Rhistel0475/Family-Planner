@@ -78,8 +78,13 @@ export default function SetupPage() {
         throw new Error(data.error || data.message || `Setup failed (${res.status})`);
       }
 
+      const familyId = data.familyId;
+      if (!familyId || String(familyId) === 'undefined') {
+        throw new Error('Setup completed but no family ID returned. Please try again.');
+      }
+
       // Send user to /setup/done so session is updated in the browser before loading home
-      window.location.href = `/setup/done?familyId=${encodeURIComponent(data.familyId)}`;
+      window.location.href = `/setup/done?familyId=${encodeURIComponent(familyId)}`;
     } catch (error) {
       console.error('Setup error:', error);
       alert(error.message || 'Failed to complete setup');
