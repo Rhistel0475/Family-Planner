@@ -1775,3 +1775,4 @@ const styles = {
   modalInput: { width: '100%', padding: '0.7rem', borderRadius: 6, border: '1px solid rgba(98, 73, 24, 0.24)', background: 'rgba(255,255,255,0.9)', color: '#3f2d1d', fontSize: '0.95rem' },
   modalButton: { width: '100%', padding: '0.75rem', borderRadius: 8, border: '1px solid rgba(98, 73, 24, 0.32)', background: '#c9f7a5', color: '#2b4d1f', fontWeight: 700, cursor: 'pointer', fontSize: '0.95rem', marginTop: '0.5rem' }
 };
+
