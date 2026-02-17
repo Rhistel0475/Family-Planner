@@ -62,7 +62,7 @@ export default function FamilyPage() {
       try {
         const res = await Promise.race([
           fetch('/api/family-members'),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 5000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000))
         ]);
 
         if (!mounted) return;

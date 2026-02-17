@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 * {
   box-sizing: border-box;
 }
@@ -43,9 +45,10 @@ p {
   }
 }
 
-/* Weekly View handles its own scroll; other pages scroll normally */
+/* Allow scrolling on all pages; Weekly View handles its own internal scroll */
 html, body {
-  overflow: auto;
+  overflow: visible !important;
+  height: auto !important;
 }
 
 /* Media queries for responsive layout */

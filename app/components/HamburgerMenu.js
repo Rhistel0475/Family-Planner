@@ -136,7 +136,8 @@ const styles = {
     borderRight: '1px solid rgba(98, 73, 24, 0.28)',
     boxShadow: '0 14px 28px rgba(70, 45, 11, 0.22)',
     zIndex: 45,
-    transition: 'transform 180ms ease'
+    transition: 'transform 180ms ease',
+    overflowY: 'auto'
   },
   title: {
     margin: 0,
