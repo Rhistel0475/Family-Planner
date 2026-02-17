@@ -43,9 +43,9 @@ p {
   }
 }
 
-/* Prevent body scroll when main is scrollable */
+/* Weekly View handles its own scroll; other pages scroll normally */
 html, body {
-  overflow: hidden;
+  overflow: auto;
 }
 
 /* Media queries for responsive layout */
