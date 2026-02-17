@@ -87,6 +87,10 @@ export async function POST(request) {
       data: { setupComplete: true, name: familyName }
     });
 
+    if (!family?.id) {
+      return NextResponse.json({ error: 'Family setup failed', message: 'No family ID' }, { status: 500 });
+    }
+
     return NextResponse.json({
       success: true,
       familyId: family.id,

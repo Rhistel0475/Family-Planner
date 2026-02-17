@@ -73,18 +73,27 @@ export default function SetupPage() {
           members: members.map((m) => ({ name: m.name, role: m.role })),
           workSchedules
         }),
+        credentials: 'include',
+        cache: 'no-store',
         signal: controller.signal
       });
       clearTimeout(timeoutId);
 
-      const data = await res.json().catch(() => ({}));
+      const contentType = res.headers.get('content-type') || '';
+      let data = {};
+      if (contentType.includes('application/json')) {
+        data = await res.json().catch(() => ({}));
+      } else {
+        throw new Error('Unexpected response. Please sign in again and retry setup.');
+      }
+
       if (!res.ok) {
         throw new Error(data.error || data.message || `Setup failed (${res.status})`);
       }
 
       const familyId = data.familyId;
       if (!familyId || String(familyId) === 'undefined') {
-        throw new Error('Setup completed but no family ID returned. Please try again.');
+        throw new Error('Setup completed but no family ID returned. Please sign out and sign in again, then retry setup.');
       }
 
       // Send user to /setup/done so session is updated in the browser before loading home
