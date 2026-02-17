@@ -27,17 +27,9 @@ export async function POST(request) {
       family = await prisma.family.findUnique({
         where: { id: session.user.familyId }
       });
-      if (!family) {
-        family = await prisma.family.create({
-          data: { name: familyName, setupComplete: false }
-        });
-        await prisma.user.update({
-          where: { id: session.user.id },
-          data: { familyId: family.id }
-        });
-      }
-    } else {
-      // Use existing family with this name if any (e.g. from a previous failed setup), else create
+    }
+    if (!family) {
+      // No family yet, or session had stale familyId: use existing by name or create
       family = await prisma.family.findFirst({
         where: { name: familyName }
       });
