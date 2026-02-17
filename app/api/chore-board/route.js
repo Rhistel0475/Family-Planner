@@ -30,11 +30,14 @@ export async function GET() {
       // Create a Set of existing template keys
       const existingKeys = new Set(allSettings.map(s => s.templateKey));
 
-      // Auto-create missing predefined chores
+      // Auto-create missing predefined chores (upsert to avoid P2002 under concurrency)
       for (const chore of PREDEFINED_CHORES) {
         if (!existingKeys.has(chore.templateKey)) {
-          const newSetting = await prisma.choreBoard.create({
-            data: {
+          const newSetting = await prisma.choreBoard.upsert({
+            where: {
+              familyId_templateKey: { familyId: family.id, templateKey: chore.templateKey }
+            },
+            create: {
               familyId: family.id,
               templateKey: chore.templateKey,
               title: chore.title,
@@ -43,9 +46,13 @@ export async function GET() {
               eligibilityMode: 'ALL',
               eligibleMemberIds: [],
               defaultAssigneeMemberId: null
-            }
+            },
+            update: {}
           });
-          allSettings.push(newSetting);
+          if (!allSettings.some(s => s.templateKey === newSetting.templateKey)) {
+            allSettings.push(newSetting);
+          }
+          existingKeys.add(chore.templateKey);
         }
       }
 
