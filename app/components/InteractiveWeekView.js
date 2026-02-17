@@ -574,13 +574,17 @@ export default function InteractiveWeekView() {
     const dayEvents = events.filter((item) => toDayName(item.startsAt) === day.day);
     const dayChores = filteredChores.filter((item) => item.dueDay === day.day);
 
+    const workEvents = dayEvents.filter((e) => e.category === 'WORK');
+    const nonWorkEvents = dayEvents.filter((e) => e.category !== 'WORK');
+
     const completedCount = dayChores.filter((c) => c.completed).length;
     const totalCount = dayChores.length;
 
     return {
       day: day.day,
       date: day.dateLabel,
-      events: dayEvents,
+      events: nonWorkEvents,
+      workEvents,
       chores: dayChores,
       progress: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
       completedCount,
