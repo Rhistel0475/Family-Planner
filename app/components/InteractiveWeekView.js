@@ -373,6 +373,8 @@ export default function InteractiveWeekView() {
     } catch (error) {
       showToast('Failed to update event', 'error');
     }
+  };
+
   const toDayName = (date) => {
     const dayIndex = new Date(date).getDay();
     return DAY_NAMES[(dayIndex + 6) % 7];
