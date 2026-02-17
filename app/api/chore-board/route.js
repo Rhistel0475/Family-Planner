@@ -71,6 +71,7 @@ export async function GET(request) {
           isRecurring: false,
           frequencyType: 'ONE_TIME',
           customEveryDays: null,
+          daysPerWeek: null,
           eligibilityMode: 'ALL',
           eligibleMemberIds: [],
           defaultAssigneeMemberId: null,
@@ -117,7 +118,7 @@ export async function PATCH(request) {
 
     // Validate each setting
     for (const setting of settings) {
-      const { templateKey, isRecurring, frequencyType, customEveryDays, eligibilityMode, eligibleMemberIds, defaultAssigneeMemberId } = setting;
+      const { templateKey, isRecurring, frequencyType, customEveryDays, daysPerWeek, eligibilityMode, eligibleMemberIds, defaultAssigneeMemberId } = setting;
 
       if (!templateKey) {
         return NextResponse.json(
@@ -138,6 +139,16 @@ export async function PATCH(request) {
           { error: `Custom frequency requires customEveryDays >= 1` },
           { status: 400 }
         );
+      }
+
+      if (daysPerWeek !== undefined && daysPerWeek !== null) {
+        const dpw = Number(daysPerWeek);
+        if (!Number.isInteger(dpw) || dpw < 1 || dpw > 7) {
+          return NextResponse.json(
+            { error: 'daysPerWeek must be an integer between 1 and 7' },
+            { status: 400 }
+          );
+        }
       }
 
       if (eligibilityMode === 'SELECTED' && (!eligibleMemberIds || eligibleMemberIds.length === 0)) {
@@ -162,6 +173,7 @@ export async function PATCH(request) {
             isRecurring: setting.isRecurring,
             frequencyType: setting.frequencyType,
             customEveryDays: setting.customEveryDays || null,
+            daysPerWeek: setting.daysPerWeek != null ? Number(setting.daysPerWeek) : null,
             eligibilityMode: setting.eligibilityMode,
             eligibleMemberIds: setting.eligibleMemberIds || [],
             defaultAssigneeMemberId: setting.defaultAssigneeMemberId || null
@@ -173,6 +185,7 @@ export async function PATCH(request) {
             isRecurring: setting.isRecurring,
             frequencyType: setting.frequencyType,
             customEveryDays: setting.customEveryDays || null,
+            daysPerWeek: setting.daysPerWeek != null ? Number(setting.daysPerWeek) : null,
             eligibilityMode: setting.eligibilityMode,
             eligibleMemberIds: setting.eligibleMemberIds || [],
             defaultAssigneeMemberId: setting.defaultAssigneeMemberId || null

@@ -9,6 +9,9 @@ export default function AIAssistantPage() {
   const [message, setMessage] = useState('');
   const [selectedTab, setSelectedTab] = useState('chores');
 
+  const [weeklyResult, setWeeklyResult] = useState(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+
   async function generateChoreAssignments() {
     setLoading(true);
     setMessage('');
@@ -46,6 +49,28 @@ export default function AIAssistantPage() {
     } catch (error) {
       console.error('Failed to apply suggestion:', error);
       setMessage('Failed to assign chore');
+    }
+  }
+
+  async function generateWeeklyChores() {
+    setWeeklyLoading(true);
+    setMessage('');
+    setWeeklyResult(null);
+    try {
+      const res = await fetch('/api/ai/generate-weekly-chores', { method: 'POST' });
+      const data = await res.json();
+
+      if (data.error) {
+        setMessage(data.error);
+      } else {
+        setWeeklyResult(data);
+        setMessage(data.message || `Created ${data.created?.length || 0} chore instances.`);
+      }
+    } catch (error) {
+      console.error('Failed to generate weekly chores:', error);
+      setMessage('Failed to generate weekly chores');
+    } finally {
+      setWeeklyLoading(false);
     }
   }
 
@@ -122,6 +147,35 @@ export default function AIAssistantPage() {
                     >
                       Accept & Assign
                     </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <hr style={{ border: 'none', borderTop: '1px solid rgba(98, 73, 24, 0.2)', margin: '1.5rem 0' }} />
+
+            <p style={styles.tip}>
+              📅 Generate a full week of chores based on your board settings. Each chore with "days per week" configured will be created and assigned automatically.
+            </p>
+
+            <button
+              onClick={generateWeeklyChores}
+              disabled={weeklyLoading}
+              style={{ ...styles.generateButton, background: '#fff8bf', color: '#3f2d1d' }}
+            >
+              {weeklyLoading ? 'Generating Weekly Chores...' : 'Generate Weekly Chores'}
+            </button>
+
+            {weeklyResult && weeklyResult.assignments && weeklyResult.assignments.length > 0 && (
+              <div style={styles.suggestionsList}>
+                <h3>Weekly Assignments ({weeklyResult.assignments.length})</h3>
+                {weeklyResult.assignments.map((a, i) => (
+                  <div key={a.choreId || i} style={styles.suggestionCard}>
+                    <p style={styles.suggestionTitle}>{a.choreTitle}</p>
+                    <p style={styles.suggestionText}>
+                      Assigned to: <strong>{a.suggestedAssignee}</strong>
+                    </p>
+                    {a.reasoning && <p style={styles.reasoning}>{a.reasoning}</p>}
                   </div>
                 ))}
               </div>

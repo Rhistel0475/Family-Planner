@@ -69,6 +69,11 @@ export default function ChoresPage() {
   const handleFrequencyChange = (templateKey, frequencyType) => {
     const updates = { frequencyType };
     if (frequencyType !== 'CUSTOM') updates.customEveryDays = null;
+    if (frequencyType !== 'WEEKLY') updates.daysPerWeek = null;
+    if (frequencyType === 'WEEKLY') {
+      const current = settings.find(s => s.templateKey === templateKey);
+      updates.daysPerWeek = current?.daysPerWeek ?? 1;
+    }
     handleSettingChange(templateKey, updates);
   };
 
@@ -428,7 +433,8 @@ function ChoreCard({
                   onChange({
                     isRecurring,
                     frequencyType: isRecurring ? 'WEEKLY' : 'ONE_TIME',
-                    customEveryDays: isRecurring ? setting.customEveryDays : null
+                    customEveryDays: isRecurring ? setting.customEveryDays : null,
+                    daysPerWeek: isRecurring ? (setting.daysPerWeek ?? 1) : null
                   });
                 }}
               />
@@ -462,6 +468,29 @@ function ChoreCard({
                       }
                     />
                     <span>days</span>
+                  </div>
+                )}
+
+                {setting.frequencyType === 'WEEKLY' && (
+                  <div style={{ marginTop: '0.75rem' }}>
+                    <div className={styles.customDays}>
+                      <label>Days per week</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={7}
+                        value={setting.daysPerWeek ?? 1}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          if (!isNaN(val)) {
+                            onChange({ daysPerWeek: Math.min(7, Math.max(1, val)) });
+                          }
+                        }}
+                      />
+                    </div>
+                    <small style={{ display: 'block', fontSize: '0.8rem', color: '#9ca3af', marginTop: '0.35rem' }}>
+                      How many days this week the chore should be done. AI will distribute and assign.
+                    </small>
                   </div>
                 )}
               </div>

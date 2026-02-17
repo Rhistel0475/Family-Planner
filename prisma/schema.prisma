@@ -112,6 +112,7 @@ model ChoreBoard {
   isRecurring             Boolean         @default(false)
   frequencyType           FrequencyType   @default(ONE_TIME)
   customEveryDays         Int?
+  daysPerWeek             Int?
   eligibilityMode         EligibilityMode @default(ALL)
   eligibleMemberIds       String[]        @default([])
   defaultAssigneeMemberId String?
