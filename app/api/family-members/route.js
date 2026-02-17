@@ -15,7 +15,12 @@ export async function GET() {
       ...member,
       color: member.color || '#3b82f6',
       avatar: member.avatar || '👤',
-      workingHours: member.workingHours || ''
+      workingHours: member.workingHours || '',
+      role: member.role || 'member',
+      abilities: member.abilities || [],
+      dietaryRestrictions: member.dietaryRestrictions || [],
+      chorePreferences: member.chorePreferences || null,
+      availability: member.availability || null
     }));
 
     return NextResponse.json({ members: enrichedMembers });
@@ -36,23 +41,43 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Request body is required' }, { status: 400 });
     }
 
-    const { name, color, avatar, workingHours } = body;
+    const {
+      name, color, avatar, workingHours, role, age, relationship,
+      availability, activities, abilities, chorePreferences,
+      restrictions, dietaryRestrictions
+    } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
     }
 
+    if (age !== undefined && age !== null) {
+      const ageNum = parseInt(age, 10);
+      if (isNaN(ageNum) || ageNum < 0 || ageNum > 120) {
+        return NextResponse.json({ error: 'Age must be between 0 and 120' }, { status: 400 });
+      }
+    }
+
     const family = await getOrCreateDefaultFamily();
 
-    const member = await prisma.familyMember.create({
-      data: {
-        familyId: family.id,
-        name: name.trim(),
-        color: color || '#3b82f6',
-        avatar: avatar || '👤',
-        workingHours: workingHours ? String(workingHours).trim() : null
-      }
-    });
+    const data = {
+      familyId: family.id,
+      name: name.trim(),
+      color: color || '#3b82f6',
+      avatar: avatar || '👤',
+      workingHours: workingHours ? String(workingHours).trim() : null,
+      role: role || 'member',
+      age: age !== undefined && age !== null ? parseInt(age, 10) : null,
+      relationship: relationship ? String(relationship).trim() : null,
+      availability: availability || null,
+      activities: activities ? String(activities).trim() : null,
+      abilities: Array.isArray(abilities) ? abilities : [],
+      chorePreferences: chorePreferences || null,
+      restrictions: restrictions ? String(restrictions).trim() : null,
+      dietaryRestrictions: Array.isArray(dietaryRestrictions) ? dietaryRestrictions : []
+    };
+
+    const member = await prisma.familyMember.create({ data });
 
     return NextResponse.json({ success: true, member });
   } catch (error) {
@@ -72,19 +97,45 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Request body is required' }, { status: 400 });
     }
 
-    const { id, name, color, avatar, workingHours } = body;
+    const {
+      id, name, color, avatar, workingHours, role, age, relationship,
+      availability, activities, abilities, chorePreferences,
+      restrictions, dietaryRestrictions
+    } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Member ID is required' }, { status: 400 });
+    }
+
+    if (age !== undefined && age !== null) {
+      const ageNum = parseInt(age, 10);
+      if (isNaN(ageNum) || ageNum < 0 || ageNum > 120) {
+        return NextResponse.json({ error: 'Age must be between 0 and 120' }, { status: 400 });
+      }
     }
 
     const updateData = {};
     if (name !== undefined) updateData.name = String(name).trim();
     if (color !== undefined) updateData.color = color;
     if (avatar !== undefined) updateData.avatar = avatar;
+    if (role !== undefined) updateData.role = role;
+    if (age !== undefined) updateData.age = age !== null ? parseInt(age, 10) : null;
+    if (relationship !== undefined) updateData.relationship = relationship || null;
     if (workingHours !== undefined) {
       const wh = String(workingHours || '').trim();
       updateData.workingHours = wh ? wh : null;
+    }
+    if (availability !== undefined) updateData.availability = availability || null;
+    if (activities !== undefined) {
+      updateData.activities = activities ? String(activities).trim() : null;
+    }
+    if (abilities !== undefined) updateData.abilities = Array.isArray(abilities) ? abilities : [];
+    if (chorePreferences !== undefined) updateData.chorePreferences = chorePreferences || null;
+    if (restrictions !== undefined) {
+      updateData.restrictions = restrictions ? String(restrictions).trim() : null;
+    }
+    if (dietaryRestrictions !== undefined) {
+      updateData.dietaryRestrictions = Array.isArray(dietaryRestrictions) ? dietaryRestrictions : [];
     }
 
     const member = await prisma.familyMember.update({

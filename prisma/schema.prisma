@@ -24,13 +24,21 @@ model Family {
 }
 
 model FamilyMember {
-  id       String  @id @default(cuid())
-  familyId String
-  name     String
-  role     String? @default("member")
+  id           String  @id @default(cuid())
+  familyId     String
+  name         String
+  role         String? @default("member")
+  age          Int?
+  relationship String?
 
-  // Work hours belong here (per your request)
   workingHours String?
+  availability Json?
+  activities   String?
+
+  abilities           String[] @default([])
+  chorePreferences    Json?
+  restrictions        String?
+  dietaryRestrictions String[] @default([])
 
   color  String? @default("#3b82f6")
   avatar String? @default("👤")
