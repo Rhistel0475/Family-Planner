@@ -7,7 +7,96 @@ datasource db {
   url       = env("DATABASE_URL")
 }
 
+// NextAuth.js Models
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?   // For email/password auth (hashed)
+  role          UserRole  @default(USER)
+
+  familyId      String?
+  family        Family?   @relation(fields: [familyId], references: [id], onDelete: SetNull)
+
+  accounts      Account[]
+  sessions      Session[]
+  invitations   Invitation[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([email])
+  @@index([familyId])
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+model Invitation {
+  id        String           @id @default(cuid())
+  familyId  String
+  email     String
+  role      UserRole         @default(USER)
+  status    InvitationStatus @default(PENDING)
+  token     String           @unique
+  invitedBy String
+
+  inviter   User             @relation(fields: [invitedBy], references: [id], onDelete: Cascade)
+  family    Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+
+  expiresAt DateTime
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([email])
+  @@index([familyId])
+  @@index([token])
+}
+
 model Family {
+  users       User[]
+  invitations Invitation[]
   id        String   @id @default(cuid())
   name      String   @unique
   setupComplete Boolean @default(false)
@@ -147,4 +236,17 @@ enum RecurrencePattern {
   WEEKLY
   MONTHLY
   YEARLY
+}
+
+enum UserRole {
+  ADMIN    // Full family management permissions
+  USER     // Standard family member
+  VIEWER   // Read-only access
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
 }
