@@ -792,43 +792,6 @@ export default function InteractiveWeekView() {
                             </DraggableItem>
                           );
                         })}
-                        {day.events.map((event) => (
-                          <DraggableItem
-                            key={event.id}
-                            id={event.id}
-                            type="event"
-                            data={{ originalDay: day.day, originalEvent: event }}
-                            style={styles.eventItem}
-                          >
-                            <div style={styles.eventRow}>
-                              <button
-                                type="button"
-                                style={styles.eventMainBtn}
-                                onClick={() => setEditModal(event)}
-                                title="Edit event"
-                              >
-                                <div style={styles.eventTitleRow}>
-                                  <span style={styles.eventTimeChip}>
-                                    {formatTimeRange(event.startsAt, event.endsAt)}
-                                  </span>
-                                  <span style={styles.eventTitleText}>{event.title}</span>
-                                </div>
-                                <div style={styles.eventMeta}>
-                                  {(event.category || 'Event')}{event.location ? ` • ${event.location}` : ''}
-                                </div>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => deleteEvent(event.id)}
-                                style={styles.deletePill}
-                                aria-label="Delete event"
-                              >
-                                Delete
-                              </button>
-                            </div>
-                          </DraggableItem>
-                        ))}
                       </ul>
                     ) : (
                       <p style={styles.noItems}>No events</p>
@@ -859,16 +822,21 @@ export default function InteractiveWeekView() {
                                 opacity: chore.completed ? 0.85 : 1
                               }}
                             >
-                              <label style={styles.choreLabel}>
-                                <input
-                                  type="checkbox"
-                                  checked={chore.completed}
-                                  onChange={() => toggleChoreCompletion(chore)}
-                                  style={styles.checkbox}
-                                />
-                                <span style={styles.choreIcon}>
+                              <div style={styles.choreLabel}>
+                                <button
+                                  type="button"
+                                  onClick={() => toggleChoreCompletion(chore)}
+                                  style={{
+                                    ...styles.choreIcon,
+                                    cursor: 'pointer',
+                                    background: 'none',
+                                    border: 'none',
+                                    padding: 0
+                                  }}
+                                  aria-label={chore.completed ? 'Mark incomplete' : 'Mark complete'}
+                                >
                                   {chore.completed ? '✓' : '○'}
-                                </span>
+                                </button>
                                 <span style={{
                                   ...styles.choreText,
                                   textDecoration: chore.completed ? 'line-through' : 'none',
@@ -877,7 +845,7 @@ export default function InteractiveWeekView() {
                                 }}>
                                   {chore.title}
                                 </span>
-                              </label>
+                              </div>
                               <div style={styles.choreActions}>
                                 <span
                                   style={{
@@ -904,54 +872,6 @@ export default function InteractiveWeekView() {
                             </DraggableItem>
                           );
                         })}
-                        {day.chores.map((chore) => (
-                          <DraggableItem
-                            key={chore.id}
-                            id={chore.id}
-                            type="chore"
-                            data={{ originalDay: day.day, originalChore: chore }}
-                            style={styles.choreItem}
-                          >
-                            <label style={styles.choreLabel}>
-                              <input
-                                type="checkbox"
-                                checked={chore.completed}
-                                onChange={() => toggleChoreCompletion(chore)}
-                                style={styles.checkbox}
-                              />
-                              <span
-                                style={{
-                                  ...styles.choreText,
-                                  textDecoration: chore.completed ? 'line-through' : 'none',
-                                  opacity: chore.completed ? 0.6 : 1
-                                }}
-                              >
-                                {chore.title}
-                              </span>
-                            </label>
-
-                            <div style={styles.choreActions}>
-                              <span
-                                style={{
-                                  ...styles.assignee,
-                                  background: `${getMemberColor(chore.assignedTo)}33`,
-                                  color: getMemberColor(chore.assignedTo),
-                                  border: `1px solid ${getMemberColor(chore.assignedTo)}`,
-                                  padding: '0.15rem 0.4rem',
-                                  borderRadius: 4,
-                                  fontSize: '0.7rem',
-                                  fontWeight: 700
-                                }}
-                              >
-                                {chore.assignedTo}
-                              </span>
-
-                              <button onClick={() => deleteChore(chore.id)} style={styles.deleteBtn} aria-label="Delete chore">
-                                ×
-                              </button>
-                            </div>
-                          </DraggableItem>
-                        ))}
                       </ul>
                     ) : (
                       <p style={styles.noChores}>No chores</p>
