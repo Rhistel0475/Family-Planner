@@ -73,6 +73,7 @@ export default function InteractiveWeekView() {
     searchQuery: '',
     statusFilter: 'all',
     typeFilter: 'all'
+  });
 
   const [newItem, setNewItem] = useState({
     // For chores:
@@ -1157,6 +1158,7 @@ export default function InteractiveWeekView() {
                   onChange={(startsAt) => setNewItem({ ...newItem, startsAt })}
                   includeTime={true}
                   required
+                />
                 <label style={styles.modalLabel}>Category</label>
                 <select
                   style={styles.modalInput}
@@ -1270,6 +1272,7 @@ export default function InteractiveWeekView() {
               onChange={(startsAt) => setEditModal({ ...editModal, startsAt })}
               includeTime={true}
               required
+            />
             <label style={styles.modalLabel}>Start</label>
             <input
               type="datetime-local"
@@ -1719,8 +1722,7 @@ const styles = {
     cursor: 'pointer',
     fontSize: '0.9rem',
     transition: 'all 0.2s ease'
-  }
-
+  },
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255, 255, 255, 0.4)', borderRadius: 10, border: '1px solid rgba(98, 73, 24, 0.2)' },
   statCard: { display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem', background: 'rgba(255, 255, 255, 0.6)', borderRadius: 8, border: '1px solid rgba(98, 73, 24, 0.15)' },
   statAvatar: { width: '40px', height: '40px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', border: '2px solid rgba(255, 255, 255, 0.8)' },

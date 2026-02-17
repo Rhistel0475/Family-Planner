@@ -44,62 +44,23 @@ model FamilyMember {
 }
 
 model Event {
-  id          String    @id @default(cuid())
-  familyId    String
-  type        EventType @default(EVENT)
-  title       String
-  description String?
-  startsAt    DateTime
-  endsAt      DateTime?
-  location    String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
-
-  @@index([familyId, startsAt])
-  @@index([startsAt])
-}
-
-model Chore {
-  id          String    @id @default(cuid())
-  familyId    String
-  title       String
-  assignedTo  String
-  dueDay      String
-  completed   Boolean   @default(false)
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  family      Family    @relation(fields: [familyId], references: [id], onDelete: Cascade)
-  id       String @id @default(cuid())
-  familyId String
-
-  // Keep EventType so your existing code doesn’t break.
-  // You can stop creating WORK events in the UI/API.
-  type EventType @default(EVENT)
-
-  // New: category for common family items
-  category EventCategory @default(GENERAL)
-
-  title       String
-  description String?
-
-  // You requested start + end time
-  startsAt DateTime
-  endsAt   DateTime?
-
-  location String?
-
-  isRecurring        Boolean            @default(false)
-  recurrencePattern  RecurrencePattern?
+  id                String             @id @default(cuid())
+  familyId          String
+  type              EventType          @default(EVENT)
+  category          EventCategory      @default(GENERAL)
+  title             String
+  description       String?
+  startsAt          DateTime
+  endsAt            DateTime?
+  location          String?
+  isRecurring       Boolean            @default(false)
+  recurrencePattern RecurrencePattern?
   recurrenceInterval Int?
-  recurrenceEndDate  DateTime?
-  parentEventId      String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  recurrenceEndDate DateTime?
+  parentEventId     String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, startsAt])
   @@index([startsAt])
@@ -108,25 +69,21 @@ model Chore {
 }
 
 model Chore {
-  id         String @id @default(cuid())
-  familyId   String
-  title      String
-  assignedTo String
-  dueDay     String
-
-  isRecurring        Boolean            @default(false)
-  recurrencePattern  RecurrencePattern?
+  id                String             @id @default(cuid())
+  familyId          String
+  title             String
+  assignedTo        String
+  dueDay            String
+  isRecurring       Boolean            @default(false)
+  recurrencePattern RecurrencePattern?
   recurrenceInterval Int?
-  recurrenceEndDate  DateTime?
-  parentEventId      String?
-
-  completed   Boolean   @default(false)
-  completedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  recurrenceEndDate DateTime?
+  parentEventId     String?
+  completed         Boolean            @default(false)
+  completedAt       DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  family            Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
   @@index([familyId, dueDay])
   @@index([completed])
