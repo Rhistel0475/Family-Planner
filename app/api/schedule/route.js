@@ -18,7 +18,12 @@ export async function GET(request) {
     if (start || end) {
       where.startsAt = {};
       if (start) where.startsAt.gte = new Date(start);
-      if (end) where.startsAt.lte = new Date(end);
+      if (end) {
+        // Include full end day: "2026-02-23" => up to 2026-02-23 23:59:59.999 (events later that day not excluded)
+        const endDay = new Date(end);
+        endDay.setUTCHours(23, 59, 59, 999);
+        where.startsAt.lte = endDay;
+      }
     }
 
     const events = await prisma.event.findMany({
