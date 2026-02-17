@@ -96,7 +96,27 @@ export default function SetupPage() {
         throw new Error('Setup completed but no family ID returned. Please sign out and sign in again, then retry setup.');
       }
 
-      // Send user to /setup/done so session is updated in the browser before loading home
+      // Refresh session server-side so JWT includes familyId, then go home
+      try {
+        const refreshController = new AbortController();
+        const refreshTimeout = setTimeout(() => refreshController.abort(), 5000);
+        const refreshRes = await fetch('/api/auth/refresh-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ familyId }),
+          credentials: 'include',
+          cache: 'no-store',
+          signal: refreshController.signal
+        });
+        clearTimeout(refreshTimeout);
+        if (refreshRes.ok) {
+          window.location.href = '/?setupComplete=true';
+          return;
+        }
+      } catch (_) {
+        // Refresh failed, fall through to setup/done
+      }
+      // Fallback: try setup/done if refresh fails
       window.location.href = `/setup/done?familyId=${encodeURIComponent(familyId)}`;
     } catch (error) {
       console.error('Setup error:', error);
