@@ -37,19 +37,14 @@ export async function POST(request) {
         });
       }
     } else {
-      try {
+      // Use existing family with this name if any (e.g. from a previous failed setup), else create
+      family = await prisma.family.findFirst({
+        where: { name: familyName }
+      });
+      if (!family) {
         family = await prisma.family.create({
           data: { name: familyName, setupComplete: false }
         });
-      } catch (createErr) {
-        if (createErr.code === 'P2002' && createErr.meta?.target?.includes('name')) {
-          family = await prisma.family.findFirst({
-            where: { name: familyName }
-          });
-          if (!family) throw createErr;
-        } else {
-          throw createErr;
-        }
       }
       await prisma.user.update({
         where: { id: session.user.id },
