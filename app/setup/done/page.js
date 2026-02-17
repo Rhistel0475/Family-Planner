@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 
@@ -10,18 +10,29 @@ import { useSession } from 'next-auth/react';
  */
 export default function SetupDonePage() {
   const searchParams = useSearchParams();
-  const { update: updateSession } = useSession();
-  const [status, setStatus] = useState('Updating session...');
+  const { data: session, status, update: updateSession } = useSession();
+  const [statusMsg, setStatusMsg] = useState('Loading session...');
+  const hasRun = useRef(false);
 
   useEffect(() => {
     const familyId = searchParams.get('familyId');
     if (!familyId || familyId === 'undefined' || familyId === 'null') {
-      setStatus('Session update failed — redirecting to setup');
+      setStatusMsg('Session update failed — redirecting to setup');
       window.location.href = '/setup';
       return;
     }
 
+    // NextAuth updateSession returns early if loading or !session — wait for session to be ready
+    if (status === 'loading' || !session) {
+      setStatusMsg('Loading session...');
+      return;
+    }
+
+    if (hasRun.current) return;
+    hasRun.current = true;
+
     let cancelled = false;
+    setStatusMsg('Updating session...');
 
     async function run() {
       try {
@@ -32,15 +43,15 @@ export default function SetupDonePage() {
           ]);
         }
         if (cancelled) return;
-        setStatus('Taking you home...');
+        setStatusMsg('Taking you home...');
         window.location.href = '/?setupComplete=true';
       } catch (e) {
         if (!cancelled) {
           if (e?.message === 'timeout') {
-            setStatus('Taking you home...');
+            setStatusMsg('Taking you home...');
             window.location.href = '/?setupComplete=true';
           } else {
-            setStatus('Something went wrong — redirecting to setup');
+            setStatusMsg('Something went wrong — redirecting to setup');
             window.location.href = '/setup';
           }
         }
@@ -49,12 +60,12 @@ export default function SetupDonePage() {
 
     run();
     return () => { cancelled = true; };
-  }, [searchParams, updateSession]);
+  }, [searchParams, updateSession, status, session]);
 
   return (
     <div style={styles.container}>
       <div style={styles.spinner} />
-      <p style={styles.text}>{status}</p>
+      <p style={styles.text}>{statusMsg}</p>
     </div>
   );
 }
