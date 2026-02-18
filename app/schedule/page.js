@@ -513,7 +513,9 @@ const styles = {
     border: '1px solid rgba(98, 73, 24, 0.24)',
     padding: '0.55rem',
     background: 'rgba(255,255,255,0.74)',
-    color: '#3f2d1d'
+    color: '#3f2d1d',
+    fontSize: '0.9rem',
+    fontFamily: "'Trebuchet MS', 'Segoe UI', Arial, sans-serif"
   },
   helpText: { display: 'block', marginTop: '-0.5rem', marginBottom: '0.8rem', opacity: 0.85, fontWeight: 700 },
 

@@ -11,10 +11,13 @@ export async function GET() {
       orderBy: { createdAt: 'asc' }
     });
 
+    const validAvatarStyles = ['circle', 'rounded', 'square'];
+    const enrichAvatar = (v) => (v && validAvatarStyles.includes(v) ? v : 'circle');
+
     const enrichedMembers = members.map((member) => ({
       ...member,
       color: member.color || '#3b82f6',
-      avatar: member.avatar || '👤',
+      avatar: enrichAvatar(member.avatar),
       workingHours: member.workingHours || '',
       role: member.role || 'member',
       abilities: member.abilities || [],
@@ -60,11 +63,14 @@ export async function POST(request) {
 
     const family = await getOrCreateDefaultFamily();
 
+    const validAvatarStyles = ['circle', 'rounded', 'square'];
+    const safeAvatar = (avatar && validAvatarStyles.includes(avatar)) ? avatar : 'circle';
+
     const data = {
       familyId: family.id,
       name: name.trim(),
       color: color || '#3b82f6',
-      avatar: avatar || '👤',
+      avatar: safeAvatar,
       workingHours: workingHours ? String(workingHours).trim() : null,
       role: role || 'member',
       age: age !== undefined && age !== null ? parseInt(age, 10) : null,
@@ -114,10 +120,13 @@ export async function PATCH(request) {
       }
     }
 
+    const validAvatarStyles = ['circle', 'rounded', 'square'];
+    const safeAvatar = (v) => (v && validAvatarStyles.includes(v) ? v : 'circle');
+
     const updateData = {};
     if (name !== undefined) updateData.name = String(name).trim();
     if (color !== undefined) updateData.color = color;
-    if (avatar !== undefined) updateData.avatar = avatar;
+    if (avatar !== undefined) updateData.avatar = safeAvatar(avatar);
     if (role !== undefined) updateData.role = role;
     if (age !== undefined) updateData.age = age !== null ? parseInt(age, 10) : null;
     if (relationship !== undefined) updateData.relationship = relationship || null;

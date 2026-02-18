@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { getRotationAngle, getStatusString } from '../../lib/boardChores';
+import { DAY_NAMES } from '../../lib/constants';
 import styles from './chores.module.css';
+
+const DUE_DAY_OPTIONS = DAY_NAMES.map((day) => ({ value: day, label: day }));
 
 const FREQUENCY_OPTIONS = [
   { value: 'DAILY', label: 'Daily' },
@@ -12,28 +16,23 @@ const FREQUENCY_OPTIONS = [
   { value: 'CUSTOM', label: 'Custom (every N days)' }
 ];
 
-const DUE_DAY_OPTIONS = [
-  { value: 'SUN', label: 'Sunday' },
-  { value: 'MON', label: 'Monday' },
-  { value: 'TUE', label: 'Tuesday' },
-  { value: 'WED', label: 'Wednesday' },
-  { value: 'THU', label: 'Thursday' },
-  { value: 'FRI', label: 'Friday' },
-  { value: 'SAT', label: 'Saturday' }
-];
-
 export default function ChoresPage() {
   const [settings, setSettings] = useState([]);
   const [members, setMembers] = useState([]);
+  const [chores, setChores] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [saving, setSaving] = useState(false);
+  const [assigningLoading, setAssigningLoading] = useState(false);
   const [expandedKey, setExpandedKey] = useState(null);
   const [message, setMessage] = useState(null);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [setDueDayChecked, setSetDueDayChecked] = useState(false);
+  const [planWeekLoading, setPlanWeekLoading] = useState(false);
+
+  const router = useRouter();
 
   useEffect(() => {
     fetchBoardSettings();
@@ -44,14 +43,22 @@ export default function ChoresPage() {
     try {
       setLoading(true);
 
-      const res = await fetch('/api/chore-board');
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const [boardRes, choresRes] = await Promise.all([
+        fetch('/api/chore-board'),
+        fetch('/api/chores')
+      ]);
+      if (!boardRes.ok) throw new Error(`HTTP ${boardRes.status}`);
 
-      const data = await res.json();
+      const data = await boardRes.json();
       if (data.error && !data.settings) throw new Error(data.error);
 
       setSettings(Array.isArray(data.settings) ? data.settings : []);
       setMembers(Array.isArray(data.members) ? data.members : []);
+
+      if (choresRes.ok) {
+        const choresData = await choresRes.json();
+        setChores(choresData.chores || []);
+      }
     } catch (error) {
       console.error('Failed to fetch chore board:', error);
       setMessage({ type: 'error', text: 'Failed to load chore board' });
@@ -143,6 +150,44 @@ export default function ChoresPage() {
     }
   };
 
+  const unassignedCount = chores.filter((c) => !c.completed && (c.assignedTo === 'Unassigned' || c.assignedTo === 'All Members')).length;
+
+  const handleAssignUnassigned = async () => {
+    setAssigningLoading(true);
+    setMessage('');
+    try {
+      const res = await fetch('/api/ai/chores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applyAll: true })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to assign');
+      setMessage({ type: 'success', text: `✅ ${data.message || 'Chores assigned!'}` });
+      fetchBoardSettings();
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to assign' });
+    } finally {
+      setAssigningLoading(false);
+    }
+  };
+
+  const handlePlanThisWeek = async () => {
+    setPlanWeekLoading(true);
+    try {
+      const res = await fetch('/api/ai/generate-weekly-chores', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate weekly chores');
+      const count = data.created?.length ?? 0;
+      setMessage({ type: 'success', text: count > 0 ? `Created ${count} chores! View them on the schedule.` : data.message || 'Weekly chores generated' });
+      setTimeout(() => router.push('/'), 1000);
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to plan week' });
+    } finally {
+      setPlanWeekLoading(false);
+    }
+  };
+
   const handleAddChore = async (e) => {
     e.preventDefault();
     setAddLoading(true);
@@ -151,6 +196,7 @@ export default function ChoresPage() {
       const formData = new FormData(e.target);
 
       const title = (formData.get('title') || '').toString().trim();
+      const description = (formData.get('description') || '').toString().trim() || null;
       const assignedMemberId = (formData.get('assignedTo') || '').toString() || null;
 
       // You capture these for UI now; if you want persistence, add fields to schema + API
@@ -184,6 +230,7 @@ export default function ChoresPage() {
             {
               templateKey,
               title,
+              description,
               isRecurring: false,
               frequencyType: 'ONE_TIME',
               customEveryDays: null,
@@ -198,7 +245,28 @@ export default function ChoresPage() {
       const boardData = await boardRes.json();
       if (!boardRes.ok) throw new Error(boardData.error || 'Failed to add chore to board');
 
-      setMessage({ type: 'success', text: '✓ Chore added to board. Use "Smart Chore Assignment" to schedule it.' });
+      const assignedName = assignedMemberId ? members.find((m) => m.id === assignedMemberId)?.name || 'Unassigned' : 'Unassigned';
+
+      if (setDueDay && dueDay) {
+        const choreRes = await fetch('/api/chores', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            description,
+            assignedTo: assignedName,
+            dueDay
+          })
+        });
+        if (choreRes.ok) {
+          setMessage({ type: 'success', text: `✓ Chore added and scheduled for ${dueDay}.` });
+        } else {
+          setMessage({ type: 'success', text: '✓ Chore added to board. View on schedule.' });
+        }
+      } else {
+        setMessage({ type: 'success', text: '✓ Chore added to board. Use "Plan This Week" to schedule it.' });
+      }
+
       setShowAddModal(false);
       setSetDueDayChecked(false);
       e.target.reset();
@@ -248,6 +316,32 @@ export default function ChoresPage() {
           >
             {saving ? 'Saving…' : 'Save'}
           </button>
+        </div>
+      </div>
+
+      {/* Chore AI Actions */}
+      <div className={styles.aiCard}>
+        <h3 className={styles.aiCardTitle}>Chore AI</h3>
+        <p className={styles.aiCardSubtitle}>Automate chore creation and assignment</p>
+        <div className={styles.aiCardActions}>
+          <button
+            type="button"
+            className={styles.planWeekButton}
+            onClick={handlePlanThisWeek}
+            disabled={planWeekLoading}
+          >
+            {planWeekLoading ? 'Planning…' : 'Plan This Week'}
+          </button>
+          {unassignedCount > 0 && (
+            <button
+              type="button"
+              className={styles.assignButton}
+              onClick={handleAssignUnassigned}
+              disabled={assigningLoading}
+            >
+              {assigningLoading ? 'Assigning…' : `Assign ${unassignedCount} Unassigned`}
+            </button>
+          )}
         </div>
       </div>
 
@@ -327,6 +421,11 @@ export default function ChoresPage() {
               </div>
 
               <div className={styles.formGroup}>
+                <label>Description (optional)</label>
+                <textarea name="description" placeholder="e.g., Wipe counters, dishes" rows={2} />
+              </div>
+
+              <div className={styles.formGroup}>
                 <label>Assign To (optional)</label>
                 <select name="assignedTo" defaultValue="">
                   <option value="">No default assignee</option>
@@ -352,7 +451,7 @@ export default function ChoresPage() {
                 {setDueDayChecked && (
                   <div style={{ marginTop: '0.75rem' }}>
                     <label>Due Day</label>
-                    <select name="dueDay" defaultValue="MON">
+                    <select name="dueDay" defaultValue={DAY_NAMES[0]}>
                       {DUE_DAY_OPTIONS.map((d) => (
                         <option key={d.value} value={d.value}>
                           {d.label}

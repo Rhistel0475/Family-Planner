@@ -1,9 +1,10 @@
 'use client';
 
-export default function QuickAddButton({ onClick, icon, label, color = '#c9f7a5' }) {
+export default function QuickAddButton({ onClick, icon, label, color = '#c9f7a5', disabled }) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       style={{
         ...styles.button,
         background: color

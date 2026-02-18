@@ -7,7 +7,8 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "migrate-chores": "node scripts/migrate-chores.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.74.0",

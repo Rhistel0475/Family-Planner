@@ -129,13 +129,15 @@ const styles = {
     borderRadius: '8px',
     fontSize: '1rem',
     outline: 'none',
-    fontFamily: 'inherit'
+    fontFamily: "'Trebuchet MS', 'Segoe UI', Arial, sans-serif"
   },
   dateInput: {
     minWidth: '140px'
   },
   timeInput: {
-    minWidth: '100px'
+    minWidth: '100px',
+    fontSize: '1rem',
+    fontFamily: "'Trebuchet MS', 'Segoe UI', Arial, sans-serif"
   },
   preview: {
     marginTop: '0.5rem',
