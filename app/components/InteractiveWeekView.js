@@ -13,7 +13,7 @@ import FilterBar from './FilterBar';
 import SmartTaskModal from './SmartTaskModal';
 import DateTimePicker from './DateTimePicker';
 import CategorySelector from './CategorySelector';
-import { getEventCategory } from '../../lib/eventConfig';
+import { getEventCategory, getEventColor } from '../../lib/eventConfig';
 import { createSmartTaskInstances } from '../../lib/smartAssignment';
 import { PREDEFINED_CHORES } from '../../lib/boardChores';
 import { parseWorkingHours, format24hTo12h } from '../../lib/workingHoursUtils';
@@ -54,7 +54,7 @@ function formatTimeRange(startsAt, endsAt) {
 }
 
 export default function InteractiveWeekView() {
-  const { theme } = useTheme();
+  const { theme, isDarkMode } = useTheme();
   const [weekOffset, setWeekOffset] = useState(0);
   const [events, setEvents] = useState([]);
   const [chores, setChores] = useState([]);
@@ -777,14 +777,17 @@ export default function InteractiveWeekView() {
                               )}
                             </>
                           );
+                          const eventBg = getEventColor(work.type || 'WORK', isDarkMode);
                           if (work.isSynthetic) {
                             return (
                               <li
                                 key={work.id}
                                 style={{
                                   ...styles.eventItem,
-                                  background: `linear-gradient(135deg, ${category.lightColor} 0%, ${category.lightColor}dd 100%)`,
-                                  borderLeft: `4px solid ${work.memberColor || category.darkColor}`
+                                  background: `linear-gradient(135deg, ${eventBg} 0%, ${eventBg}dd 100%)`,
+                                  borderLeft: `4px solid ${work.memberColor || category.darkColor}`,
+                                  borderColor: theme?.card?.border,
+                                  color: theme?.card?.text
                                 }}
                                 title="From family profile"
                               >
@@ -806,8 +809,10 @@ export default function InteractiveWeekView() {
                               }}
                               style={{
                                 ...styles.eventItem,
-                                background: `linear-gradient(135deg, ${category.lightColor} 0%, ${category.lightColor}dd 100%)`,
-                                borderLeft: `4px solid ${category.darkColor}`
+                                background: `linear-gradient(135deg, ${eventBg} 0%, ${eventBg}dd 100%)`,
+                                borderLeft: `4px solid ${category.darkColor}`,
+                                borderColor: theme?.card?.border,
+                                color: theme?.card?.text
                               }}
                             >
                               <div style={styles.eventContent}>
@@ -839,8 +844,9 @@ export default function InteractiveWeekView() {
                     <p style={styles.label} className="washi-tape washi-events">Events</p>
                     {day.events.length > 0 ? (
                       <ul style={styles.eventList}>
-                        {day.events.map((event) => {
+                        {                        day.events.map((event) => {
                           const category = getEventCategory(event.type || 'PERSONAL');
+                          const eventBg = getEventColor(event.type || 'PERSONAL', isDarkMode);
                           return (
                             <DraggableItem
                               key={event.id}
@@ -852,8 +858,10 @@ export default function InteractiveWeekView() {
                               }}
                               style={{
                                 ...styles.eventItem,
-                                background: `linear-gradient(135deg, ${category.lightColor} 0%, ${category.lightColor}dd 100%)`,
-                                borderLeft: `4px solid ${category.darkColor}`
+                                background: `linear-gradient(135deg, ${eventBg} 0%, ${eventBg}dd 100%)`,
+                                borderLeft: `4px solid ${category.darkColor}`,
+                                borderColor: theme?.card?.border,
+                                color: theme?.card?.text
                               }}
                             >
                               <div style={styles.eventContent}>
@@ -898,9 +906,11 @@ export default function InteractiveWeekView() {
                               style={{
                                 ...styles.choreItem,
                                 background: chore.completed
-                                  ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9dd 100%)'
-                                  : 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%)',
-                                borderLeft: `4px solid ${chore.completed ? '#66bb6a' : memberColor}`,
+                                  ? (theme?.card?.bg?.[2] ? `linear-gradient(135deg, ${theme.card.bg[2]} 0%, ${theme.card.bg[2]}dd 100%)` : 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9dd 100%)')
+                                  : (theme?.controls?.bg ?? theme?.card?.bg?.[1] ?? 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%)'),
+                                borderLeft: `4px solid ${chore.completed ? (theme?.toast?.success?.border ?? '#66bb6a') : memberColor}`,
+                                borderColor: theme?.card?.border,
+                                color: theme?.card?.text,
                                 opacity: chore.completed ? 0.85 : 1
                               }}
                             >
