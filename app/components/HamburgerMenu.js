@@ -25,7 +25,7 @@ const adminItems =
     : [];
 
 export default function HamburgerMenu() {
-  const { theme } = useTheme();
+  const { theme, isDarkMode, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
 
   return (
@@ -61,6 +61,25 @@ export default function HamburgerMenu() {
       >
         <h2 style={{ ...styles.title, color: theme?.nav?.text ?? '#3f2d1d' }}>Family Planner</h2>
         <p style={{ ...styles.subtitle, color: theme?.hero?.badgeText ?? theme?.card?.text ?? '#52351d' }}>Jump to a section</p>
+
+        <div style={{ ...styles.toggleRow, borderColor: theme?.card?.border ?? 'rgba(98, 73, 24, 0.2)' }}>
+          <span style={{ ...styles.toggleLabel, color: theme?.nav?.text ?? '#3f2d1d' }}>Dark mode</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isDarkMode}
+            aria-label={isDarkMode ? 'Turn dark mode off' : 'Turn dark mode on'}
+            style={{
+              ...styles.toggleBtn,
+              background: isDarkMode ? (theme?.card?.bg?.[2] ?? '#3a5a2a') : (theme?.card?.bg?.[0] ?? '#fff59d'),
+              borderColor: theme?.card?.border ?? 'rgba(98, 73, 24, 0.2)',
+              justifyContent: isDarkMode ? 'flex-end' : 'flex-start'
+            }}
+            onClick={() => toggleTheme()}
+          >
+            <span style={{ ...styles.toggleThumb, background: theme?.nav?.text ?? '#3f2d1d' }} />
+          </button>
+        </div>
 
         <nav style={styles.nav} aria-label="Primary navigation">
           {navItems.map((item) => (
@@ -163,6 +182,38 @@ const styles = {
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     opacity: 0.8
+  },
+  toggleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '0.75rem',
+    marginBottom: '1rem',
+    padding: '0.6rem 0.75rem',
+    borderRadius: 8,
+    border: '1px solid',
+    background: 'rgba(0,0,0,0.04)'
+  },
+  toggleLabel: {
+    fontSize: '0.9rem',
+    fontWeight: 700
+  },
+  toggleBtn: {
+    width: 44,
+    height: 24,
+    borderRadius: 9999,
+    border: '2px solid',
+    padding: 2,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    transition: 'background 0.2s ease, justify-content 0.2s ease'
+  },
+  toggleThumb: {
+    width: 18,
+    height: 18,
+    borderRadius: '50%',
+    flexShrink: 0
   },
   nav: {
     display: 'grid',
