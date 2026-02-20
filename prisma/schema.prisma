@@ -99,13 +99,15 @@ model Chore {
 }
 
 model Recipe {
-  id          String   @id @default(cuid())
-  familyId    String
-  name        String
-  ingredients String
-  cookDay     String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  familyId     String
+  name         String
+  ingredients  String
+  instructions String?
+  sourceUrl    String?
+  cookDay      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   family Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
 
