@@ -26,12 +26,18 @@ export default function RecipesPage() {
   const [sourceUrl, setSourceUrl] = useState('');
   const [saving, setSaving] = useState(false);
   const [recipes, setRecipes] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
-  useEffect(() => {
-    fetch('/api/recipes')
-      .then((res) => res.ok ? res.json() : [])
+  function refetchRecipes() {
+    return fetch('/api/recipes')
+      .then((res) => (res.ok ? res.json() : []))
       .then(setRecipes)
       .catch(() => setRecipes([]));
+  }
+
+  useEffect(() => {
+    refetchRecipes();
   }, [saved]);
 
   async function handleImport() {
@@ -62,6 +68,24 @@ export default function RecipesPage() {
     }
   }
 
+  function clearForm() {
+    setName('');
+    setIngredients('');
+    setInstructions('');
+    setSourceUrl('');
+    setCookDay('Sunday');
+    setEditingId(null);
+  }
+
+  function loadRecipeIntoForm(r, forReuse = false) {
+    setName(r.name || '');
+    setIngredients(r.ingredients || '');
+    setInstructions(r.instructions || '');
+    setSourceUrl(r.sourceUrl || '');
+    setCookDay(r.cookDay || 'Sunday');
+    setEditingId(forReuse ? null : r.id);
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!name.trim() || !ingredients.trim() || !cookDay) {
@@ -70,6 +94,28 @@ export default function RecipesPage() {
     }
     setSaving(true);
     try {
+      if (editingId) {
+        const res = await fetch('/api/recipes', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editingId,
+            name: name.trim(),
+            ingredients: ingredients.trim(),
+            instructions: instructions.trim() || null,
+            sourceUrl: sourceUrl.trim() || null,
+            cookDay
+          })
+        });
+        if (res.ok) {
+          clearForm();
+          await refetchRecipes();
+          router.push('/recipes?saved=1');
+          return;
+        }
+        router.push('/recipes?error=1');
+        return;
+      }
       const formData = new FormData();
       formData.set('name', name.trim());
       formData.set('ingredients', ingredients.trim());
@@ -86,19 +132,14 @@ export default function RecipesPage() {
         if (loc) {
           const u = new URL(loc, window.location.origin);
           router.push(u.pathname + u.search);
-          setName('');
-          setIngredients('');
-          setInstructions('');
-          setSourceUrl('');
+          clearForm();
           return;
         }
       }
       if (res.ok) {
         router.push('/recipes?saved=1');
-        setName('');
-        setIngredients('');
-        setInstructions('');
-        setSourceUrl('');
+        clearForm();
+        await refetchRecipes();
         return;
       }
       router.push('/recipes?error=1');
@@ -106,6 +147,20 @@ export default function RecipesPage() {
       router.push('/recipes?error=1');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(recipeId) {
+    if (deletingId) return;
+    setDeletingId(recipeId);
+    try {
+      const res = await fetch(`/api/recipes?id=${encodeURIComponent(recipeId)}`, { method: 'DELETE' });
+      if (res.ok || res.status === 204) {
+        if (editingId === recipeId) clearForm();
+        await refetchRecipes();
+      }
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -128,8 +183,8 @@ export default function RecipesPage() {
           border: `1px solid ${theme.card?.border}`
         }}
       >
-        <h1 style={styles.title}>Add Recipe Plan</h1>
-        <p style={styles.subtitle}>Add meal ideas that can later feed grocery planning. Import from a recipe URL or enter manually.</p>
+        <h1 style={styles.title}>Recipe Library</h1>
+        <p style={styles.subtitle}>Your recipes are stored here and used for meal planning and across the app. Import from a URL or add manually.</p>
         {saved && <p style={styles.success}>Recipe saved.</p>}
         {error && <p style={styles.error}>Please complete all fields.</p>}
 
@@ -225,9 +280,16 @@ export default function RecipesPage() {
             ))}
           </Select>
 
-          <Button type="submit" variant="primary" style={{ width: '100%', marginTop: '0.75rem' }} disabled={saving}>
-            {saving ? 'Saving…' : 'Save Recipe'}
-          </Button>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+            <Button type="submit" variant="primary" style={{ flex: 1 }} disabled={saving}>
+              {saving ? 'Saving…' : editingId ? 'Update Recipe' : 'Save Recipe'}
+            </Button>
+            {editingId && (
+              <Button type="button" variant="secondary" onClick={clearForm}>
+                Cancel
+              </Button>
+            )}
+          </div>
         </form>
       </section>
 
@@ -245,23 +307,50 @@ export default function RecipesPage() {
           <ul style={styles.list}>
             {recipes.map((r) => (
               <li key={r.id} style={styles.listItem}>
-                <div style={{ flex: 1 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <strong>{r.name}</strong>
                   <span style={styles.cookDay}> — {r.cookDay}</span>
                   {r.instructions && (
                     <p style={styles.instructionsPreview}>{r.instructions.slice(0, 80)}{r.instructions.length > 80 ? '…' : ''}</p>
                   )}
                 </div>
-                {r.sourceUrl && (
-                  <a
-                    href={r.sourceUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={styles.sourceLink}
+                <div style={styles.recipeActions}>
+                  {r.sourceUrl && (
+                    <a
+                      href={r.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.sourceLink}
+                    >
+                      Source
+                    </a>
+                  )}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={() => loadRecipeIntoForm(r, false)}
                   >
-                    Source
-                  </a>
-                )}
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={() => loadRecipeIntoForm(r, true)}
+                  >
+                    Use for another day
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={() => handleDelete(r.id)}
+                    disabled={deletingId === r.id}
+                  >
+                    {deletingId === r.id ? 'Deleting…' : 'Delete'}
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -356,5 +445,12 @@ const styles = {
   sourceLink: {
     fontSize: '0.875rem',
     flexShrink: 0
+  },
+  recipeActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    flexShrink: 0,
+    flexWrap: 'wrap'
   }
 };
