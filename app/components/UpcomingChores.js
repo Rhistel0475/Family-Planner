@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTheme } from '../providers/ThemeProvider';
+
+const WEEKDAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export default function UpcomingChores({ chores, onToggle }) {
   const { theme } = useTheme();
@@ -10,15 +12,22 @@ export default function UpcomingChores({ chores, onToggle }) {
   const borderColor = theme.card?.border || 'rgba(0,0,0,0.1)';
   const [localChores, setLocalChores] = useState(chores);
 
+  useEffect(() => {
+    setLocalChores(chores);
+  }, [chores]);
+
   // Get today's day name
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+  const todayIndex = WEEKDAY_ORDER.indexOf(today);
+  const overdueDays = todayIndex >= 0 ? WEEKDAY_ORDER.slice(0, todayIndex) : [];
 
   // Filter incomplete chores
-  const incompleteChores = chores.filter(c => !c.completed);
+  const incompleteChores = localChores.filter(c => !c.completed);
 
-  // Group by today vs rest of week
+  // Group by overdue, today, rest of week
+  const overdueChores = incompleteChores.filter(c => overdueDays.includes(c.dueDay));
   const todayChores = incompleteChores.filter(c => c.dueDay === today);
-  const otherChores = incompleteChores.filter(c => c.dueDay !== today);
+  const otherChores = incompleteChores.filter(c => c.dueDay !== today && !overdueDays.includes(c.dueDay));
 
   const handleToggle = async (choreId, currentlyCompleted) => {
     // Optimistic update
@@ -114,6 +123,20 @@ export default function UpcomingChores({ chores, onToggle }) {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {overdueChores.length > 0 && (
+            <div>
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>
+                <span>⚠️</span>
+                <span>Overdue</span>
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {overdueChores.map(chore => (
+                  <ChoreItem key={chore.id} chore={chore} />
+                ))}
+              </div>
+            </div>
+          )}
+
           {todayChores.length > 0 && (
             <div>
               <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>

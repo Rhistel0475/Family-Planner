@@ -149,8 +149,12 @@ export default function InteractiveWeekView() {
       const weekEnd = new Date(weekDates[6].date);
       weekEnd.setHours(23, 59, 59, 999);
 
+      const pad = (n) => String(n).padStart(2, '0');
+      const startStr = `${weekStart.getFullYear()}-${pad(weekStart.getMonth() + 1)}-${pad(weekStart.getDate())}`;
+      const endStr = `${weekEnd.getFullYear()}-${pad(weekEnd.getMonth() + 1)}-${pad(weekEnd.getDate())}`;
+
       const [eventsRes, choresRes, membersRes, boardRes] = await Promise.all([
-        fetch('/api/schedule'),
+        fetch(`/api/schedule?start=${startStr}&end=${endStr}`),
         fetch('/api/chores'),
         fetch('/api/family-members'),
         fetch('/api/chore-board')
@@ -163,14 +167,9 @@ export default function InteractiveWeekView() {
 
       if (eventsRes.ok) {
         const eventsData = await eventsRes.json();
-        const filtered = (eventsData.events || []).filter((e) => {
-          const d = new Date(e.startsAt);
-          return d >= weekStart && d <= weekEnd;
-        });
-
-        // Sort by startsAt
-        filtered.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
-        setEvents(filtered);
+        const list = eventsData.events || [];
+        list.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+        setEvents(list);
       }
 
       if (choresRes.ok) {
