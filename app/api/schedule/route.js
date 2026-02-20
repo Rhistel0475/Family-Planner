@@ -6,10 +6,27 @@ export async function GET(request) {
   try {
     const family = await getOrCreateDefaultFamily();
 
+    const { searchParams } = new URL(request.url);
+    const startParam = searchParams.get('start');
+    const endParam = searchParams.get('end');
+
+    const where = { familyId: family.id };
+
+    if (startParam || endParam) {
+      const startDate = startParam ? new Date(startParam + 'T00:00:00.000Z') : null;
+      const endDate = endParam ? new Date(endParam + 'T23:59:59.999Z') : null;
+      if (startDate && !Number.isNaN(startDate.getTime())) {
+        where.startsAt = where.startsAt || {};
+        where.startsAt.gte = startDate;
+      }
+      if (endDate && !Number.isNaN(endDate.getTime())) {
+        where.startsAt = where.startsAt || {};
+        where.startsAt.lte = endDate;
+      }
+    }
+
     const events = await prisma.event.findMany({
-      where: {
-        familyId: family.id
-      },
+      where,
       orderBy: {
         startsAt: 'asc'
       }

@@ -6,15 +6,16 @@ import Button from '../components/Button';
 import { Label, Input, Select } from '../components/form';
 import { MAIN_PADDING_WITH_NAV, CONTENT_WIDTH_FORM } from '../../lib/layout';
 
+// Preset id for dropdown; category maps to Prisma EventCategory enum
 const EVENT_PRESETS = [
-  { value: 'DOCTOR', label: 'Doctor Appointment', icon: '🩺' },
-  { value: 'DENTIST', label: 'Dentist Appointment', icon: '🦷' },
-  { value: 'SCHOOL', label: 'School Event', icon: '🏫' },
-  { value: 'CHURCH', label: 'Church', icon: '⛪' },
-  { value: 'FAMILY', label: 'Family Event', icon: '👨‍👩‍👧‍👦' },
-  { value: 'SPORTS', label: 'Sports', icon: '🏅' },
-  { value: 'BIRTHDAY', label: 'Birthday', icon: '🎂' },
-  { value: 'GENERAL', label: 'General', icon: '📌' }
+  { value: 'doctor', label: 'Doctor Appointment', icon: '🩺', category: 'APPOINTMENT' },
+  { value: 'dentist', label: 'Dentist Appointment', icon: '🦷', category: 'APPOINTMENT' },
+  { value: 'school', label: 'School Event', icon: '🏫', category: 'SCHOOL' },
+  { value: 'church', label: 'Church', icon: '⛪', category: 'CHURCH' },
+  { value: 'family', label: 'Family Event', icon: '👨‍👩‍👧‍👦', category: 'FAMILY' },
+  { value: 'sports', label: 'Sports', icon: '🏅', category: 'SPORTS' },
+  { value: 'birthday', label: 'Birthday', icon: '🎂', category: 'BIRTHDAY' },
+  { value: 'general', label: 'General', icon: '📌', category: 'GENERAL' }
 ];
 
 function fmtDateTime(d) {
@@ -54,7 +55,7 @@ export default function SchedulePage({ searchParams }) {
   const [events, setEvents] = useState([]);
 
   // Form state
-  const [preset, setPreset] = useState('GENERAL');
+  const [preset, setPreset] = useState('general');
   const [title, setTitle] = useState('');
   const [day, setDay] = useState('Monday');
   const [startTime, setStartTime] = useState('09:00');
@@ -164,19 +165,13 @@ export default function SchedulePage({ searchParams }) {
 
       const { startsAt, endsAt } = computeStartsEnds();
 
-      // API expects: day, event, isRecurring..., plus anything extra we include
       const payload = {
-        day,
-        event: `${chosen.icon} ${name}`.trim(),
-        // new fields for PATCH/DB (your prisma supports endsAt already)
-        type: 'EVENT',
-        category: preset, // maps to EventCategory enum (GENERAL, SPORTS, BIRTHDAY, APPOINTMENT)
+        title: name,
+        category: chosen.category,
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
-        isRecurring: false,
-        recurrencePattern: null,
-        recurrenceInterval: null,
-        recurrenceEndDate: null
+        location: null,
+        description: null
       };
 
       const res = await fetch('/api/schedule', {
@@ -189,7 +184,7 @@ export default function SchedulePage({ searchParams }) {
 
       showToast('success', data?.message || '✓ Saved.');
       setTitle('');
-      setPreset('GENERAL');
+      setPreset('general');
 
       await fetchEvents();
     } catch (err) {
