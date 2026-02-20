@@ -21,13 +21,13 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={markerFont.variable}>
       <body>
-        <SetupCheck>
-          <ThemeProvider>
+        <ThemeProvider>
+          <SetupCheck>
             <HamburgerMenu />
             {children}
             <BottomNav />
-          </ThemeProvider>
-        </SetupCheck>
+          </SetupCheck>
+        </ThemeProvider>
       </body>
     </html>
   );
