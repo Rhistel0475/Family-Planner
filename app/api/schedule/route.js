@@ -18,8 +18,22 @@ export async function GET(request) {
     return NextResponse.json({ events });
   } catch (error) {
     console.error('Schedule GET error:', error);
+    const details = error.message || 'Unknown error';
+    const code = error.code;
+    if (code === 'P2021') {
+      return NextResponse.json(
+        { error: 'Database table missing. Run: npx prisma migrate deploy', details },
+        { status: 500 }
+      );
+    }
+    if (code === 'P1001' || code === 'P1002') {
+      return NextResponse.json(
+        { error: 'Cannot reach database. Check DATABASE_URL and that the database is running.', details },
+        { status: 500 }
+      );
+    }
     return NextResponse.json(
-      { error: 'Failed to fetch events', details: error.message },
+      { error: 'Failed to fetch events', details, code: code || undefined },
       { status: 500 }
     );
   }

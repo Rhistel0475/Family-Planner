@@ -2,12 +2,14 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTheme } from '../providers/ThemeProvider';
 
 let checkcount = 0;
 
 export default function SetupCheck({ children }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { theme } = useTheme();
   const [loading, setLoading] = useState(true);
   const [needsSetup, setNeedsSetup] = useState(false);
   const [error, setError] = useState(null);
@@ -68,7 +70,7 @@ export default function SetupCheck({ children }) {
 
   if (loading) {
     return (
-      <div style={styles.loadingContainer}>
+      <div style={{ ...styles.loadingContainer, backgroundColor: theme.pageBackground, color: theme.card.text }}>
         <div style={styles.spinner} />
         <p>Loading...</p>
         {process.env.NODE_ENV === 'development' && <p style={{fontSize: '12px', color: '#999'}}>{debugInfo}</p>}
@@ -98,9 +100,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f4e3bf',
-    color: '#3f2d1d'
+    justifyContent: 'center'
   },
   spinner: {
     width: '40px',

@@ -2,8 +2,12 @@
 
 import { useState } from 'react';
 import HamburgerMenu from '../components/HamburgerMenu';
+import Button from '../components/Button';
+import { useTheme } from '../providers/ThemeProvider';
+import { MAIN_PADDING_WITH_NAV, CONTENT_WIDTH_FORM } from '../../lib/layout';
 
 export default function AIAssistantPage() {
+  const { theme } = useTheme();
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -75,9 +79,16 @@ export default function AIAssistantPage() {
   }
 
   return (
-    <main style={styles.main}>
+    <main
+      style={{
+        ...styles.main,
+        backgroundColor: theme.pageBackground,
+        backgroundImage: theme.pageGradient || undefined,
+        color: theme.card.text
+      }}
+    >
       <HamburgerMenu />
-      <section style={styles.card}>
+      <section style={{ ...styles.card, background: theme.button.primary, border: `1px solid ${theme.card.border}`, color: theme.button.primaryText }}>
         <h1 style={styles.title}>🤖 AI Assistant</h1>
         <p style={styles.subtitle}>Let AI help assign chores and plan your family schedule intelligently.</p>
 
@@ -121,13 +132,14 @@ export default function AIAssistantPage() {
               💡 AI will analyze your family and suggest fair chore assignments based on roles and balance.
             </p>
 
-            <button
+            <Button
+              variant="primary"
               onClick={generateChoreAssignments}
               disabled={loading}
-              style={styles.generateButton}
+              style={{ width: '100%', marginBottom: '1rem' }}
             >
               {loading ? 'Generating...' : 'Generate Chore Assignments'}
-            </button>
+            </Button>
 
             {suggestions.length > 0 && (
               <div style={styles.suggestionsList}>
@@ -139,14 +151,15 @@ export default function AIAssistantPage() {
                       Suggested for: <strong>{suggestion.suggestedAssignee}</strong>
                     </p>
                     <p style={styles.reasoning}>{suggestion.reasoning}</p>
-                    <button
+                    <Button
+                      variant="primary"
                       onClick={() =>
                         applySuggestion(suggestion.choreId, suggestion.suggestedAssignee)
                       }
-                      style={styles.applyButton}
+                      style={{ width: '100%' }}
                     >
                       Accept & Assign
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -158,13 +171,14 @@ export default function AIAssistantPage() {
               📅 Generate a full week of chores based on your board settings. Each chore with "days per week" configured will be created and assigned automatically.
             </p>
 
-            <button
+            <Button
+              variant="secondary"
               onClick={generateWeeklyChores}
               disabled={weeklyLoading}
-              style={{ ...styles.generateButton, background: '#fff8bf', color: '#3f2d1d' }}
+              style={{ width: '100%', marginBottom: '1rem' }}
             >
               {weeklyLoading ? 'Generating Weekly Chores...' : 'Generate Weekly Chores'}
-            </button>
+            </Button>
 
             {weeklyResult && weeklyResult.assignments && weeklyResult.assignments.length > 0 && (
               <div style={styles.suggestionsList}>
@@ -198,18 +212,12 @@ export default function AIAssistantPage() {
 const styles = {
   main: {
     minHeight: '100vh',
-    padding: '5rem 1.5rem 2rem 1.5rem',
-    backgroundColor: '#f4e3bf',
-    backgroundImage:
-      'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.22), transparent 45%)',
-    color: '#3f2d1d'
+    padding: MAIN_PADDING_WITH_NAV
   },
   card: {
-    maxWidth: 680,
+    maxWidth: CONTENT_WIDTH_FORM,
     margin: '0 auto',
-    background: '#c9f7a5',
     borderRadius: 10,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
     boxShadow: '0 14px 24px rgba(70, 45, 11, 0.2)',
     padding: '1.2rem'
   },
@@ -244,17 +252,6 @@ const styles = {
     marginBottom: '1rem',
     fontSize: '0.9rem'
   },
-  generateButton: {
-    width: '100%',
-    padding: '0.8rem',
-    borderRadius: 8,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    background: '#e9ffd7',
-    color: '#2b4d1f',
-    fontWeight: 700,
-    cursor: 'pointer',
-    marginBottom: '1rem'
-  },
   suggestionsList: {
     marginTop: '1rem'
   },
@@ -278,15 +275,5 @@ const styles = {
     fontStyle: 'italic',
     opacity: 0.8,
     marginBottom: '0.6rem'
-  },
-  applyButton: {
-    width: '100%',
-    padding: '0.5rem',
-    borderRadius: 4,
-    border: 'none',
-    background: '#e9ffd7',
-    color: '#2b4d1f',
-    fontWeight: 700,
-    cursor: 'pointer'
   }
 };

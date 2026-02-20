@@ -1,24 +1,47 @@
-export default function RecipesPage({ searchParams }) {
-  const saved = searchParams?.saved === '1';
-  const error = searchParams?.error === '1';
+'use client';
+
+import { useSearchParams } from 'next/navigation';
+import { useTheme } from '../providers/ThemeProvider';
+import Button from '../components/Button';
+import { Label, Input, Select } from '../components/form';
+import { MAIN_PADDING_WITH_NAV, CONTENT_WIDTH_FORM_NARROW } from '../../lib/layout';
+
+export default function RecipesPage() {
+  const searchParams = useSearchParams();
+  const { theme } = useTheme();
+  const saved = searchParams?.get('saved') === '1';
+  const error = searchParams?.get('error') === '1';
 
   return (
-    <main style={styles.main}>
-      <section style={styles.card}>
+    <main
+      style={{
+        ...styles.main,
+        backgroundColor: theme.pageBackground,
+        backgroundImage: theme.pageGradient || undefined,
+        color: theme.card.text
+      }}
+    >
+      <section
+        style={{
+          ...styles.card,
+          background: theme.card.bg[1],
+          border: `1px solid ${theme.card.border}`
+        }}
+      >
         <h1 style={styles.title}>Add Recipe Plan</h1>
         <p style={styles.subtitle}>Add meal ideas that can later feed grocery planning.</p>
         {saved && <p style={styles.success}>Recipe saved.</p>}
         {error && <p style={styles.error}>Please complete all fields.</p>}
 
         <form action="/api/recipes" method="POST">
-          <label style={styles.label}>Recipe Name</label>
-          <input name="name" style={styles.input} placeholder="Chicken Alfredo" />
+          <Label>Recipe Name</Label>
+          <Input name="name" placeholder="Chicken Alfredo" style={styles.inputSpacing} />
 
-          <label style={styles.label}>Ingredients</label>
-          <input name="ingredients" style={styles.input} placeholder="Pasta, chicken, cream, garlic" />
+          <Label>Ingredients</Label>
+          <Input name="ingredients" placeholder="Pasta, chicken, cream, garlic" style={styles.inputSpacing} />
 
-          <label style={styles.label}>Cook Day</label>
-          <select name="cookDay" style={styles.input} defaultValue="Sunday">
+          <Label>Cook Day</Label>
+          <Select name="cookDay" defaultValue="Sunday" style={styles.inputSpacing}>
             <option>Monday</option>
             <option>Tuesday</option>
             <option>Wednesday</option>
@@ -26,11 +49,11 @@ export default function RecipesPage({ searchParams }) {
             <option>Friday</option>
             <option>Saturday</option>
             <option>Sunday</option>
-          </select>
+          </Select>
 
-          <button type="submit" style={styles.button}>
+          <Button type="submit" variant="primary" style={{ width: '100%', marginTop: '0.75rem' }}>
             Save Recipe
-          </button>
+          </Button>
         </form>
       </section>
     </main>
@@ -40,18 +63,12 @@ export default function RecipesPage({ searchParams }) {
 const styles = {
   main: {
     minHeight: '100vh',
-    padding: '5rem 1.5rem 2rem 1.5rem',
-    backgroundColor: '#f4e3bf',
-    backgroundImage:
-      'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.22), transparent 45%)',
-    color: '#3f2d1d'
+    padding: MAIN_PADDING_WITH_NAV
   },
   card: {
-    maxWidth: 560,
+    maxWidth: CONTENT_WIDTH_FORM_NARROW,
     margin: '0 auto',
-    background: '#ffd9a8',
     borderRadius: 10,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
     boxShadow: '0 14px 24px rgba(70, 45, 11, 0.2)',
     padding: '1.2rem'
   },
@@ -60,6 +77,9 @@ const styles = {
   },
   subtitle: {
     marginBottom: '1rem'
+  },
+  inputSpacing: {
+    marginBottom: '0.8rem'
   },
   success: {
     marginBottom: '0.8rem',
@@ -77,31 +97,4 @@ const styles = {
     border: '1px solid rgba(186, 62, 62, 0.35)',
     color: '#8b1f1f'
   },
-  label: {
-    fontSize: '0.8rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    marginBottom: '0.28rem',
-    display: 'block',
-    fontWeight: 700
-  },
-  input: {
-    width: '100%',
-    marginBottom: '0.8rem',
-    borderRadius: 6,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
-    padding: '0.55rem',
-    background: 'rgba(255,255,255,0.74)',
-    color: '#3f2d1d'
-  },
-  button: {
-    width: '100%',
-    borderRadius: 9999,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    padding: '0.6rem 0.75rem',
-    background: '#ffeed8',
-    color: '#4b2f17',
-    fontWeight: 700,
-    cursor: 'pointer'
-  }
 };

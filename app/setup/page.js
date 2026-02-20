@@ -2,10 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from '../providers/ThemeProvider';
+import Button from '../components/Button';
+import { Label, Input, Select } from '../components/form';
 import { DAY_NAMES } from '../../lib/constants';
+import { MAIN_PADDING_CENTERED, CONTENT_WIDTH_FORM } from '../../lib/layout';
 
 export default function SetupPage() {
   const router = useRouter();
+  const { theme } = useTheme();
   const [step, setStep] = useState(1);
   const [familyName, setFamilyName] = useState('');
   const [members, setMembers] = useState([]);
@@ -116,8 +121,15 @@ export default function SetupPage() {
   };
 
   return (
-    <main style={styles.main}>
-      <section style={styles.card}>
+    <main
+      style={{
+        ...styles.main,
+        backgroundColor: theme.pageBackground,
+        backgroundImage: theme.pageGradient || undefined,
+        color: theme.card.text
+      }}
+    >
+      <section style={{ ...styles.card, background: theme.hero.bg, border: `1px solid ${theme.hero.border}` }}>
         <div style={styles.header}>
           <h1 style={styles.title}>Family Planner Setup</h1>
           <div style={styles.progressBar}>
@@ -132,12 +144,12 @@ export default function SetupPage() {
             <h2>Welcome to Family Planner</h2>
             <p style={styles.description}>Let's start by setting up your family.</p>
 
-            <label style={styles.label}>Family Name</label>
-            <input
-              style={styles.input}
+            <Label>Family Name</Label>
+            <Input
               placeholder="The Smith Family"
               value={familyName}
               onChange={(e) => setFamilyName(e.target.value)}
+              style={styles.inputSpacing}
             />
             <p style={styles.hint}>This will be your family's name in the system.</p>
           </div>
@@ -150,24 +162,24 @@ export default function SetupPage() {
             <p style={styles.description}>Who's in your family? Add each member.</p>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Member Name</label>
-              <input
-                style={styles.input}
+              <Label>Member Name</Label>
+              <Input
                 placeholder="Alex"
                 value={currentMember.name}
                 onChange={(e) => setCurrentMember({ ...currentMember, name: e.target.value })}
+                style={styles.inputSpacing}
               />
 
-              <label style={styles.label}>Role</label>
-              <select
-                style={styles.input}
+              <Label>Role</Label>
+              <Select
                 value={currentMember.role}
                 onChange={(e) => setCurrentMember({ ...currentMember, role: e.target.value })}
+                style={styles.inputSpacing}
               >
                 <option>member</option>
                 <option>parent</option>
                 <option>kid</option>
-              </select>
+              </Select>
 
               <button onClick={addMember} style={styles.addButton}>
                 + Add Member
@@ -183,12 +195,9 @@ export default function SetupPage() {
                       <strong>{member.name}</strong>
                       <span style={styles.badge}>{member.role}</span>
                     </div>
-                    <button
-                      onClick={() => removeMember(member.id)}
-                      style={styles.removeButton}
-                    >
+                    <Button variant="danger" onClick={() => removeMember(member.id)}>
                       Remove
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -230,23 +239,24 @@ export default function SetupPage() {
         {/* Navigation Buttons */}
         <div style={styles.footer}>
           {step > 1 && (
-            <button onClick={handlePrevious} style={styles.secondaryButton}>
+            <Button variant="secondary" onClick={handlePrevious}>
               ← Previous
-            </button>
+            </Button>
           )}
           {step < 3 ? (
-            <button onClick={handleNext} style={styles.primaryButton}>
+            <Button variant="primary" onClick={handleNext}>
               Next →
-            </button>
+            </Button>
           ) : (
-            <button
+            <Button
+              variant="primary"
               type="button"
               onClick={handleComplete}
               disabled={loading}
-              style={{...styles.primaryButton, opacity: loading ? 0.6 : 1}}
+              style={{ opacity: loading ? 0.6 : 1 }}
             >
               {loading ? 'Setting up...' : 'Complete Setup'}
-            </button>
+            </Button>
           )}
         </div>
       </section>
@@ -257,21 +267,15 @@ export default function SetupPage() {
 const styles = {
   main: {
     minHeight: '100vh',
-    padding: '2rem 1.5rem',
-    backgroundColor: '#f4e3bf',
-    backgroundImage:
-      'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.22), transparent 45%)',
-    color: '#3f2d1d',
+    padding: MAIN_PADDING_CENTERED,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center'
   },
   card: {
-    maxWidth: 700,
+    maxWidth: CONTENT_WIDTH_FORM,
     width: '100%',
-    background: '#ffef7d',
     borderRadius: 12,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
     boxShadow: '0 14px 24px rgba(70, 45, 11, 0.2)',
     padding: '2rem'
   },
@@ -307,24 +311,6 @@ const styles = {
     color: '#5b4228',
     marginBottom: '1.5rem'
   },
-  label: {
-    fontSize: '0.8rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    marginBottom: '0.4rem',
-    display: 'block',
-    fontWeight: 700
-  },
-  input: {
-    width: '100%',
-    marginBottom: '0.8rem',
-    borderRadius: 6,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
-    padding: '0.7rem',
-    background: 'rgba(255,255,255,0.85)',
-    color: '#3f2d1d',
-    fontSize: '0.95rem'
-  },
   hint: {
     fontSize: '0.85rem',
     color: '#665533',
@@ -333,6 +319,9 @@ const styles = {
   },
   formGroup: {
     marginBottom: '1.5rem'
+  },
+  inputSpacing: {
+    marginBottom: '0.8rem'
   },
   addButton: {
     width: '100%',
@@ -370,16 +359,6 @@ const styles = {
     borderRadius: 4,
     marginLeft: '0.5rem'
   },
-  removeButton: {
-    padding: '0.4rem 0.8rem',
-    borderRadius: 4,
-    border: '1px solid rgba(186, 62, 62, 0.35)',
-    background: 'rgba(186, 62, 62, 0.12)',
-    color: '#8b1f1f',
-    cursor: 'pointer',
-    fontSize: '0.8rem',
-    fontWeight: 700
-  },
   scheduleGrid: {
     display: 'grid',
     gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
@@ -416,27 +395,5 @@ const styles = {
     display: 'flex',
     gap: '1rem',
     justifyContent: 'space-between'
-  },
-  primaryButton: {
-    flex: 1,
-    padding: '0.8rem',
-    borderRadius: 8,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    background: '#fff4cf',
-    color: '#4b2f17',
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontSize: '0.95rem'
-  },
-  secondaryButton: {
-    flex: 1,
-    padding: '0.8rem',
-    borderRadius: 8,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    background: 'rgba(255,255,255,0.6)',
-    color: '#4b2f17',
-    fontWeight: 700,
-    cursor: 'pointer',
-    fontSize: '0.95rem'
   }
 };

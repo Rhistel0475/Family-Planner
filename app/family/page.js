@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Modal from '../components/Modal';
+import Button from '../components/Button';
 import QuickAddButton from '../components/QuickAddButton';
 import { MemberCardSkeleton } from '../components/LoadingSkeleton';
 import { useSaveStatus, InlineSaveIndicator } from '../components/SaveIndicator';
 import { useToastQueue, ToastContainer } from '../components/EnhancedToast';
+import { useTheme } from '../providers/ThemeProvider';
 import {
   ABILITY_OPTIONS,
   DIETARY_OPTIONS,
@@ -14,6 +16,7 @@ import {
   CHORE_PREFERENCE_OPTIONS,
   AVAILABILITY_DAYS
 } from '../../lib/memberConstants';
+import { MAIN_PADDING_WITH_NAV, CONTENT_WIDTH_FORM } from '../../lib/layout';
 
 const PRESET_COLORS = [
   { name: 'Blue', value: '#3b82f6' },
@@ -150,6 +153,7 @@ export default function FamilyPage() {
   const [activeTab, setActiveTab] = useState('basic');
   const [formData, setFormData] = useState(buildDefaultFormData());
 
+  const { theme } = useTheme();
   const { status: saveStatus, save } = useSaveStatus();
   const { toasts, success, error, removeToast } = useToastQueue();
 
@@ -559,8 +563,15 @@ export default function FamilyPage() {
   );
 
   return (
-    <main style={s.main}>
-      <section style={s.hero}>
+    <main
+      style={{
+        ...s.main,
+        backgroundColor: theme.pageBackground,
+        backgroundImage: theme.pageGradient || undefined,
+        color: theme.card.text
+      }}
+    >
+      <section style={{ ...s.hero, background: theme.hero.bg, border: `1px solid ${theme.hero.border}` }}>
         <h1 style={s.title}>Family Members</h1>
         <p style={s.subtitle}>
           Build rich profiles so the AI can make smarter assignments for chores, meals, and schedules.
@@ -656,8 +667,8 @@ export default function FamilyPage() {
               </div>
 
               <div style={s.cardActions}>
-                <button onClick={() => openEditModal(member)} style={s.editBtn}>Edit Profile</button>
-                <button onClick={() => handleDelete(member)} style={s.deleteBtn}>Delete</button>
+                <Button variant="secondary" onClick={() => openEditModal(member)} style={{ flex: 1 }}>Edit Profile</Button>
+                <Button variant="danger" onClick={() => handleDelete(member)} style={{ flex: 1 }}>Delete</Button>
               </div>
             </article>
           ))}
@@ -697,10 +708,10 @@ export default function FamilyPage() {
             {activeTab === 'health' && renderHealthTab()}
           </div>
 
-          <button onClick={handleSubmit} style={s.submitBtn} type="button">
+          <Button variant="primary" onClick={handleSubmit} type="button" style={{ width: '100%', marginTop: '0.75rem' }}>
             {editingMember ? 'Update Member' : 'Add Member'}
             <InlineSaveIndicator status={saveStatus} />
-          </button>
+          </Button>
         </Modal>
       )}
 
@@ -712,21 +723,15 @@ export default function FamilyPage() {
 const s = {
   main: {
     minHeight: '100vh',
-    padding: '3rem 1.5rem 5rem 1.5rem',
-    backgroundColor: '#f4e3bf',
-    backgroundImage:
-      'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.22), transparent 45%)',
-    color: '#3f2d1d'
+    padding: MAIN_PADDING_WITH_NAV
   },
   hero: {
-    maxWidth: 780,
+    maxWidth: CONTENT_WIDTH_FORM,
     margin: '0 auto 2rem auto',
     textAlign: 'center',
-    background: '#ffef7d',
     padding: '1.5rem 1.25rem',
     borderRadius: 10,
     boxShadow: '0 14px 24px rgba(102, 68, 18, 0.2)',
-    border: '1px solid rgba(105, 67, 16, 0.18)',
     transform: 'rotate(-1deg)'
   },
   title: { margin: 0, fontSize: 'clamp(2rem, 7vw, 2.5rem)', letterSpacing: '0.01em' },
@@ -782,17 +787,6 @@ const s = {
   cardActions: {
     display: 'flex', borderTop: '1px solid rgba(98,73,24,0.2)',
     background: 'rgba(255,255,255,0.3)'
-  },
-  editBtn: {
-    flex: 1, padding: '0.75rem', border: 'none',
-    borderRight: '1px solid rgba(98,73,24,0.2)',
-    background: 'transparent', color: '#3f2d1d', fontWeight: 700,
-    cursor: 'pointer', fontSize: '0.9rem'
-  },
-  deleteBtn: {
-    flex: 1, padding: '0.75rem', border: 'none',
-    background: 'transparent', color: '#ba3e3e', fontWeight: 700,
-    cursor: 'pointer', fontSize: '0.9rem'
   },
 
   tabBar: {
@@ -869,13 +863,5 @@ const s = {
     padding: '0.4rem 0.7rem', borderRadius: 6, border: 'none',
     background: '#22c55e', color: '#fff', fontWeight: 700,
     cursor: 'pointer', fontSize: '1rem'
-  },
-
-  submitBtn: {
-    width: '100%', padding: '0.75rem', borderRadius: 8,
-    border: '1px solid rgba(98,73,24,0.32)',
-    background: '#c9f7a5', color: '#2b4d1f', fontWeight: 700,
-    cursor: 'pointer', fontSize: '0.95rem', marginTop: '0.75rem',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem'
   }
 };

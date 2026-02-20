@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useTheme } from '../providers/ThemeProvider';
 
 /**
  * ErrorBoundary - Catches JavaScript errors anywhere in child component tree
@@ -66,9 +67,23 @@ export class ErrorBoundary extends React.Component {
  * Default Error UI
  */
 function DefaultErrorUI({ error, onReset }) {
+  const { theme } = useTheme();
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
+    <div
+      style={{
+        ...styles.container,
+        background: theme.pageBackground,
+        backgroundImage: theme.pageGradient || undefined
+      }}
+    >
+      <div
+        style={{
+          ...styles.card,
+          background: theme.hero.bg,
+          border: `1px solid ${theme.hero.border}`,
+          color: theme.card.text
+        }}
+      >
         <div style={styles.icon}>😵</div>
         <h2 style={styles.title}>Oops! Something went wrong</h2>
         <p style={styles.message}>
@@ -111,19 +126,15 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '2rem',
-    background: '#f4e3bf',
-    backgroundImage: 'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%)'
+    padding: '2rem'
   },
   card: {
     maxWidth: '500px',
     width: '100%',
-    background: '#ffef7d',
     borderRadius: '12px',
     padding: '2.5rem',
     textAlign: 'center',
-    boxShadow: '0 20px 40px rgba(70, 45, 11, 0.2)',
-    border: '1px solid rgba(98, 73, 24, 0.2)'
+    boxShadow: '0 20px 40px rgba(70, 45, 11, 0.2)'
   },
   icon: {
     fontSize: '4rem',
@@ -132,7 +143,6 @@ const styles = {
   title: {
     fontSize: '1.75rem',
     fontWeight: 700,
-    color: '#3f2d1d',
     marginBottom: '0.75rem'
   },
   message: {

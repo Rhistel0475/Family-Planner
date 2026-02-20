@@ -1,6 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTheme } from '../providers/ThemeProvider';
+import Button from '../components/Button';
+import { Label, Input, Select } from '../components/form';
+import { MAIN_PADDING_WITH_NAV, CONTENT_WIDTH_FORM } from '../../lib/layout';
 
 const EVENT_PRESETS = [
   { value: 'DOCTOR', label: 'Doctor Appointment', icon: '🩺' },
@@ -40,6 +44,7 @@ function toLocalInputValue(date) {
 }
 
 export default function SchedulePage({ searchParams }) {
+  const { theme } = useTheme();
   const formRef = useRef(null);
 
   const [loading, setLoading] = useState(false);
@@ -222,8 +227,15 @@ export default function SchedulePage({ searchParams }) {
   }, [events]);
 
   return (
-    <main style={styles.main}>
-      <section style={styles.card}>
+    <main
+      style={{
+        ...styles.main,
+        backgroundColor: theme.pageBackground,
+        backgroundImage: theme.pageGradient || undefined,
+        color: theme.card.text
+      }}
+    >
+      <section style={{ ...styles.card, background: theme.card.bg[0], border: `1px solid ${theme.card.border}` }}>
         <div style={styles.headerRow}>
           <div>
             <h1 style={styles.title}>Schedule</h1>
@@ -231,12 +243,12 @@ export default function SchedulePage({ searchParams }) {
           </div>
 
           <div style={styles.headerActions}>
-            <button type="button" style={styles.smallButton} onClick={fetchEvents} disabled={listLoading}>
+            <Button type="button" variant="secondary" onClick={fetchEvents} disabled={listLoading}>
               {listLoading ? 'Refreshing…' : 'Refresh'}
-            </button>
-            <button type="button" style={styles.smallButtonPrimary} onClick={scrollToForm}>
+            </Button>
+            <Button type="button" variant="primary" onClick={scrollToForm}>
               + Add Event
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -275,9 +287,9 @@ export default function SchedulePage({ searchParams }) {
                   </div>
 
                   <div style={styles.itemActions}>
-                    <button type="button" style={styles.dangerButton} onClick={() => deleteEvent(evt)}>
+                    <Button type="button" variant="danger" onClick={() => deleteEvent(evt)}>
                       Delete
-                    </button>
+                    </Button>
                   </div>
                 </li>
               ))}
@@ -291,21 +303,21 @@ export default function SchedulePage({ searchParams }) {
         <h2 style={styles.formTitle}>Add Event</h2>
 
         <form onSubmit={handleSubmit}>
-          <label style={styles.label}>Preset</label>
-          <select style={styles.input} value={preset} onChange={(e) => setPreset(e.target.value)}>
+          <Label>Preset</Label>
+          <Select value={preset} onChange={(e) => setPreset(e.target.value)} style={styles.inputSpacing}>
             {EVENT_PRESETS.map((p) => (
               <option key={p.value} value={p.value}>
                 {p.icon} {p.label}
               </option>
             ))}
-          </select>
+          </Select>
 
-          <label style={styles.label}>Event Name</label>
-          <input
-            style={styles.input}
+          <Label>Event Name</Label>
+          <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Optional (ex: Noah - Dentist)"
+            style={styles.inputSpacing}
           />
           <small style={styles.helpText}>If you leave this blank, we’ll use the preset name.</small>
 
@@ -332,8 +344,8 @@ export default function SchedulePage({ searchParams }) {
 
           {dateMode === 'DAY' ? (
             <>
-              <label style={styles.label}>Day</label>
-              <select style={styles.input} value={day} onChange={(e) => setDay(e.target.value)}>
+              <Label>Day</Label>
+              <Select value={day} onChange={(e) => setDay(e.target.value)} style={styles.inputSpacing}>
                 <option>Monday</option>
                 <option>Tuesday</option>
                 <option>Wednesday</option>
@@ -341,29 +353,29 @@ export default function SchedulePage({ searchParams }) {
                 <option>Friday</option>
                 <option>Saturday</option>
                 <option>Sunday</option>
-              </select>
+              </Select>
             </>
           ) : (
             <>
-              <label style={styles.label}>Date</label>
-              <input style={styles.input} type="date" value={dateValue} onChange={(e) => setDateValue(e.target.value)} />
+              <Label>Date</Label>
+              <Input type="date" value={dateValue} onChange={(e) => setDateValue(e.target.value)} style={styles.inputSpacing} />
             </>
           )}
 
           <div style={styles.timeGrid}>
             <div>
-              <label style={styles.label}>Start</label>
-              <input style={styles.input} type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+              <Label>Start</Label>
+              <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} style={styles.inputSpacing} />
             </div>
             <div>
-              <label style={styles.label}>End</label>
-              <input style={styles.input} type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+              <Label>End</Label>
+              <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={styles.inputSpacing} />
             </div>
           </div>
 
-          <button type="submit" style={styles.button} disabled={loading}>
+          <Button type="submit" variant="primary" disabled={loading}>
             {loading ? 'Saving…' : 'Save Event'}
-          </button>
+          </Button>
         </form>
 
         <div style={styles.pastBox}>
@@ -395,18 +407,12 @@ export default function SchedulePage({ searchParams }) {
 const styles = {
   main: {
     minHeight: '100vh',
-    padding: '5rem 1.5rem 2rem 1.5rem',
-    backgroundColor: '#f4e3bf',
-    backgroundImage:
-      'radial-gradient(circle at 25% 20%, rgba(255,255,255,0.35), transparent 45%), radial-gradient(circle at 80% 10%, rgba(255,255,255,0.22), transparent 45%)',
-    color: '#3f2d1d'
+    padding: MAIN_PADDING_WITH_NAV
   },
   card: {
-    maxWidth: 840,
+    maxWidth: CONTENT_WIDTH_FORM,
     margin: '0 auto',
-    background: '#fff59d',
     borderRadius: 10,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
     boxShadow: '0 14px 24px rgba(70, 45, 11, 0.2)',
     padding: '1.2rem'
   },
@@ -485,70 +491,13 @@ const styles = {
 
   itemActions: { display: 'flex', gap: '0.5rem', flexShrink: 0 },
 
-  dangerButton: {
-    borderRadius: 9999,
-    border: '1px solid rgba(186, 62, 62, 0.45)',
-    padding: '0.35rem 0.7rem',
-    background: 'rgba(186, 62, 62, 0.12)',
-    color: '#8b1f1f',
-    fontWeight: 900,
-    cursor: 'pointer'
-  },
-
   formDivider: { height: 1, background: 'rgba(98, 73, 24, 0.2)', margin: '1rem 0' },
   formTitle: { margin: 0, marginBottom: '0.65rem' },
-
-  label: {
-    fontSize: '0.8rem',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-    marginBottom: '0.28rem',
-    display: 'block',
-    fontWeight: 700
-  },
-  input: {
-    width: '100%',
-    marginBottom: '0.8rem',
-    borderRadius: 6,
-    border: '1px solid rgba(98, 73, 24, 0.24)',
-    padding: '0.55rem',
-    background: 'rgba(255,255,255,0.74)',
-    color: '#3f2d1d'
-  },
+  inputSpacing: { marginBottom: '0.8rem' },
   helpText: { display: 'block', marginTop: '-0.5rem', marginBottom: '0.8rem', opacity: 0.85, fontWeight: 700 },
 
   modeRow: { display: 'flex', gap: '1rem', marginBottom: '0.8rem', flexWrap: 'wrap' },
   radioLabel: { display: 'flex', gap: '0.45rem', alignItems: 'center', fontWeight: 800 },
 
-  timeGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' },
-
-  button: {
-    width: '100%',
-    borderRadius: 9999,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    padding: '0.6rem 0.75rem',
-    background: '#fff4cf',
-    color: '#4b2f17',
-    fontWeight: 800,
-    cursor: 'pointer'
-  },
-
-  smallButton: {
-    borderRadius: 9999,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    padding: '0.45rem 0.7rem',
-    background: 'rgba(255,255,255,0.5)',
-    color: '#4b2f17',
-    fontWeight: 900,
-    cursor: 'pointer'
-  },
-  smallButtonPrimary: {
-    borderRadius: 9999,
-    border: '1px solid rgba(98, 73, 24, 0.32)',
-    padding: '0.45rem 0.7rem',
-    background: '#fff4cf',
-    color: '#4b2f17',
-    fontWeight: 900,
-    cursor: 'pointer'
-  }
+  timeGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.8rem' }
 };

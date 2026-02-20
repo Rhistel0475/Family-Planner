@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { getRotationAngle, getStatusString } from '../../lib/boardChores';
+import { useTheme } from '../providers/ThemeProvider';
+import Modal from '../components/Modal';
+import Button from '../components/Button';
+import { Label, Input, Select } from '../components/form';
 import styles from './chores.module.css';
 
 const FREQUENCY_OPTIONS = [
@@ -22,7 +26,10 @@ const DUE_DAY_OPTIONS = [
   { value: 'SAT', label: 'Saturday' }
 ];
 
+const formGroupStyle = { marginBottom: '1.25rem' };
+
 export default function ChoresPage() {
+  const { theme } = useTheme();
   const [settings, setSettings] = useState([]);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -290,100 +297,77 @@ export default function ChoresPage() {
       </div>
 
       {/* ADD CHORE MODAL */}
-      {showAddModal && (
-        <div
-          className={styles.modalOverlay}
-          role="presentation"
-          onClick={() => {
-            setShowAddModal(false);
-            setSetDueDayChecked(false);
-          }}
-        >
-          <div
-            className={styles.modal}
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={styles.modalHeader}>
-              <h2>Add a chore</h2>
-              <button
-                type="button"
-                className={styles.closeButton}
-                onClick={() => {
-                  setShowAddModal(false);
-                  setSetDueDayChecked(false);
-                }}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </div>
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          setSetDueDayChecked(false);
+        }}
+        title="Add a chore"
+        size="small"
+      >
+        <form onSubmit={handleAddChore}>
+          <div style={formGroupStyle}>
+            <Label>Chore Title</Label>
+            <Input name="title" placeholder="e.g., Take out trash" />
+          </div>
 
-            <form onSubmit={handleAddChore} className={styles.modalForm}>
-              <div className={styles.formGroup}>
-                <label>Chore Title</label>
-                <input name="title" placeholder="e.g., Take out trash" />
-              </div>
+          <div style={formGroupStyle}>
+            <Label>Assign To (optional)</Label>
+            <Select name="assignedTo" defaultValue="">
+              <option value="">No default assignee</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </Select>
+          </div>
 
-              <div className={styles.formGroup}>
-                <label>Assign To (optional)</label>
-                <select name="assignedTo" defaultValue="">
-                  <option value="">No default assignee</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
+          <div style={formGroupStyle}>
+            <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', color: theme.card.text, fontWeight: 600 }}>
+              <input
+                type="checkbox"
+                name="setDueDay"
+                checked={setDueDayChecked}
+                onChange={(e) => setSetDueDayChecked(e.target.checked)}
+              />
+              Set Due Day
+            </label>
+
+            {setDueDayChecked && (
+              <div style={{ marginTop: '0.75rem' }}>
+                <Label>Due Day</Label>
+                <Select name="dueDay" defaultValue="MON">
+                  {DUE_DAY_OPTIONS.map((d) => (
+                    <option key={d.value} value={d.value}>
+                      {d.label}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
-
-              <div className={styles.formGroup}>
-                <label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                  <input
-                    type="checkbox"
-                    name="setDueDay"
-                    checked={setDueDayChecked}
-                    onChange={(e) => setSetDueDayChecked(e.target.checked)}
-                  />
-                  Set Due Day
-                </label>
-
-                {setDueDayChecked && (
-                  <div style={{ marginTop: '0.75rem' }}>
-                    <label>Due Day</label>
-                    <select name="dueDay" defaultValue="MON">
-                      {DUE_DAY_OPTIONS.map((d) => (
-                        <option key={d.value} value={d.value}>
-                          {d.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={() => {
-                    setShowAddModal(false);
-                    setSetDueDayChecked(false);
-                  }}
-                  disabled={addLoading}
-                >
-                  Cancel
-                </button>
-
-                <button type="submit" className={styles.submitButton} disabled={addLoading}>
-                  {addLoading ? 'Adding…' : 'Add Chore'}
-                </button>
-              </div>
-            </form>
+            )}
           </div>
-        </div>
-      )}
+
+          <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', paddingTop: '1rem', borderTop: `1px solid ${theme.card.border}` }}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setShowAddModal(false);
+                setSetDueDayChecked(false);
+              }}
+              disabled={addLoading}
+              style={{ flex: 1 }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" disabled={addLoading} style={{ flex: 1 }}>
+              {addLoading ? 'Adding…' : 'Add Chore'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }
