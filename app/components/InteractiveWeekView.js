@@ -88,7 +88,9 @@ export default function InteractiveWeekView() {
     startTime: '09:00',
     endTime: '',
     location: '',
-    description: ''
+    description: '',
+    eventRepeats: 'NONE', // NONE, DAILY, WEEKLY, MONTHLY, YEARLY
+    eventRecurrenceEndDate: ''
   });
   const [activeItem, setActiveItem] = useState(null);
   const [editingChoreId, setEditingChoreId] = useState(null);
@@ -262,14 +264,17 @@ export default function InteractiveWeekView() {
     }
   };
 
-  const deleteEvent = async (eventId) => {
+  const deleteEvent = async (eventId, parentEventId) => {
     if (!confirm('Delete this event?')) return;
 
     try {
-      const res = await fetch(`/api/schedule?id=${eventId}`, { method: 'DELETE' });
+      // Use parentEventId if present (for occurrences), otherwise use eventId
+      const idToDelete = parentEventId || eventId;
+      const res = await fetch(`/api/schedule?id=${encodeURIComponent(idToDelete)}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
 
-      setEvents(events.filter((e) => e.id !== eventId));
+      // Filter by the occurrence id (or parent id) to remove from UI
+      setEvents(events.filter((e) => e.id !== eventId && e.id !== idToDelete));
       showToast('Event deleted');
     } catch (error) {
       showToast('Failed to delete event', 'error');
@@ -555,7 +560,13 @@ export default function InteractiveWeekView() {
         startsAt: startsAt.toISOString(),
         endsAt: endsAt ? endsAt.toISOString() : null,
         location: newItem.location?.trim() || null,
-        description: newItem.description?.trim() || null
+        description: newItem.description?.trim() || null,
+        isRecurring: newItem.eventRepeats !== 'NONE',
+        recurrencePattern: newItem.eventRepeats !== 'NONE' ? newItem.eventRepeats : null,
+        recurrenceInterval: newItem.eventRepeats !== 'NONE' ? 1 : null,
+        recurrenceEndDate: newItem.eventRepeats !== 'NONE' && newItem.eventRecurrenceEndDate
+          ? new Date(newItem.eventRecurrenceEndDate + 'T23:59:59').toISOString()
+          : null
       };
 
       const res = await fetch('/api/schedule', {
@@ -577,7 +588,9 @@ export default function InteractiveWeekView() {
         startTime: '09:00',
         endTime: '',
         location: '',
-        description: ''
+        description: '',
+        eventRepeats: 'NONE',
+        eventRecurrenceEndDate: ''
       }));
       fetchData();
     } catch (error) {
@@ -593,17 +606,25 @@ export default function InteractiveWeekView() {
     }
 
     try {
+      // Use parentEventId if present (for occurrences), otherwise use id
+      const eventId = editModal.parentEventId || editModal.id;
+
       const res = await fetch('/api/schedule', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: editModal.id,
+          id: eventId,
+          parentEventId: editModal.parentEventId || undefined,
           title: editModal.title,
           category: editModal.category ?? null,
           location: editModal.location ?? null,
           description: editModal.description ?? null,
           startsAt: editModal.startsAt ? new Date(editModal.startsAt).toISOString() : undefined,
-          endsAt: editModal.endsAt ? new Date(editModal.endsAt).toISOString() : null
+          endsAt: editModal.endsAt ? new Date(editModal.endsAt).toISOString() : null,
+          isRecurring: editModal.isRecurring ?? false,
+          recurrencePattern: editModal.recurrencePattern ?? null,
+          recurrenceInterval: editModal.recurrenceInterval ?? null,
+          recurrenceEndDate: editModal.recurrenceEndDate ? new Date(editModal.recurrenceEndDate).toISOString() : null
         })
       });
 
@@ -823,7 +844,7 @@ export default function InteractiveWeekView() {
                                   {titleContent}
                                 </span>
                                 <button
-                                  onClick={() => deleteEvent(work.id)}
+                                  onClick={() => deleteEvent(work.id, work.parentEventId)}
                                   style={styles.miniDeleteBtn}
                                 >
                                   ×
@@ -883,7 +904,7 @@ export default function InteractiveWeekView() {
                                   )}
                                 </div>
                                 <button
-                                  onClick={() => deleteEvent(event.id)}
+                                  onClick={() => deleteEvent(event.id, event.parentEventId)}
                                   style={styles.miniDeleteBtn}
                                 >
                                   ×
@@ -1263,6 +1284,32 @@ export default function InteractiveWeekView() {
                   value={newItem.description}
                   onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                 />
+
+                <label style={styles.modalLabel}>Repeats</label>
+                <select
+                  style={styles.modalInput}
+                  value={newItem.eventRepeats}
+                  onChange={(e) => setNewItem({ ...newItem, eventRepeats: e.target.value })}
+                >
+                  <option value="NONE">None (one-time)</option>
+                  <option value="DAILY">Daily</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="MONTHLY">Monthly</option>
+                  <option value="YEARLY">Yearly</option>
+                </select>
+
+                {newItem.eventRepeats !== 'NONE' && (
+                  <>
+                    <label style={styles.modalLabel}>Ends on (optional)</label>
+                    <input
+                      type="date"
+                      style={styles.modalInput}
+                      value={newItem.eventRecurrenceEndDate}
+                      onChange={(e) => setNewItem({ ...newItem, eventRecurrenceEndDate: e.target.value })}
+                      placeholder="Leave blank for no end date"
+                    />
+                  </>
+                )}
               </>
             )}
 
@@ -1365,12 +1412,46 @@ value={editModal.category || EVENT_CATEGORIES[0].value}
               onChange={(e) => setEditModal({ ...editModal, description: e.target.value })}
             />
 
+            <label style={styles.modalLabel}>Repeats</label>
+            <select
+              style={styles.modalInput}
+              value={editModal.isRecurring ? (editModal.recurrencePattern || 'WEEKLY') : 'NONE'}
+              onChange={(e) => {
+                const pattern = e.target.value;
+                setEditModal({
+                  ...editModal,
+                  isRecurring: pattern !== 'NONE',
+                  recurrencePattern: pattern !== 'NONE' ? pattern : null,
+                  recurrenceInterval: pattern !== 'NONE' ? (editModal.recurrenceInterval || 1) : null
+                });
+              }}
+            >
+              <option value="NONE">None (one-time)</option>
+              <option value="DAILY">Daily</option>
+              <option value="WEEKLY">Weekly</option>
+              <option value="MONTHLY">Monthly</option>
+              <option value="YEARLY">Yearly</option>
+            </select>
+
+            {editModal.isRecurring && (
+              <>
+                <label style={styles.modalLabel}>Ends on (optional)</label>
+                <input
+                  type="date"
+                  style={styles.modalInput}
+                  value={editModal.recurrenceEndDate ? new Date(editModal.recurrenceEndDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) => setEditModal({ ...editModal, recurrenceEndDate: e.target.value ? new Date(e.target.value + 'T23:59:59').toISOString() : null })}
+                  placeholder="Leave blank for no end date"
+                />
+              </>
+            )}
+
             <button onClick={handleEventEdit} style={styles.modalButton}>
               Update Event
             </button>
 
             <button
-              onClick={() => deleteEvent(editModal.id)}
+              onClick={() => deleteEvent(editModal.id, editModal.parentEventId)}
               style={{ ...styles.modalButton, background: 'rgba(186, 62, 62, 0.14)', color: '#8b1f1f', border: '1px solid rgba(186, 62, 62, 0.55)' }}
             >
               Delete Event

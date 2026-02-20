@@ -71,6 +71,8 @@ export default function SchedulePage({ searchParams }) {
   });
   const [location, setLocation] = useState('');
   const [description, setDescription] = useState('');
+  const [repeats, setRepeats] = useState('NONE'); // NONE, DAILY, WEEKLY, MONTHLY, YEARLY
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
   const initialToast = useMemo(() => {
     const saved = searchParams?.saved === '1';
@@ -175,7 +177,11 @@ export default function SchedulePage({ searchParams }) {
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
         location: location.trim() || null,
-        description: description.trim() || null
+        description: description.trim() || null,
+        isRecurring: repeats !== 'NONE',
+        recurrencePattern: repeats !== 'NONE' ? repeats : null,
+        recurrenceInterval: repeats !== 'NONE' ? 1 : null,
+        recurrenceEndDate: repeats !== 'NONE' && recurrenceEndDate ? new Date(recurrenceEndDate + 'T23:59:59').toISOString() : null
       };
 
       const res = await fetch('/api/schedule', {
@@ -191,6 +197,8 @@ export default function SchedulePage({ searchParams }) {
       setPreset('general');
       setLocation('');
       setDescription('');
+      setRepeats('NONE');
+      setRecurrenceEndDate('');
 
       await fetchEvents();
     } catch (err) {
@@ -389,6 +397,29 @@ export default function SchedulePage({ searchParams }) {
             placeholder="Any extra details..."
             style={{ ...styles.input, minHeight: 70, resize: 'vertical' }}
           />
+
+          <Label>Repeats</Label>
+          <Select value={repeats} onChange={(e) => setRepeats(e.target.value)} style={styles.inputSpacing}>
+            <option value="NONE">None (one-time)</option>
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly</option>
+            <option value="MONTHLY">Monthly</option>
+            <option value="YEARLY">Yearly</option>
+          </Select>
+
+          {repeats !== 'NONE' && (
+            <>
+              <Label>Ends on (optional)</Label>
+              <Input
+                type="date"
+                value={recurrenceEndDate}
+                onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                placeholder="Leave blank for no end date"
+                style={styles.inputSpacing}
+              />
+              <small style={styles.helpText}>Leave blank if this event repeats indefinitely.</small>
+            </>
+          )}
 
           <Button type="submit" variant="primary" disabled={loading}>
             {loading ? 'Saving…' : 'Save Event'}
