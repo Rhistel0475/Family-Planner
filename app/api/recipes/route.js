@@ -3,13 +3,17 @@ import { prisma } from '../../../lib/prisma';
 import { getOrCreateDefaultFamily } from '../../../lib/defaultFamily';
 
 // Recipe Library: single source for listing/CRUD. When Concierge Meal Planning is added,
-// that route should fetch recipes (e.g. prisma.recipe.findMany by familyId) and pass
-// as existingRecipes to generateMealPlan(familyMembers, existingRecipes, daysToFill) in lib/ai.js.
+// that route should fetch recipes with pickedForWeek === true; if none, fall back to all
+// family recipes, then pass as existingRecipes to generateMealPlan(...) in lib/ai.js.
 
-export async function GET() {
+export async function GET(request) {
   const family = await getOrCreateDefaultFamily();
+  const { searchParams } = new URL(request.url);
+  const pickedForWeekOnly = searchParams.get('pickedForWeek') === 'true';
+  const where = { familyId: family.id };
+  if (pickedForWeekOnly) where.pickedForWeek = true;
   const recipes = await prisma.recipe.findMany({
-    where: { familyId: family.id },
+    where,
     orderBy: [{ cookDay: 'asc' }, { createdAt: 'desc' }]
   });
   return NextResponse.json(recipes);
@@ -67,6 +71,7 @@ export async function PATCH(request) {
   if (body.instructions !== undefined) updates.instructions = String(body.instructions).trim() || null;
   if (body.sourceUrl !== undefined) updates.sourceUrl = String(body.sourceUrl).trim() || null;
   if (body.cookDay !== undefined) updates.cookDay = String(body.cookDay).trim();
+  if (body.pickedForWeek !== undefined) updates.pickedForWeek = Boolean(body.pickedForWeek);
   if (Object.keys(updates).length === 0) {
     return NextResponse.json(existing);
   }

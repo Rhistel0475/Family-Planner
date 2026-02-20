@@ -28,6 +28,7 @@ export default function RecipesPage() {
   const [recipes, setRecipes] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
+  const [pickingId, setPickingId] = useState(null);
 
   function refetchRecipes() {
     return fetch('/api/recipes')
@@ -164,6 +165,21 @@ export default function RecipesPage() {
     }
   }
 
+  async function handleSetPickedForWeek(recipeId, pickedForWeek) {
+    if (pickingId) return;
+    setPickingId(recipeId);
+    try {
+      const res = await fetch('/api/recipes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: recipeId, pickedForWeek })
+      });
+      if (res.ok) await refetchRecipes();
+    } finally {
+      setPickingId(null);
+    }
+  }
+
   const themeInput = theme?.input || {};
   const inputBorder = themeInput.border || theme?.card?.border;
 
@@ -293,6 +309,80 @@ export default function RecipesPage() {
         </form>
       </section>
 
+      {/* This week's recipes */}
+      {recipes.some((r) => r.pickedForWeek) && (
+        <section
+          style={{
+            ...styles.card,
+            marginTop: '1.5rem',
+            background: theme.card?.bg?.[0],
+            border: `1px solid ${theme.card?.border}`
+          }}
+        >
+          <h2 style={styles.listTitle}>This week&apos;s recipes</h2>
+          <p style={styles.hint}>Meal planning will use only these when you run it. Add or remove from the list below.</p>
+          <ul style={styles.list}>
+            {recipes.filter((r) => r.pickedForWeek).map((r) => (
+              <li key={r.id} style={styles.listItem}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <strong>{r.name}</strong>
+                  <span style={styles.cookDay}> — {r.cookDay}</span>
+                  {r.instructions && (
+                    <p style={styles.instructionsPreview}>{r.instructions.slice(0, 80)}{r.instructions.length > 80 ? '…' : ''}</p>
+                  )}
+                </div>
+                <div style={styles.recipeActions}>
+                  {r.sourceUrl && (
+                    <a
+                      href={r.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={styles.sourceLink}
+                    >
+                      Source
+                    </a>
+                  )}
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={() => handleSetPickedForWeek(r.id, false)}
+                    disabled={pickingId === r.id}
+                  >
+                    {pickingId === r.id ? '…' : 'Remove from week'}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={() => loadRecipeIntoForm(r, false)}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={() => loadRecipeIntoForm(r, true)}
+                  >
+                    Use for another day
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={() => handleDelete(r.id)}
+                    disabled={deletingId === r.id}
+                  >
+                    {deletingId === r.id ? 'Deleting…' : 'Delete'}
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {/* Saved recipes list */}
       {recipes.length > 0 && (
         <section
@@ -309,12 +399,36 @@ export default function RecipesPage() {
               <li key={r.id} style={styles.listItem}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <strong>{r.name}</strong>
+                  {r.pickedForWeek && (
+                    <span style={styles.weekBadge}> In this week</span>
+                  )}
                   <span style={styles.cookDay}> — {r.cookDay}</span>
                   {r.instructions && (
                     <p style={styles.instructionsPreview}>{r.instructions.slice(0, 80)}{r.instructions.length > 80 ? '…' : ''}</p>
                   )}
                 </div>
                 <div style={styles.recipeActions}>
+                  {r.pickedForWeek ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="small"
+                      onClick={() => handleSetPickedForWeek(r.id, false)}
+                      disabled={pickingId === r.id}
+                    >
+                      {pickingId === r.id ? '…' : 'Remove from week'}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="small"
+                      onClick={() => handleSetPickedForWeek(r.id, true)}
+                      disabled={pickingId === r.id}
+                    >
+                      {pickingId === r.id ? '…' : 'Add to this week'}
+                    </Button>
+                  )}
                   {r.sourceUrl && (
                     <a
                       href={r.sourceUrl}
@@ -433,6 +547,12 @@ const styles = {
   cookDay: {
     fontWeight: 400,
     opacity: 0.85
+  },
+  weekBadge: {
+    fontSize: '0.8rem',
+    fontWeight: 600,
+    opacity: 0.9,
+    marginLeft: '0.35rem'
   },
   instructionsPreview: {
     margin: '0.35rem 0 0 0',
