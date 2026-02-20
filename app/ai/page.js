@@ -3,6 +3,17 @@
 import { useState, useEffect } from 'react';
 import HamburgerMenu from '../components/HamburgerMenu';
 import Button from '../components/Button';
+import {
+  AIAssistantAvatar,
+  ChoresAvatar,
+  MealsAvatar,
+  CalendarAvatar,
+  SuccessAvatar,
+  WarningAvatar,
+  InfoAvatar,
+  EmptyStateAvatar,
+  PersonAvatar
+} from '../components/ConciergeAvatars';
 import { useTheme } from '../providers/ThemeProvider';
 import { MAIN_PADDING_WITH_NAV, CONTENT_WIDTH_FORM } from '../../lib/layout';
 
@@ -191,8 +202,8 @@ export default function AIAssistantPage() {
               pointerEvents: 'none'
             }}
           />
-          <span style={{ fontSize: '1.5rem', zIndex: 1 }}>
-            {messageType === 'success' ? '✅' : messageType === 'error' ? '⚠️' : 'ℹ️'}
+          <span style={{ fontSize: '1.5rem', zIndex: 1, display: 'flex', alignItems: 'center' }}>
+            {messageType === 'success' ? <SuccessAvatar size={28} /> : messageType === 'error' ? <WarningAvatar size={28} /> : <InfoAvatar size={28} />}
           </span>
           <span style={{ flex: 1, zIndex: 1, lineHeight: 1.5 }}>{message}</span>
           <button
@@ -260,14 +271,13 @@ export default function AIAssistantPage() {
         />
         <div
           style={{
-            fontSize: '4.5rem',
             marginBottom: '1rem',
             filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))',
             position: 'relative',
             zIndex: 1
           }}
         >
-          🤖
+          <AIAssistantAvatar size={72} fill={cardText} accent={buttonPrimary} />
         </div>
         <h1
           style={{
@@ -354,7 +364,7 @@ export default function AIAssistantPage() {
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1.25rem' }}>🤖</span>
+            <ChoresAvatar size={28} fill={cardText} accent={buttonPrimary} />
             <span>Smart Chore Assignments</span>
           </span>
         </button>
@@ -394,7 +404,7 @@ export default function AIAssistantPage() {
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1.25rem' }}>🍽️</span>
+            <MealsAvatar size={28} fill={cardText} accent={buttonPrimary} />
             <span>Meal Planning</span>
           </span>
         </button>
@@ -439,7 +449,7 @@ export default function AIAssistantPage() {
               }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', position: 'relative', zIndex: 1 }}>
-              <span style={{ fontSize: '2rem', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>✨</span>
+              <ChoresAvatar size={40} fill={cardText} accent={buttonPrimary} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }} />
               <h2
                 style={{
                   fontSize: '1.5rem',
@@ -468,11 +478,14 @@ export default function AIAssistantPage() {
                 color: cardText,
                 boxShadow: shadowSmall,
                 position: 'relative',
-                zIndex: 1
+                zIndex: 1,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem'
               }}
             >
-              <span style={{ fontSize: '1.25rem', marginRight: '0.75rem' }}>💡</span>
-              AI will analyze your family and suggest fair chore assignments based on roles and balance.
+              <InfoAvatar size={28} fill={cardText} accent={toastInfo.border} style={{ flexShrink: 0 }} />
+              <span>AI will analyze your family and suggest fair chore assignments based on roles and balance.</span>
             </div>
 
             <div style={{ position: 'relative', zIndex: 1 }}>
@@ -518,7 +531,7 @@ export default function AIAssistantPage() {
                   </span>
                 ) : (
                   <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '1.125rem' }}>✨</span>
+                    <ChoresAvatar size={28} fill={buttonPrimaryText} accent={buttonPrimary} />
                     Generate Chore Assignments
                   </span>
                 )}
@@ -565,12 +578,13 @@ export default function AIAssistantPage() {
                 >
                   <div
                     style={{
-                      fontSize: '4rem',
                       marginBottom: '1.5rem',
-                      filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))'
+                      filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))',
+                      display: 'flex',
+                      justifyContent: 'center'
                     }}
                   >
-                    🎯
+                    <EmptyStateAvatar size={64} fill={cardText} accent={buttonPrimary} />
                   </div>
                   <h3
                     style={{
@@ -704,7 +718,7 @@ export default function AIAssistantPage() {
                             }}
                           />
                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '1rem', marginBottom: '1rem', paddingLeft: '1rem' }}>
-                            <span style={{ fontSize: '1.5rem', flexShrink: 0, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>📋</span>
+                            <ChoresAvatar size={36} fill={cardText} accent={buttonPrimary} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }} />
                             <div style={{ flex: 1 }}>
                               <h4
                                 style={{
@@ -736,7 +750,7 @@ export default function AIAssistantPage() {
                                   border: '1px solid rgba(255, 255, 255, 0.5)'
                                 }}
                               >
-                                <span style={{ fontSize: '1.125rem' }}>👤</span>
+                                <PersonAvatar size={22} fill={cardText} />
                                 <span>Suggested for: <strong>{suggestion.suggestedAssignee}</strong></span>
                               </div>
                             </div>
@@ -835,7 +849,7 @@ export default function AIAssistantPage() {
               }}
             />
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem', position: 'relative', zIndex: 1 }}>
-              <span style={{ fontSize: '2rem', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }}>📅</span>
+              <CalendarAvatar size={40} fill={cardText} accent={buttonPrimary} style={{ filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))' }} />
               <h2
                 style={{
                   fontSize: '1.5rem',
@@ -864,11 +878,14 @@ export default function AIAssistantPage() {
                 color: cardText,
                 boxShadow: shadowSmall,
                 position: 'relative',
-                zIndex: 1
+                zIndex: 1,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.75rem'
               }}
             >
-              <span style={{ fontSize: '1.25rem', marginRight: '0.75rem' }}>💡</span>
-              Generate a full week of chores based on your board settings. Each chore with "days per week" configured will be created and assigned automatically.
+              <InfoAvatar size={28} fill={cardText} accent={toastInfo.border} style={{ flexShrink: 0 }} />
+              <span>Generate a full week of chores based on your board settings. Each chore with "days per week" configured will be created and assigned automatically.</span>
             </div>
 
             <div style={{ position: 'relative', zIndex: 1 }}>
@@ -916,7 +933,7 @@ export default function AIAssistantPage() {
                   </span>
                 ) : (
                   <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '1.125rem' }}>📅</span>
+                    <CalendarAvatar size={28} fill={buttonPrimaryText} accent={buttonPrimary} />
                     Generate Weekly Chores
                   </span>
                 )}
@@ -984,7 +1001,7 @@ export default function AIAssistantPage() {
                             boxShadow: shadowSmall
                           }}
                         >
-                          <span style={{ fontSize: '1.125rem' }}>👤</span>
+                          <PersonAvatar size={22} fill={cardText} />
                           <span>Assigned to: <strong>{a.suggestedAssignee}</strong></span>
                         </div>
                         {a.reasoning && (
@@ -1023,12 +1040,13 @@ export default function AIAssistantPage() {
                 >
                   <div
                     style={{
-                      fontSize: '3.5rem',
                       marginBottom: '1.25rem',
-                      filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))'
+                      filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))',
+                      display: 'flex',
+                      justifyContent: 'center'
                     }}
                   >
-                    📋
+                    <CalendarAvatar size={56} fill={cardText} accent={buttonPrimary} />
                   </div>
                   <p
                     style={{
@@ -1080,14 +1098,15 @@ export default function AIAssistantPage() {
           />
           <div
             style={{
-              fontSize: '5rem',
               marginBottom: '1.5rem',
               filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.1))',
               position: 'relative',
-              zIndex: 1
+              zIndex: 1,
+              display: 'flex',
+              justifyContent: 'center'
             }}
           >
-            🍽️
+            <MealsAvatar size={80} fill={cardText} accent={theme.card?.bg?.[1] || '#ffd9a8'} />
           </div>
           <h2
             style={{
