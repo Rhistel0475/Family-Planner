@@ -258,7 +258,7 @@ export default function SchedulePage({ searchParams }) {
           </p>
         )}
 
-        <div style={styles.listBox}>
+        <div style={{ ...styles.listBox, background: theme.controls?.bg ?? styles.listBox.background, border: `1px solid ${theme.card?.border ?? 'rgba(98, 73, 24, 0.22)'}` }}>
           <div style={styles.listHeader}>
             <h2 style={styles.listTitle}>Upcoming</h2>
             <span style={styles.listMeta}>{upcoming.upcoming.length} item(s)</span>
@@ -271,7 +271,7 @@ export default function SchedulePage({ searchParams }) {
           ) : (
             <ul style={styles.list}>
               {upcoming.upcoming.map((evt) => (
-                <li key={evt.id} style={styles.listItem}>
+                <li key={evt.id} style={{ ...styles.listItem, background: theme.card?.bg?.[1] ?? theme.controls?.bg ?? styles.listItem.background, border: `1px solid ${theme.card?.border ?? 'rgba(98, 73, 24, 0.18)'}` }}>
                   <div style={styles.itemMain}>
                     <div style={styles.itemTopRow}>
                       <strong style={styles.itemTitle}>{evt.title}</strong>
@@ -298,7 +298,7 @@ export default function SchedulePage({ searchParams }) {
         </div>
 
         <div ref={formRef} />
-        <div style={styles.formDivider} />
+        <div style={{ ...styles.formDivider, background: theme.card?.border ?? styles.formDivider.background }} />
 
         <h2 style={styles.formTitle}>Add Event</h2>
 
@@ -378,7 +378,7 @@ export default function SchedulePage({ searchParams }) {
           </Button>
         </form>
 
-        <div style={styles.pastBox}>
+        <div style={{ ...styles.pastBox, background: theme.controls?.bg ?? styles.pastBox.background, border: `1px solid ${theme.card?.border ?? 'rgba(98, 73, 24, 0.14)'}` }}>
           <div style={styles.listHeader}>
             <h2 style={styles.listTitle}>Recent Past</h2>
             <span style={styles.listMeta}>{upcoming.past.length} item(s)</span>
@@ -389,7 +389,7 @@ export default function SchedulePage({ searchParams }) {
           ) : (
             <ul style={styles.list}>
               {upcoming.past.map((evt) => (
-                <li key={evt.id} style={styles.listItemCompact}>
+                <li key={evt.id} style={{ ...styles.listItemCompact, background: theme.card?.bg?.[2] ?? theme.controls?.bg ?? styles.listItemCompact.background, border: `1px solid ${theme.card?.border ?? 'rgba(98, 73, 24, 0.14)'}` }}>
                   <span>
                     <strong>{evt.title}</strong> — {fmtDateTime(evt.startsAt)}
                     {evt.endsAt ? ` → ${fmtDateTime(evt.endsAt)}` : ''}

@@ -34,12 +34,12 @@ export default function HamburgerMenu() {
         type="button"
         aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
         aria-expanded={open}
-        style={{ ...styles.button, background: theme?.card?.bg?.[0] ?? '#fff59d', border: `1px solid ${theme?.card?.border ?? 'rgba(98, 73, 24, 0.2)'}` }}
+        style={{ ...styles.button, background: theme?.nav?.bg ?? '#ffe77a', border: `1px solid ${theme?.nav?.border ?? 'rgba(98, 73, 24, 0.2)'}` }}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span style={{ ...styles.line, background: theme?.card?.text ?? '#3f2d1d' }} />
-        <span style={{ ...styles.line, background: theme?.card?.text ?? '#3f2d1d' }} />
-        <span style={{ ...styles.line, background: theme?.card?.text ?? '#3f2d1d' }} />
+        <span style={{ ...styles.line, background: theme?.nav?.text ?? '#3f2d1d' }} />
+        <span style={{ ...styles.line, background: theme?.nav?.text ?? '#3f2d1d' }} />
+        <span style={{ ...styles.line, background: theme?.nav?.text ?? '#3f2d1d' }} />
       </button>
 
       {open && (

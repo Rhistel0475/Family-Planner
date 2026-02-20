@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Modal from '../components/Modal';
 import Button from '../components/Button';
 import QuickAddButton from '../components/QuickAddButton';
@@ -158,6 +158,7 @@ export default function FamilyPage() {
   const [formData, setFormData] = useState(buildDefaultFormData());
 
   const { theme } = useTheme();
+  const s = useMemo(() => getStyles(theme), [theme]);
   const { status: saveStatus, save } = useSaveStatus();
   const { toasts, success, error, removeToast } = useToastQueue();
 
@@ -704,9 +705,7 @@ export default function FamilyPage() {
                 onClick={() => setActiveTab(tab.id)}
                 style={{
                   ...s.tabBtn,
-                  background: activeTab === tab.id ? '#fff59d' : 'rgba(255,255,255,0.4)',
-                  fontWeight: activeTab === tab.id ? 700 : 400,
-                  borderBottom: activeTab === tab.id ? '3px solid #eab308' : '3px solid transparent'
+                  ...(activeTab === tab.id ? s.tabBtnActive : s.tabBtnInactive)
                 }}
               >
                 {tab.label}
@@ -734,150 +733,173 @@ export default function FamilyPage() {
   );
 }
 
-const s = {
-  main: {
-    minHeight: '100vh',
-    padding: MAIN_PADDING_WITH_NAV
-  },
-  hero: {
-    maxWidth: CONTENT_WIDTH_FORM,
-    margin: '0 auto 2rem auto',
-    textAlign: 'center',
-    padding: '1.5rem 1.25rem',
-    borderRadius: 10,
-    boxShadow: '0 14px 24px rgba(102, 68, 18, 0.2)',
-    transform: 'rotate(-1deg)'
-  },
-  title: { margin: 0, fontSize: 'clamp(2rem, 7vw, 2.5rem)', letterSpacing: '0.01em' },
-  subtitle: { marginTop: '0.75rem', lineHeight: 1.5, maxWidth: 620, marginInline: 'auto' },
-  addButtonContainer: { marginTop: '1.5rem', display: 'flex', justifyContent: 'center' },
-  emptyState: {
-    maxWidth: 500, margin: '3rem auto', textAlign: 'center',
-    padding: '3rem 2rem', background: 'rgba(255,255,255,0.6)',
-    borderRadius: 12, border: '2px dashed rgba(98,73,24,0.3)'
-  },
-  emptyIcon: { fontSize: '4rem', margin: '0 0 1rem 0' },
-  emptyText: { fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0' },
-  emptySubtext: { fontSize: '1rem', opacity: 0.8, margin: 0 },
+function getStyles(theme) {
+  const cardBg = theme?.card?.bg?.[0] ?? '#fff59d';
+  const cardText = theme?.card?.text ?? '#3f2d1d';
+  const cardBorder = theme?.card?.border ?? 'rgba(98,73,24,0.2)';
+  const cardShadow = theme?.card?.shadow ?? 'rgba(70,45,11,0.2)';
+  const inputBg = theme?.input?.bg ?? 'rgba(255,255,255,0.9)';
+  const inputText = theme?.input?.text ?? '#3f2d1d';
+  const inputBorder = theme?.input?.border ?? 'rgba(98,73,24,0.24)';
+  const controlsBg = theme?.controls?.bg ?? 'rgba(255,255,255,0.6)';
+  const navHover = theme?.nav?.hover ?? 'rgba(255,245,157,0.5)';
+  const buttonPrimary = theme?.button?.primary ?? '#22c55e';
+  const buttonPrimaryText = theme?.button?.primaryText ?? '#fff';
+  return {
+    main: {
+      minHeight: '100vh',
+      padding: MAIN_PADDING_WITH_NAV
+    },
+    hero: {
+      maxWidth: CONTENT_WIDTH_FORM,
+      margin: '0 auto 2rem auto',
+      textAlign: 'center',
+      padding: '1.5rem 1.25rem',
+      borderRadius: 10,
+      boxShadow: `0 14px 24px ${cardShadow}`,
+      transform: 'rotate(-1deg)'
+    },
+    title: { margin: 0, fontSize: 'clamp(2rem, 7vw, 2.5rem)', letterSpacing: '0.01em' },
+    subtitle: { marginTop: '0.75rem', lineHeight: 1.5, maxWidth: 620, marginInline: 'auto' },
+    addButtonContainer: { marginTop: '1.5rem', display: 'flex', justifyContent: 'center' },
+    emptyState: {
+      maxWidth: 500, margin: '3rem auto', textAlign: 'center',
+      padding: '3rem 2rem', background: controlsBg,
+      borderRadius: 12, border: `2px dashed ${cardBorder}`
+    },
+    emptyIcon: { fontSize: '4rem', margin: '0 0 1rem 0' },
+    emptyText: { fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem 0' },
+    emptySubtext: { fontSize: '1rem', opacity: 0.8, margin: 0 },
 
-  grid: {
-    maxWidth: 980, margin: '0 auto',
-    display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem'
-  },
-  card: {
-    background: '#fff59d', borderRadius: 10,
-    border: '1px solid rgba(98,73,24,0.2)',
-    boxShadow: '0 10px 20px rgba(70,45,11,0.2)', overflow: 'hidden'
-  },
-  cardHeader: {
-    padding: '1.5rem', display: 'flex', justifyContent: 'center',
-    background: 'rgba(255,255,255,0.4)'
-  },
-  avatar: {
-    width: 80, height: 80, borderRadius: '50%',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '2.5rem', border: '3px solid rgba(255,255,255,0.8)',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-  },
-  cardBody: { padding: '1rem 1.25rem', textAlign: 'center' },
-  memberName: { margin: '0 0 0.4rem 0', fontSize: '1.4rem' },
+    grid: {
+      maxWidth: 980, margin: '0 auto',
+      display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.5rem'
+    },
+    card: {
+      background: cardBg, borderRadius: 10,
+      border: `1px solid ${cardBorder}`,
+      boxShadow: `0 10px 20px ${cardShadow}`, overflow: 'hidden'
+    },
+    cardHeader: {
+      padding: '1.5rem', display: 'flex', justifyContent: 'center',
+      background: controlsBg
+    },
+    avatar: {
+      width: 80, height: 80, borderRadius: '50%',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: '2.5rem', border: `3px solid ${cardBorder}`,
+      boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+    },
+    cardBody: { padding: '1rem 1.25rem', textAlign: 'center' },
+    memberName: { margin: '0 0 0.4rem 0', fontSize: '1.4rem' },
 
-  badgeRow: { display: 'flex', gap: '0.35rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '0.75rem' },
-  badge: {
-    fontSize: '0.72rem', fontWeight: 600,
-    padding: '0.2rem 0.55rem', borderRadius: 9999,
-    background: 'rgba(59,130,246,0.12)', color: '#3f2d1d'
-  },
+    badgeRow: { display: 'flex', gap: '0.35rem', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '0.75rem' },
+    badge: {
+      fontSize: '0.72rem', fontWeight: 600,
+      padding: '0.2rem 0.55rem', borderRadius: 9999,
+      background: 'rgba(59,130,246,0.12)', color: cardText
+    },
 
-  infoGrid: { display: 'grid', gap: '0.4rem', textAlign: 'left' },
-  infoItem: {
-    display: 'flex', alignItems: 'center', gap: '0.4rem',
-    fontSize: '0.82rem', padding: '0.3rem 0.5rem',
-    background: 'rgba(255,255,255,0.5)', borderRadius: 6
-  },
-  infoIcon: { fontSize: '0.85rem', flexShrink: 0 },
-  infoText: { flex: 1, lineHeight: 1.3 },
+    infoGrid: { display: 'grid', gap: '0.4rem', textAlign: 'left' },
+    infoItem: {
+      display: 'flex', alignItems: 'center', gap: '0.4rem',
+      fontSize: '0.82rem', padding: '0.3rem 0.5rem',
+      background: controlsBg, borderRadius: 6
+    },
+    infoIcon: { fontSize: '0.85rem', flexShrink: 0 },
+    infoText: { flex: 1, lineHeight: 1.3 },
 
-  cardActions: {
-    display: 'flex', borderTop: '1px solid rgba(98,73,24,0.2)',
-    background: 'rgba(255,255,255,0.3)'
-  },
+    cardActions: {
+      display: 'flex', borderTop: `1px solid ${cardBorder}`,
+      background: navHover
+    },
 
-  tabBar: {
-    display: 'flex', gap: '0.25rem', overflowX: 'auto',
-    borderBottom: '1px solid rgba(98,73,24,0.15)',
-    marginBottom: '0.75rem', paddingBottom: 0
-  },
-  tabBtn: {
-    padding: '0.5rem 0.75rem', border: 'none', cursor: 'pointer',
-    fontSize: '0.8rem', borderRadius: '6px 6px 0 0',
-    color: '#3f2d1d', whiteSpace: 'nowrap', transition: 'all 0.15s ease'
-  },
-  tabBody: {
-    maxHeight: '55vh', overflowY: 'auto', padding: '0.25rem 0.25rem 0.5rem'
-  },
-  tabContent: { display: 'grid', gap: '0.5rem' },
+    tabBar: {
+      display: 'flex', gap: '0.25rem', overflowX: 'auto',
+      borderBottom: `1px solid ${cardBorder}`,
+      marginBottom: '0.75rem', paddingBottom: 0
+    },
+    tabBtn: {
+      padding: '0.5rem 0.75rem', border: 'none', cursor: 'pointer',
+      fontSize: '0.8rem', borderRadius: '6px 6px 0 0',
+      color: cardText, whiteSpace: 'nowrap', transition: 'all 0.15s ease'
+    },
+    tabBtnActive: {
+      background: cardBg,
+      fontWeight: 700,
+      borderBottom: `3px solid ${theme?.hero?.border ?? cardBorder}`
+    },
+    tabBtnInactive: {
+      background: controlsBg,
+      fontWeight: 400,
+      borderBottom: '3px solid transparent'
+    },
+    tabBody: {
+      maxHeight: '55vh', overflowY: 'auto', padding: '0.25rem 0.25rem 0.5rem'
+    },
+    tabContent: { display: 'grid', gap: '0.5rem' },
 
-  label: {
-    fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em',
-    fontWeight: 700, color: '#3f2d1d', marginTop: '0.25rem'
-  },
-  hint: { fontSize: '0.75rem', opacity: 0.65, margin: '0 0 0.25rem 0', lineHeight: 1.35 },
-  input: {
-    width: '100%', padding: '0.6rem', borderRadius: 6,
-    border: '1px solid rgba(98,73,24,0.24)',
-    background: 'rgba(255,255,255,0.9)', color: '#3f2d1d', fontSize: '0.9rem'
-  },
+    label: {
+      fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em',
+      fontWeight: 700, color: cardText, marginTop: '0.25rem'
+    },
+    hint: { fontSize: '0.75rem', opacity: 0.65, margin: '0 0 0.25rem 0', lineHeight: 1.35 },
+    input: {
+      width: '100%', padding: '0.6rem', borderRadius: 6,
+      border: `1px solid ${inputBorder}`,
+      background: inputBg, color: inputText, fontSize: '0.9rem'
+    },
 
-  row2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' },
-  col: { display: 'grid', gap: '0.25rem' },
+    row2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' },
+    col: { display: 'grid', gap: '0.25rem' },
 
-  avatarGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' },
-  avatarOption: {
-    padding: '0.5rem', borderRadius: 8,
-    background: 'rgba(255,255,255,0.6)', cursor: 'pointer',
-    display: 'flex', alignItems: 'center', justifyContent: 'center'
-  },
-  colorGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' },
-  colorOption: { width: '100%', height: 40, borderRadius: 8, cursor: 'pointer' },
+    avatarGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' },
+    avatarOption: {
+      padding: '0.5rem', borderRadius: 8,
+      background: controlsBg, cursor: 'pointer',
+      display: 'flex', alignItems: 'center', justifyContent: 'center'
+    },
+    colorGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' },
+    colorOption: { width: '100%', height: 40, borderRadius: 8, cursor: 'pointer' },
 
-  availGrid: {
-    display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.3rem'
-  },
-  availDay: {
-    borderRadius: 6, padding: '0.3rem', display: 'flex',
-    flexDirection: 'column', alignItems: 'center', gap: '0.2rem'
-  },
-  availToggle: {
-    width: '100%', padding: '0.3rem', border: 'none', borderRadius: 4,
-    fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer'
-  },
-  availTimes: {
-    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1rem'
-  },
-  timeInput: {
-    width: '100%', padding: '0.15rem', fontSize: '0.9rem',
-    fontFamily: "'Trebuchet MS', 'Segoe UI', Arial, sans-serif",
-    border: '1px solid rgba(98,73,24,0.15)', borderRadius: 3,
-    background: 'rgba(255,255,255,0.8)'
-  },
+    availGrid: {
+      display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.3rem'
+    },
+    availDay: {
+      borderRadius: 6, padding: '0.3rem', display: 'flex',
+      flexDirection: 'column', alignItems: 'center', gap: '0.2rem'
+    },
+    availToggle: {
+      width: '100%', padding: '0.3rem', border: 'none', borderRadius: 4,
+      fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer'
+    },
+    availTimes: {
+      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1rem'
+    },
+    timeInput: {
+      width: '100%', padding: '0.15rem', fontSize: '0.9rem',
+      fontFamily: "'Trebuchet MS', 'Segoe UI', Arial, sans-serif",
+      border: `1px solid ${inputBorder}`, borderRadius: 3,
+      background: inputBg
+    },
 
-  tagGrid: {
-    display: 'flex', flexWrap: 'wrap', gap: '0.35rem'
-  },
-  tag: {
-    padding: '0.3rem 0.6rem', borderRadius: 9999, fontSize: '0.78rem',
-    cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap'
-  },
-  customTagRow: { display: 'flex', gap: '0.35rem', marginTop: '0.4rem' },
-  customTagInput: {
-    flex: 1, padding: '0.4rem 0.6rem', borderRadius: 6,
-    border: '1px solid rgba(98,73,24,0.2)',
-    background: 'rgba(255,255,255,0.8)', fontSize: '0.82rem'
-  },
-  customTagBtn: {
-    padding: '0.4rem 0.7rem', borderRadius: 6, border: 'none',
-    background: '#22c55e', color: '#fff', fontWeight: 700,
-    cursor: 'pointer', fontSize: '1rem'
-  }
-};
+    tagGrid: {
+      display: 'flex', flexWrap: 'wrap', gap: '0.35rem'
+    },
+    tag: {
+      padding: '0.3rem 0.6rem', borderRadius: 9999, fontSize: '0.78rem',
+      cursor: 'pointer', transition: 'all 0.15s ease', whiteSpace: 'nowrap'
+    },
+    customTagRow: { display: 'flex', gap: '0.35rem', marginTop: '0.4rem' },
+    customTagInput: {
+      flex: 1, padding: '0.4rem 0.6rem', borderRadius: 6,
+      border: `1px solid ${inputBorder}`,
+      background: inputBg, fontSize: '0.82rem'
+    },
+    customTagBtn: {
+      padding: '0.4rem 0.7rem', borderRadius: 6, border: 'none',
+      background: buttonPrimary, color: buttonPrimaryText, fontWeight: 700,
+      cursor: 'pointer', fontSize: '1rem'
+    }
+  };
+}
