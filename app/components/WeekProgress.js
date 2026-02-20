@@ -93,7 +93,7 @@ export default function WeekProgress({ events, chores }) {
       </div>
 
       {/* Progress Bar */}
-      {totalChores > 0 && (
+      {totalChores > 0 ? (
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: 8 }}>
             <span style={{ fontWeight: 500, color: textColor }}>Chore Completion</span>
@@ -101,7 +101,14 @@ export default function WeekProgress({ events, chores }) {
               {completedChores} of {totalChores} ({Math.round(completionRate)}%)
             </span>
           </div>
-          <div style={{ width: '100%', background: 'rgba(0,0,0,0.15)', borderRadius: 9999, height: 12, overflow: 'hidden' }}>
+          <div 
+            role="progressbar"
+            aria-valuenow={completedChores}
+            aria-valuemin={0}
+            aria-valuemax={totalChores}
+            aria-label={`Chore completion: ${completedChores} of ${totalChores} completed`}
+            style={{ width: '100%', background: 'rgba(0,0,0,0.15)', borderRadius: 9999, height: 12, overflow: 'hidden' }}
+          >
             <div
               style={{
                 height: '100%',
@@ -112,6 +119,12 @@ export default function WeekProgress({ events, chores }) {
               }}
             />
           </div>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 24, textAlign: 'center', padding: '1rem', opacity: 0.7 }}>
+          <p style={{ fontSize: '0.875rem', color: textColor }}>
+            💡 No chores scheduled this week. Add chores to track your progress!
+          </p>
         </div>
       )}
 

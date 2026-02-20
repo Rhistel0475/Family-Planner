@@ -143,6 +143,9 @@ export default function TodayOverview({ events }) {
           <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📅</div>
           <p style={{ fontWeight: 500, color: textColor, opacity: 0.9 }}>No events scheduled for today</p>
           <p style={{ fontSize: '0.875rem', marginTop: 4, opacity: 0.7 }}>Enjoy your free time!</p>
+          <p style={{ fontSize: '0.75rem', marginTop: 12, opacity: 0.6 }}>
+            💡 Tip: Use the Quick Actions above or visit the calendar to add events
+          </p>
         </div>
       ) : (
         <div>

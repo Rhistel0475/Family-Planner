@@ -55,6 +55,7 @@ export default function QuickActions() {
           <Link
             key={action.name}
             href={action.href}
+            aria-label={action.description}
             style={{
               display: 'block',
               padding: '1rem',
@@ -63,7 +64,17 @@ export default function QuickActions() {
               textDecoration: 'none',
               color: 'inherit',
               transition: 'all 0.2s',
-              background: 'rgba(255,255,255,0.5)'
+              background: 'rgba(255,255,255,0.5)',
+              outline: 'none'
+            }}
+            onFocus={(e) => {
+              e.target.style.outline = '2px solid #3b82f6';
+              e.target.style.outlineOffset = '2px';
+              e.target.style.borderColor = '#3b82f6';
+            }}
+            onBlur={(e) => {
+              e.target.style.outline = 'none';
+              e.target.style.borderColor = theme.card?.border || 'rgba(0,0,0,0.1)';
             }}
           >
             <div

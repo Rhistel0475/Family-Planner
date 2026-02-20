@@ -61,7 +61,10 @@ export async function GET() {
       const suggestions = await generateChoreAssignments(members, unassignedChores);
       return NextResponse.json(suggestions);
     } catch (aiError) {
-      console.log('AI unavailable, using rule-based assignment:', aiError.message);
+      // AI unavailable, fallback to rule-based assignment
+      if (process.env.NODE_ENV === 'development') {
+        console.log('AI unavailable, using rule-based assignment:', aiError.message);
+      }
       // Use rule-based fallback
       const suggestions = assignChoresRuleBased(members, unassignedChores);
       return NextResponse.json(suggestions);

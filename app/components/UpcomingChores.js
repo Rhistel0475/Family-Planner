@@ -55,6 +55,14 @@ export default function UpcomingChores({ chores, onToggle }) {
       >
         <button
           onClick={() => handleToggle(chore.id, isCompleted)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleToggle(chore.id, isCompleted);
+            }
+          }}
+          aria-label={isCompleted ? `Mark ${chore.title} as incomplete` : `Mark ${chore.title} as complete`}
+          tabIndex={0}
           style={{
             flexShrink: 0,
             width: 20,
@@ -66,7 +74,15 @@ export default function UpcomingChores({ chores, onToggle }) {
             padding: 0,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            outline: 'none'
+          }}
+          onFocus={(e) => {
+            e.target.style.outline = '2px solid #3b82f6';
+            e.target.style.outlineOffset = '2px';
+          }}
+          onBlur={(e) => {
+            e.target.style.outline = 'none';
           }}
         >
           {isCompleted && (
@@ -120,6 +136,9 @@ export default function UpcomingChores({ chores, onToggle }) {
           <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🎉</div>
           <p style={{ fontWeight: 500, color: textColor }}>All caught up!</p>
           <p style={{ fontSize: '0.875rem', marginTop: 4, opacity: 0.7 }}>No pending chores</p>
+          <p style={{ fontSize: '0.75rem', marginTop: 12, opacity: 0.6 }}>
+            💡 Tip: Visit the Chores page to add new tasks or manage your chore board
+          </p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>

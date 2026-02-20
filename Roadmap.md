@@ -5,9 +5,9 @@ It’s organized by phases so we can ship in small, testable increments.
 
 ---
 
-## Current State Summary (as of now)
+## Current State Summary
 
-### ✅ Completed
+### ✅ Completed Phases
 - **Supabase Postgres + Prisma connected**
   - Migrations running
   - Prisma client generating successfully
@@ -31,12 +31,55 @@ It’s organized by phases so we can ship in small, testable increments.
   - Server-side validation for title + start/end time logic
   - `startsAt`/`endsAt` supported in route (with validation)
 
-### 🔄 In Progress / Recently Changed
-- Prisma schema cleanup and consistency checks
-- Event category enum + event time fields alignment between:
-  - Prisma schema
-  - API route
-  - UI forms (Schedule + Quick Add)
+**Phase 1 — Foundation (DONE ✅)**
+- Database connected (Supabase Postgres + Prisma)
+- Family Members CRUD with avatars and colors
+- Chores CRUD with completion tracking
+- Weekly board UI with drag & drop
+- Basic toast notifications
+
+**Phase 1.5 — Stabilization (DONE ✅)**
+- Prisma schema consistency verified
+- API routes standardized (GET/POST/PATCH/DELETE)
+- Event validation and date handling
+- Migration cleanup and reconciliation
+
+**Phase 2 — Events UX Upgrade (DONE ✅)**
+- Event form with time ranges and presets
+- Category badges and location support
+- Click-to-edit functionality
+- Enhanced event display on week board
+
+**Phase 3 — Performance & Data Scoping (DONE ✅)**
+- Date range filtering for events API
+- Date range filtering for chores API
+- Optimized week navigation data fetching
+- Reduced client-side filtering
+
+**Phase 4 — Work Hours on Member Page (DONE ✅)**
+- Working hours field in FamilyMember schema
+- UI for setting working hours (presets + custom)
+- Work blocks displayed on week board
+- Separate "Work" section visualization
+
+**Phase 5 — Dashboard & Quality of Life (DONE ✅)**
+- Dashboard summary page with today's overview
+- Today's events, chores, and overdue items
+- Weekly completion progress tracking
+- Enhanced empty states with helpful tips
+- Keyboard navigation and accessibility improvements
+
+**Phase 6 — Recurrence System (DONE ✅)**
+- Virtual instance generation (Option B - Best Practice)
+- Support for DAILY, WEEKLY, MONTHLY, YEARLY patterns
+- Recurrence intervals and end dates
+- UI for creating recurring events
+
+### 🚀 Next Up
+- **Phase 7 — Auth & Multi-Family** (FUTURE)
+  - User authentication
+  - Multi-family support
+  - Family invitations
 
 ---
 
@@ -144,46 +187,44 @@ A simple family “weekly board” that makes it easy to:
 
 ---
 
-## Phase 4 — Work Hours on Member Page (FEATURE ⏭)
+## Phase 4 — Work Hours on Member Page (DONE ✅)
 **Move “Work Hours” into Family Members, not Schedule**
 
 ### Data model
-- [ ] Add `workingHours` (string or structured) to `FamilyMember` (already exists in schema)
-- [ ] Create UI on member edit modal:
+- [x] Add `workingHours` (string or structured) to `FamilyMember` (already exists in schema)
+- [x] Create UI on member edit modal:
   - Example: `Mon 9-5, Tue 9-5 ...` (phase 1)
   - Future: structured per-day (phase 2)
 
 ### Week board
-- [ ] Show work blocks derived from member working hours (optional)
-- [ ] Work display should be non-event “background” or separate “Work” block
+- [x] Show work blocks derived from member working hours (optional)
+- [x] Work display should be non-event “background” or separate “Work” block
 
 ---
 
-## Phase 5 — Dashboard & Quality of Life (NICE TO HAVE ✅)
-- [ ] `/dashboard` summary:
+## Phase 5 — Dashboard & Quality of Life (DONE ✅)
+- [x] `/dashboard` summary:
   - Today’s events
   - Today’s chores
   - Overdue chores
   - Weekly completion progress
-- [ ] Better empty states and inline help tips
-- [ ] Keyboard-friendly controls and accessibility checks
+- [x] Better empty states and inline help tips
+- [x] Keyboard-friendly controls and accessibility checks
 
 ---
 
-## Phase 6 — Recurrence System (ADVANCED)
-Choose one approach:
+## Phase 6 — Recurrence System (DONE ✅)
+**Decision: Option B (Best Practice) - Store recurrence rule, generate instances virtually**
 
-### Option A (Simple)
-Store recurring as duplicated instances (limited range)
-- Pros: simple
-- Cons: can bloat DB
+### Implementation
+- [x] Store recurrence rules in database (isRecurring, recurrencePattern, recurrenceInterval, recurrenceEndDate)
+- [x] Generate instances virtually using `getOccurrencesInRange()` utility
+- [x] API expands recurring events into occurrences on-the-fly when fetching with date ranges
+- [x] UI supports creating recurring events (Schedule page with repeats dropdown and end date picker)
+- [x] Supports DAILY, WEEKLY, MONTHLY, YEARLY patterns with intervals
+- [x] Optional recurrence end date for finite recurring events
 
-### Option B (Best Practice)
-Store recurrence rule, generate instances virtually per week
-- Pros: clean DB
-- Cons: more logic
-
-**Decision pending.**
+**Status:** Fully implemented and working. Recurring events are stored as rules and expanded into occurrences when needed, keeping the database clean while providing full functionality.
 
 ---
 

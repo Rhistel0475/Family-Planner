@@ -144,20 +144,40 @@ export default function DashboardPage() {
       </div>
 
       {/* Navigation Footer */}
-      <div style={{ marginTop: 32, display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+      <nav style={{ marginTop: 32, display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }} aria-label="Dashboard navigation">
         <Link
           href="/"
-          style={{ color: linkColor, fontWeight: 500, textDecoration: 'none' }}
+          aria-label="View full calendar"
+          style={{ color: linkColor, fontWeight: 500, textDecoration: 'none', outline: 'none' }}
+          onFocus={(e) => {
+            e.target.style.outline = '2px solid #3b82f6';
+            e.target.style.outlineOffset = '2px';
+            e.target.style.textDecoration = 'underline';
+          }}
+          onBlur={(e) => {
+            e.target.style.outline = 'none';
+            e.target.style.textDecoration = 'none';
+          }}
         >
           View Full Calendar →
         </Link>
         <Link
           href="/chores"
-          style={{ color: linkColor, fontWeight: 500, textDecoration: 'none' }}
+          aria-label="Manage chores"
+          style={{ color: linkColor, fontWeight: 500, textDecoration: 'none', outline: 'none' }}
+          onFocus={(e) => {
+            e.target.style.outline = '2px solid #3b82f6';
+            e.target.style.outlineOffset = '2px';
+            e.target.style.textDecoration = 'underline';
+          }}
+          onBlur={(e) => {
+            e.target.style.outline = 'none';
+            e.target.style.textDecoration = 'none';
+          }}
         >
           Manage Chores →
         </Link>
-      </div>
+      </nav>
     </div>
   );
 }
