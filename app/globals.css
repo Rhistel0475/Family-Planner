@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* App theme colors for Tailwind (dashboard and any Tailwind UI). Aligns with lib/themes.js light theme. */
+@theme {
+  --color-app-main: #b8956a;
+  --color-app-page: #f4e3bf;
+  --color-app-card-text: #3f2d1d;
+  --color-app-hero-bg: #ffef7d;
+  --color-app-nav-bg: #ffe77a;
+  --color-app-button-primary: #c9f7a5;
+  --color-app-button-primary-text: #2b4d1f;
+  --color-app-card-border: rgba(98, 73, 24, 0.2);
+}
+
 * {
   box-sizing: border-box;
 }
