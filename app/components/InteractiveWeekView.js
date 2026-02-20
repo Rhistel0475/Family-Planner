@@ -19,6 +19,7 @@ import { PREDEFINED_CHORES } from '../../lib/boardChores';
 import { parseWorkingHours, format24hTo12h } from '../../lib/workingHoursUtils';
 import { getInitials, getAvatarStyle } from '../../lib/avatarUtils';
 import MemberAvatar from './MemberAvatar';
+import { useTheme } from '../providers/ThemeProvider';
 
 // Must match Prisma EventCategory enum: GENERAL, FAMILY, CHURCH, SCHOOL, SPORTS, BIRTHDAY, APPOINTMENT
 const EVENT_CATEGORIES = [
@@ -53,6 +54,7 @@ function formatTimeRange(startsAt, endsAt) {
 }
 
 export default function InteractiveWeekView() {
+  const { theme } = useTheme();
   const [weekOffset, setWeekOffset] = useState(0);
   const [events, setEvents] = useState([]);
   const [chores, setChores] = useState([]);
@@ -96,7 +98,7 @@ export default function InteractiveWeekView() {
     ? boardSettings.map((s) => s.title)
     : PREDEFINED_CHORES.map((c) => c.title);
 
-  const noteColors = ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7', '#b3e5fc', '#e1bee7', '#ffeaa7'];
+  const noteColors = theme?.card?.bg?.length ? theme.card.bg : ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7', '#b3e5fc', '#e1bee7', '#ffeaa7'];
   const noteRotations = ['rotate(-1.5deg)', 'rotate(1deg)', 'rotate(-0.8deg)', 'rotate(1.2deg)', 'rotate(-0.5deg)', 'rotate(0.9deg)', 'rotate(-1.1deg)'];
   const pinColors = ['pin-red', 'pin-blue', 'pin-green', 'pin-orange', 'pin-purple', 'pin-teal', 'pin-amber'];
 
@@ -695,19 +697,19 @@ export default function InteractiveWeekView() {
       : `${Math.abs(weekOffset)} weeks ago`;
 
   return (
-    <main style={styles.main} className="cork-board">
-      <section style={styles.hero} className="hero-tape handwritten">
+    <main style={{ ...styles.main, color: theme?.card?.text ?? styles.main.color }} className="cork-board">
+      <section style={{ ...styles.hero, background: theme?.hero?.bg, color: theme?.hero?.text, borderColor: theme?.hero?.border }} className="hero-tape handwritten">
         <h1 style={styles.title}>Family Planner</h1>
         <p style={styles.subtitle}>Track chores and events in one place.</p>
       </section>
 
-      <section style={styles.controls}>
+      <section style={{ ...styles.controls, background: theme?.controls?.bg, borderColor: theme?.controls?.border }}>
         <div style={styles.weekNav}>
-          <button onClick={() => setWeekOffset(weekOffset - 1)} style={styles.navButton}>
+          <button onClick={() => setWeekOffset(weekOffset - 1)} style={{ ...styles.navButton, background: theme?.card?.bg?.[0] ?? theme?.button?.primary, color: theme?.button?.primaryText ?? theme?.card?.text, borderColor: theme?.card?.border }}>
             ← Previous
           </button>
           <span style={styles.weekLabel}>{weekLabel}</span>
-          <button onClick={() => setWeekOffset(weekOffset + 1)} style={styles.navButton}>
+          <button onClick={() => setWeekOffset(weekOffset + 1)} style={{ ...styles.navButton, background: theme?.card?.bg?.[0] ?? theme?.button?.primary, color: theme?.button?.primaryText ?? theme?.card?.text, borderColor: theme?.card?.border }}>
             Next →
           </button>
         </div>
@@ -717,15 +719,15 @@ export default function InteractiveWeekView() {
             onClick={handlePlanThisWeek}
             icon="📅"
             label={planWeekLoading ? 'Planning…' : 'Plan This Week'}
-            color="#ffd9a8"
+            color={theme?.card?.bg?.[1] ?? '#ffd9a8'}
             disabled={planWeekLoading}
           />
-          <QuickAddButton onClick={() => setQuickAddModal('chore')} icon="+" label="Add Chore" color="#c9f7a5" />
-          <QuickAddButton onClick={() => setQuickAddModal('event')} icon="+" label="Add Event" color="#ffd9a8" />
+          <QuickAddButton onClick={() => setQuickAddModal('chore')} icon="+" label="Add Chore" color={theme?.button?.primary ?? theme?.card?.bg?.[2] ?? '#c9f7a5'} />
+          <QuickAddButton onClick={() => setQuickAddModal('event')} icon="+" label="Add Event" color={theme?.card?.bg?.[1] ?? '#ffd9a8'} />
         </div>
       </section>
 
-      {loading && <div style={styles.loading}>Loading...</div>}
+      {loading && <div style={{ ...styles.loading, color: theme?.loading?.text }}>Loading...</div>}
 
       {!loading && (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -739,6 +741,8 @@ export default function InteractiveWeekView() {
                   style={{
                     ...styles.card,
                     background: noteColors[index % noteColors.length],
+                    borderColor: theme?.card?.border,
+                    boxShadow: theme?.card?.shadow ? `2px 3px 8px ${theme.card.shadow}, 4px 6px 16px ${theme.card.shadow}` : undefined,
                     transform: noteRotations[index % noteRotations.length]
                   }}
                 >
@@ -1000,10 +1004,11 @@ export default function InteractiveWeekView() {
                 style={{
                   ...styles.card,
                   background: noteColors[0],
+                  borderColor: theme?.card?.border,
+                  boxShadow: theme?.card?.shadow ? `0 20px 40px ${theme.card.shadow}` : '0 20px 40px rgba(70, 45, 11, 0.4)',
                   transform: 'rotate(2deg)',
                   opacity: 0.9,
                   cursor: 'grabbing',
-                  boxShadow: '0 20px 40px rgba(70, 45, 11, 0.4)',
                   padding: '0.75rem',
                   minHeight: 'auto'
                 }}
@@ -1024,8 +1029,8 @@ export default function InteractiveWeekView() {
               onClick={() => setSelectedMember(null)}
               style={{
                 ...styles.memberFilterBtn,
-                background: !selectedMember ? '#3f2d1d' : 'rgba(255, 255, 255, 0.6)',
-                color: !selectedMember ? 'white' : '#3f2d1d'
+                background: !selectedMember ? (theme?.nav?.text ?? '#3f2d1d') : (theme?.controls?.bg ?? 'rgba(255, 255, 255, 0.6)'),
+                color: !selectedMember ? (theme?.nav?.bg ?? 'white') : (theme?.card?.text ?? '#3f2d1d')
               }}
             >
               All
@@ -1036,8 +1041,8 @@ export default function InteractiveWeekView() {
                 onClick={() => setSelectedMember(member.name)}
                 style={{
                   ...styles.memberFilterBtn,
-                  background: selectedMember === member.name ? member.color : 'rgba(255, 255, 255, 0.6)',
-                  color: selectedMember === member.name ? 'white' : '#3f2d1d',
+                  background: selectedMember === member.name ? member.color : (theme?.controls?.bg ?? 'rgba(255, 255, 255, 0.6)'),
+                  color: selectedMember === member.name ? 'white' : (theme?.card?.text ?? '#3f2d1d'),
                   border: `2px solid ${member.color}`
                 }}
               >
@@ -1053,9 +1058,9 @@ export default function InteractiveWeekView() {
           </div>
 
           {!selectedMember && (
-            <div style={styles.statsGrid}>
+            <div style={{ ...styles.statsGrid, background: theme?.controls?.bg, borderColor: theme?.card?.border }}>
               {memberStats.map((stat) => (
-                <div key={stat.id} style={styles.statCard}>
+                <div key={stat.id} style={{ ...styles.statCard, background: theme?.card?.bg?.[0], borderColor: theme?.card?.border }}>
                   <MemberAvatar
                     name={stat.name}
                     color={stat.color}

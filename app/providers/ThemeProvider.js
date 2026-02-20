@@ -7,16 +7,12 @@ const ThemeContext = createContext();
 
 export function ThemeProvider({ children }) {
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
-    // Load from localStorage
     const saved = localStorage.getItem('familyPlannerTheme');
     if (saved === 'dark') {
       setIsDarkMode(true);
     } else if (saved === null) {
-      // Detect system preference
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       setIsDarkMode(prefersDark);
     }
@@ -34,14 +30,21 @@ export function ThemeProvider({ children }) {
 
   return (
     <ThemeContext.Provider value={{ isDarkMode, toggleTheme, theme }}>
-      <div style={{
-        backgroundColor: theme.main,
-        backgroundImage: theme.mainGradient,
-        color: theme.card.text,
-        minHeight: '100vh',
-        transition: 'background-color 0.3s ease, color 0.3s ease',
-        visibility: mounted ? 'visible' : 'hidden'
-      }}>
+      <div
+        style={{
+          backgroundColor: theme.main,
+          backgroundImage: theme.mainGradient,
+          color: theme.card.text,
+          minHeight: '100vh',
+          transition: 'background-color 0.3s ease, color 0.3s ease',
+          ['--theme-main']: theme.main,
+          ['--theme-page-bg']: theme.pageBackground,
+          ['--theme-card-text']: theme.card?.text,
+          ['--theme-hero-bg']: theme.hero?.bg,
+          ['--theme-nav-bg']: theme.nav?.bg,
+          ['--theme-card-border']: theme.card?.border
+        }}
+      >
         {children}
       </div>
     </ThemeContext.Provider>

@@ -295,9 +295,16 @@ export default function ChoresPage() {
   }
 
   return (
-    <div className={styles.container}>
+    <div
+      className={styles.container}
+      style={{
+        background: theme?.main ?? theme?.pageBackground ?? undefined,
+        backgroundImage: theme?.mainGradient && theme.mainGradient !== 'none' ? theme.mainGradient : undefined,
+        color: theme?.card?.text ?? undefined
+      }}
+    >
       {/* HEADER */}
-      <div className={styles.header}>
+      <div className={styles.header} style={{ color: theme?.card?.text ?? undefined }}>
         <div>
           <h1>Chores</h1>
           <p>Configure your chore board, assignments, and schedules.</p>
@@ -310,6 +317,10 @@ export default function ChoresPage() {
             onClick={() => setShowAddModal(true)}
             aria-label="Add chore"
             title="Add chore"
+            style={{
+              background: theme?.button?.primary ?? theme?.hero?.bg ?? undefined,
+              color: theme?.button?.primaryText ?? theme?.card?.text ?? undefined
+            }}
           >
             +
           </button>
@@ -327,9 +338,16 @@ export default function ChoresPage() {
       </div>
 
       {/* Chore AI Actions */}
-      <div className={styles.aiCard}>
-        <h3 className={styles.aiCardTitle}>Chore AI</h3>
-        <p className={styles.aiCardSubtitle}>Automate chore creation and assignment</p>
+      <div
+        className={styles.aiCard}
+        style={{
+          background: theme?.card?.bg?.[0] ?? theme?.input?.bg ?? undefined,
+          color: theme?.card?.text ?? undefined,
+          borderColor: theme?.card?.border ?? undefined
+        }}
+      >
+        <h3 className={styles.aiCardTitle} style={{ color: theme?.card?.text ?? undefined }}>Chore AI</h3>
+        <p className={styles.aiCardSubtitle} style={{ color: theme?.card?.text ?? undefined }}>Automate chore creation and assignment</p>
         <div className={styles.aiCardActions}>
           <button
             type="button"

@@ -57,10 +57,10 @@ p {
   }
 }
 
-/* ===== POST-IT THEME: Cork Board ===== */
+/* ===== POST-IT THEME: Cork Board (uses theme from ThemeProvider when available) ===== */
 .cork-board {
   position: relative;
-  background-color: #b8956a;
+  background-color: var(--theme-main, #b8956a);
   background-image:
     repeating-linear-gradient(
       45deg,

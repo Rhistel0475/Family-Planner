@@ -34,12 +34,12 @@ export default function HamburgerMenu() {
         type="button"
         aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
         aria-expanded={open}
-        style={{ ...styles.button, background: theme.card.bg[0], border: `1px solid ${theme.card.border}` }}
+        style={{ ...styles.button, background: theme?.card?.bg?.[0] ?? '#fff59d', border: `1px solid ${theme?.card?.border ?? 'rgba(98, 73, 24, 0.2)'}` }}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span style={{ ...styles.line, background: theme.card.text }} />
-        <span style={{ ...styles.line, background: theme.card.text }} />
-        <span style={{ ...styles.line, background: theme.card.text }} />
+        <span style={{ ...styles.line, background: theme?.card?.text ?? '#3f2d1d' }} />
+        <span style={{ ...styles.line, background: theme?.card?.text ?? '#3f2d1d' }} />
+        <span style={{ ...styles.line, background: theme?.card?.text ?? '#3f2d1d' }} />
       </button>
 
       {open && (
@@ -54,13 +54,13 @@ export default function HamburgerMenu() {
       <aside
         style={{
           ...styles.drawer,
-          background: theme.nav.bg,
-          borderRight: `1px solid ${theme.nav.border}`,
+          background: theme?.nav?.bg ?? '#ffe77a',
+          borderRight: `1px solid ${theme?.nav?.border ?? 'rgba(98, 73, 24, 0.2)'}`,
           transform: open ? 'translateX(0)' : 'translateX(-112%)'
         }}
       >
-        <h2 style={{ ...styles.title, color: theme.nav.text }}>Family Planner</h2>
-        <p style={{ ...styles.subtitle, color: theme.hero.badgeText || theme.card.text }}>Jump to a section</p>
+        <h2 style={{ ...styles.title, color: theme?.nav?.text ?? '#3f2d1d' }}>Family Planner</h2>
+        <p style={{ ...styles.subtitle, color: theme?.hero?.badgeText ?? theme?.card?.text ?? '#52351d' }}>Jump to a section</p>
 
         <nav style={styles.nav} aria-label="Primary navigation">
           {navItems.map((item) => (
@@ -69,9 +69,9 @@ export default function HamburgerMenu() {
               href={item.href}
               style={{
                 ...styles.link,
-                color: theme.nav.text,
-                background: theme.nav.hover,
-                border: `1px solid ${theme.card.border}`
+                color: theme?.nav?.text ?? '#3f2d1d',
+                background: theme?.nav?.hover ?? 'rgba(255, 245, 157, 0.5)',
+                border: `1px solid ${theme?.card?.border ?? 'rgba(98, 73, 24, 0.2)'}`
               }}
               onClick={() => setOpen(false)}
             >
@@ -82,7 +82,7 @@ export default function HamburgerMenu() {
 
         {adminItems.length > 0 && (
           <>
-            <div style={{ ...styles.sectionLabel, color: theme.hero.badgeText || theme.card.text }}>Admin</div>
+            <div style={{ ...styles.sectionLabel, color: theme?.hero?.badgeText ?? theme?.card?.text ?? '#52351d' }}>Admin</div>
             <nav style={styles.nav} aria-label="Admin navigation">
               {adminItems.map((item) => (
                 <Link
@@ -90,9 +90,9 @@ export default function HamburgerMenu() {
                   href={item.href}
                   style={{
                     ...styles.link,
-                    color: theme.nav.text,
-                    background: theme.nav.hover,
-                    border: `1px solid ${theme.card.border}`
+                    color: theme?.nav?.text ?? '#3f2d1d',
+                    background: theme?.nav?.hover ?? 'rgba(255, 245, 157, 0.5)',
+                    border: `1px solid ${theme?.card?.border ?? 'rgba(98, 73, 24, 0.2)'}`
                   }}
                   onClick={() => setOpen(false)}
                 >
