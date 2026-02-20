@@ -1,5 +1,9 @@
 # Migrations
 
-- **Timestamped folders** (e.g. `20250217000000_add_chore_description/`) are used by `prisma migrate deploy` and `prisma migrate dev`. Do not add non-Prisma content to `schema.prisma`.
+- **Timestamped folders** (e.g. `20250215000000_add_chore_board/`) are used by `prisma migrate deploy` and `prisma migrate dev`. Do not add non-Prisma content to `schema.prisma`.
 
-- **`add_chore_board.sql`** is a one-off SQL script for the ChoreBoard table and related enums. It may already have been applied manually or via an earlier migration. Do not run it via `prisma migrate`; treat it as reference only. Current schema is the source of truth.
+- **Existing databases** that already have the `ChoreBoard` table (e.g. from a previous manual run of `add_chore_board.sql`) should mark the ChoreBoard migration as applied without running it:
+  ```bash
+  npx prisma migrate resolve --applied 20250215000000_add_chore_board
+  ```
+  Then run `npx prisma migrate deploy` so later migrations (e.g. description columns, ROLE_BASED enum value) are applied.

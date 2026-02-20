@@ -157,7 +157,7 @@ export default function InteractiveWeekView() {
 
       const [eventsRes, choresRes, membersRes, boardRes] = await Promise.all([
         fetch(`/api/schedule?start=${startStr}&end=${endStr}`),
-        fetch('/api/chores'),
+        fetch(`/api/chores?start=${startStr}&end=${endStr}`),
         fetch('/api/family-members'),
         fetch('/api/chore-board')
       ]);
@@ -896,6 +896,15 @@ export default function InteractiveWeekView() {
                                   <span
                                     style={styles.eventTitle}
                                     onClick={() => setEditModal(event)}
+                                    aria-label={`Edit event: ${event.title}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        setEditModal(event);
+                                      }
+                                    }}
                                   >
                                     {event.title}
                                   </span>

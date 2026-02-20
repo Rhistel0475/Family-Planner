@@ -6,11 +6,45 @@ export async function GET(request) {
   try {
     const family = await getOrCreateDefaultFamily();
 
-    // Get all chores for the family
+    const { searchParams } = new URL(request.url);
+    const startParam = searchParams.get('start');
+    const endParam = searchParams.get('end');
+
+    const where = {
+      familyId: family.id
+    };
+
+    // If date range provided, filter chores by dueDay matching days in the range
+    if (startParam && endParam) {
+      const startDate = new Date(startParam + 'T00:00:00.000Z');
+      const endDate = new Date(endParam + 'T23:59:59.999Z');
+
+      if (!Number.isNaN(startDate.getTime()) && !Number.isNaN(endDate.getTime())) {
+        // Convert date range to day names
+        const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+        const daysInRange = new Set();
+
+        // Iterate through each day in the range
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+          const dayIndex = currentDate.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+          // Convert to Monday-based: Sunday (0) -> 6, Monday (1) -> 0, etc.
+          const mondayBasedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
+          daysInRange.add(dayNames[mondayBasedIndex]);
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+
+        // Filter chores where dueDay matches any day in the range
+        if (daysInRange.size > 0) {
+          where.dueDay = {
+            in: Array.from(daysInRange)
+          };
+        }
+      }
+    }
+
     const chores = await prisma.chore.findMany({
-      where: {
-        familyId: family.id
-      },
+      where,
       orderBy: {
         createdAt: 'asc'
       }

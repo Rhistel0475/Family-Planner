@@ -2,7 +2,7 @@
 CREATE TYPE "FrequencyType" AS ENUM ('ONE_TIME', 'DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'CUSTOM');
 
 -- CreateEnum
-CREATE TYPE "EligibilityMode" AS ENUM ('ALL', 'SELECTED');
+CREATE TYPE "EligibilityMode" AS ENUM ('ALL', 'SELECTED', 'ROLE_BASED');
 
 -- CreateTable
 CREATE TABLE "ChoreBoard" (

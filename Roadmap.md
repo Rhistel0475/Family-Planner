@@ -71,40 +71,40 @@ A simple family “weekly board” that makes it easy to:
 
 ---
 
-## Phase 1.5 — Stabilization / Consistency (NEXT 🔄)
+## Phase 1.5 — Stabilization / Consistency (DONE ✅)
 **Lock the schema + routes + UI into a consistent model**
 
 ### Prisma
-- [ ] Ensure `schema.prisma` contains ONLY Prisma schema (no JS/CSS fragments)
-- [ ] Confirm `Event` fields are correct: `startsAt`, `endsAt`, optional metadata fields
-- [ ] Confirm enums align with UI and route:
+- [x] Ensure `schema.prisma` contains ONLY Prisma schema (no JS/CSS fragments)
+- [x] Confirm `Event` fields are correct: `startsAt`, `endsAt`, optional metadata fields
+- [x] Confirm enums align with UI and route:
   - `EventType`
   - `EventCategory` (if used)
-- [ ] Remove / reconcile any partial migration folders (e.g. blank timestamp folders)
+- [x] Remove / reconcile any partial migration folders (e.g. blank timestamp folders)
 
 ### API
-- [ ] Confirm `/api/schedule` supports:
+- [x] Confirm `/api/schedule` supports:
   - GET (optionally by date range)
   - POST (title + startsAt required, endsAt optional, validate endsAt > startsAt)
   - PATCH (partial updates, validate dates)
   - DELETE (by `?id=...`)
-- [ ] Confirm `/api/chores` supports expected PATCH updates (dueDay, completion)
+- [x] Confirm `/api/chores` supports expected PATCH updates (dueDay, completion)
 
 ### UI
-- [ ] Remove “Work hours” from Schedule page (work belongs on Member page)
-- [ ] Confirm event delete button is visible and consistent everywhere
+- [x] Remove “Work hours” from Schedule page (work belongs on Member page)
+- [x] Confirm event delete button is visible and consistent everywhere
 
 ---
 
-## Phase 2 — Events UX Upgrade (HIGH PRIORITY ⏭)
+## Phase 2 — Events UX Upgrade (DONE ✅)
 **Make events feel real (time + type + category presets)**
 
 ### Event Form Requirements
-- [ ] Event must support:
+- [x] Event must support:
   - Start date
   - Start time
   - End time (optional but recommended)
-- [ ] Add dropdown presets for common event types:
+- [x] Add dropdown presets for common event types:
   - Doctor Appointment
   - Dentist Appointment
   - School Event
@@ -113,34 +113,34 @@ A simple family “weekly board” that makes it easy to:
   - Church
   - Family Event
   - Other (custom)
-- [ ] Allow “Custom name” to override preset (or add details)
-- [ ] Optional fields:
+- [x] Allow “Custom name” to override preset (or add details)
+- [x] Optional fields:
   - Location
   - Notes/description
 
 ### Display Requirements (Week Board)
-- [ ] Event card shows:
+- [x] Event card shows:
   - Time range (e.g. `4:30 PM–6:00 PM`)
   - Title
   - Category badge
   - Location (optional)
-- [ ] Clicking an event opens edit modal
-- [ ] Delete icon/button visible on each event entry
+- [x] Clicking an event opens edit modal
+- [x] Delete icon/button visible on each event entry
 
 ---
 
-## Phase 3 — Performance & Data Scoping (IMPORTANT 🚀)
+## Phase 3 — Performance & Data Scoping (DONE ✅)
 **Stop fetching entire history; fetch only what we need**
 
 ### API improvements
-- [ ] Update schedule GET to accept:
+- [x] Update schedule GET to accept:
   - `?start=YYYY-MM-DD&end=YYYY-MM-DD`
-- [ ] Update Prisma query to filter by `startsAt` range
-- [ ] Mirror same behavior for chores if needed (optional)
+- [x] Update Prisma query to filter by `startsAt` range
+- [x] Mirror same behavior for chores if needed (optional)
 
 ### UI improvements
-- [ ] Week navigation triggers range fetch
-- [ ] Reduce client-side filtering
+- [x] Week navigation triggers range fetch
+- [x] Reduce client-side filtering
 
 ---
 
