@@ -13,7 +13,7 @@ import FilterBar from './FilterBar';
 import SmartTaskModal from './SmartTaskModal';
 import DateTimePicker from './DateTimePicker';
 import CategorySelector from './CategorySelector';
-import { getEventCategory, getEventColor } from '../../lib/eventConfig';
+import { getEventCategory, getEventColor, getEventCategoryLabel } from '../../lib/eventConfig';
 import { createSmartTaskInstances } from '../../lib/smartAssignment';
 import { PREDEFINED_CHORES } from '../../lib/boardChores';
 import { parseWorkingHours, format24hTo12h } from '../../lib/workingHoursUtils';
@@ -844,9 +844,11 @@ export default function InteractiveWeekView() {
                     <p style={styles.label} className="washi-tape washi-events">Events</p>
                     {day.events.length > 0 ? (
                       <ul style={styles.eventList}>
-                        {                        day.events.map((event) => {
+                        {day.events.map((event) => {
                           const category = getEventCategory(event.type || 'PERSONAL');
                           const eventBg = getEventColor(event.type || 'PERSONAL', isDarkMode);
+                          const timeStr = formatTimeRange(event.startsAt, event.endsAt);
+                          const categoryLabel = getEventCategoryLabel(event.category);
                           return (
                             <DraggableItem
                               key={event.id}
@@ -866,12 +868,21 @@ export default function InteractiveWeekView() {
                             >
                               <div style={styles.eventContent}>
                                 <span style={styles.eventIcon}>{category.icon}</span>
-                                <span
-                                  style={styles.eventTitle}
-                                  onClick={() => setEditModal(event)}
-                                >
-                                  {event.title}
-                                </span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={styles.eventTopRow}>
+                                    <span style={styles.eventTime}>{timeStr}</span>
+                                    <span style={styles.eventCategoryBadge}>{categoryLabel}</span>
+                                  </div>
+                                  <span
+                                    style={styles.eventTitle}
+                                    onClick={() => setEditModal(event)}
+                                  >
+                                    {event.title}
+                                  </span>
+                                  {event.location && (
+                                    <div style={styles.eventLocation}>{event.location}</div>
+                                  )}
+                                </div>
                                 <button
                                   onClick={() => deleteEvent(event.id)}
                                   style={styles.miniDeleteBtn}
@@ -1605,13 +1616,38 @@ const styles = {
     marginRight: '0.25rem',
     flexShrink: 0
   },
+  eventTopRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    marginBottom: '0.15rem',
+    flexWrap: 'wrap'
+  },
+  eventTime: {
+    fontSize: '0.75rem',
+    opacity: 0.9
+  },
+  eventCategoryBadge: {
+    fontSize: '0.65rem',
+    fontWeight: 700,
+    padding: '0.1rem 0.4rem',
+    borderRadius: 9999,
+    background: 'rgba(0,0,0,0.12)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em'
+  },
   eventTitle: {
-    flex: 1,
     cursor: 'pointer',
     textDecoration: 'underline',
     textDecorationStyle: 'dotted',
     fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
-    fontWeight: 400
+    fontWeight: 400,
+    display: 'block'
+  },
+  eventLocation: {
+    fontSize: '0.72rem',
+    opacity: 0.8,
+    marginTop: '0.15rem'
   },
   miniDeleteBtn: {
     background: 'rgba(186, 62, 62, 0.15)',

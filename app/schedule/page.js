@@ -11,11 +11,13 @@ const EVENT_PRESETS = [
   { value: 'doctor', label: 'Doctor Appointment', icon: '🩺', category: 'APPOINTMENT' },
   { value: 'dentist', label: 'Dentist Appointment', icon: '🦷', category: 'APPOINTMENT' },
   { value: 'school', label: 'School Event', icon: '🏫', category: 'SCHOOL' },
+  { value: 'practice', label: 'Practice', icon: '🏃', category: 'SPORTS' },
+  { value: 'game', label: 'Game', icon: '⚽', category: 'SPORTS' },
   { value: 'church', label: 'Church', icon: '⛪', category: 'CHURCH' },
   { value: 'family', label: 'Family Event', icon: '👨‍👩‍👧‍👦', category: 'FAMILY' },
   { value: 'sports', label: 'Sports', icon: '🏅', category: 'SPORTS' },
   { value: 'birthday', label: 'Birthday', icon: '🎂', category: 'BIRTHDAY' },
-  { value: 'general', label: 'General', icon: '📌', category: 'GENERAL' }
+  { value: 'general', label: 'Other (custom)', icon: '📌', category: 'GENERAL' }
 ];
 
 function fmtDateTime(d) {
@@ -67,6 +69,8 @@ export default function SchedulePage({ searchParams }) {
     const pad = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   });
+  const [location, setLocation] = useState('');
+  const [description, setDescription] = useState('');
 
   const initialToast = useMemo(() => {
     const saved = searchParams?.saved === '1';
@@ -170,8 +174,8 @@ export default function SchedulePage({ searchParams }) {
         category: chosen.category,
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
-        location: null,
-        description: null
+        location: location.trim() || null,
+        description: description.trim() || null
       };
 
       const res = await fetch('/api/schedule', {
@@ -185,6 +189,8 @@ export default function SchedulePage({ searchParams }) {
       showToast('success', data?.message || '✓ Saved.');
       setTitle('');
       setPreset('general');
+      setLocation('');
+      setDescription('');
 
       await fetchEvents();
     } catch (err) {
@@ -367,6 +373,22 @@ export default function SchedulePage({ searchParams }) {
               <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} style={styles.inputSpacing} />
             </div>
           </div>
+
+          <Label>Location (optional)</Label>
+          <Input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Ex: Rome Family Dental"
+            style={styles.inputSpacing}
+          />
+
+          <Label>Notes (optional)</Label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Any extra details..."
+            style={{ ...styles.input, minHeight: 70, resize: 'vertical' }}
+          />
 
           <Button type="submit" variant="primary" disabled={loading}>
             {loading ? 'Saving…' : 'Save Event'}
