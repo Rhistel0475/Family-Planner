@@ -13,12 +13,13 @@ import FilterBar from './FilterBar';
 import SmartTaskModal from './SmartTaskModal';
 import DateTimePicker from './DateTimePicker';
 import CategorySelector from './CategorySelector';
-import { getEventCategory } from '../../lib/eventConfig';
+import { getEventCategory, getEventColor, getEventCategoryLabel } from '../../lib/eventConfig';
 import { createSmartTaskInstances } from '../../lib/smartAssignment';
 import { PREDEFINED_CHORES } from '../../lib/boardChores';
 import { parseWorkingHours, format24hTo12h } from '../../lib/workingHoursUtils';
 import { getInitials, getAvatarStyle } from '../../lib/avatarUtils';
 import MemberAvatar from './MemberAvatar';
+import { useTheme } from '../providers/ThemeProvider';
 
 // Must match Prisma EventCategory enum: GENERAL, FAMILY, CHURCH, SCHOOL, SPORTS, BIRTHDAY, APPOINTMENT
 const EVENT_CATEGORIES = [
@@ -53,6 +54,7 @@ function formatTimeRange(startsAt, endsAt) {
 }
 
 export default function InteractiveWeekView() {
+  const { theme, isDarkMode } = useTheme();
   const [weekOffset, setWeekOffset] = useState(0);
   const [events, setEvents] = useState([]);
   const [chores, setChores] = useState([]);
@@ -86,7 +88,9 @@ export default function InteractiveWeekView() {
     startTime: '09:00',
     endTime: '',
     location: '',
-    description: ''
+    description: '',
+    eventRepeats: 'NONE', // NONE, DAILY, WEEKLY, MONTHLY, YEARLY
+    eventRecurrenceEndDate: ''
   });
   const [activeItem, setActiveItem] = useState(null);
   const [editingChoreId, setEditingChoreId] = useState(null);
@@ -96,7 +100,7 @@ export default function InteractiveWeekView() {
     ? boardSettings.map((s) => s.title)
     : PREDEFINED_CHORES.map((c) => c.title);
 
-  const noteColors = ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7', '#b3e5fc', '#e1bee7', '#ffeaa7'];
+  const noteColors = theme?.card?.bg?.length ? theme.card.bg : ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7', '#b3e5fc', '#e1bee7', '#ffeaa7'];
   const noteRotations = ['rotate(-1.5deg)', 'rotate(1deg)', 'rotate(-0.8deg)', 'rotate(1.2deg)', 'rotate(-0.5deg)', 'rotate(0.9deg)', 'rotate(-1.1deg)'];
   const pinColors = ['pin-red', 'pin-blue', 'pin-green', 'pin-orange', 'pin-purple', 'pin-teal', 'pin-amber'];
 
@@ -147,8 +151,12 @@ export default function InteractiveWeekView() {
       const weekEnd = new Date(weekDates[6].date);
       weekEnd.setHours(23, 59, 59, 999);
 
+      const pad = (n) => String(n).padStart(2, '0');
+      const startStr = `${weekStart.getFullYear()}-${pad(weekStart.getMonth() + 1)}-${pad(weekStart.getDate())}`;
+      const endStr = `${weekEnd.getFullYear()}-${pad(weekEnd.getMonth() + 1)}-${pad(weekEnd.getDate())}`;
+
       const [eventsRes, choresRes, membersRes, boardRes] = await Promise.all([
-        fetch('/api/schedule'),
+        fetch(`/api/schedule?start=${startStr}&end=${endStr}`),
         fetch('/api/chores'),
         fetch('/api/family-members'),
         fetch('/api/chore-board')
@@ -161,14 +169,9 @@ export default function InteractiveWeekView() {
 
       if (eventsRes.ok) {
         const eventsData = await eventsRes.json();
-        const filtered = (eventsData.events || []).filter((e) => {
-          const d = new Date(e.startsAt);
-          return d >= weekStart && d <= weekEnd;
-        });
-
-        // Sort by startsAt
-        filtered.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
-        setEvents(filtered);
+        const list = eventsData.events || [];
+        list.sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+        setEvents(list);
       }
 
       if (choresRes.ok) {
@@ -261,14 +264,17 @@ export default function InteractiveWeekView() {
     }
   };
 
-  const deleteEvent = async (eventId) => {
+  const deleteEvent = async (eventId, parentEventId) => {
     if (!confirm('Delete this event?')) return;
 
     try {
-      const res = await fetch(`/api/schedule?id=${eventId}`, { method: 'DELETE' });
+      // Use parentEventId if present (for occurrences), otherwise use eventId
+      const idToDelete = parentEventId || eventId;
+      const res = await fetch(`/api/schedule?id=${encodeURIComponent(idToDelete)}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete');
 
-      setEvents(events.filter((e) => e.id !== eventId));
+      // Filter by the occurrence id (or parent id) to remove from UI
+      setEvents(events.filter((e) => e.id !== eventId && e.id !== idToDelete));
       showToast('Event deleted');
     } catch (error) {
       showToast('Failed to delete event', 'error');
@@ -554,7 +560,13 @@ export default function InteractiveWeekView() {
         startsAt: startsAt.toISOString(),
         endsAt: endsAt ? endsAt.toISOString() : null,
         location: newItem.location?.trim() || null,
-        description: newItem.description?.trim() || null
+        description: newItem.description?.trim() || null,
+        isRecurring: newItem.eventRepeats !== 'NONE',
+        recurrencePattern: newItem.eventRepeats !== 'NONE' ? newItem.eventRepeats : null,
+        recurrenceInterval: newItem.eventRepeats !== 'NONE' ? 1 : null,
+        recurrenceEndDate: newItem.eventRepeats !== 'NONE' && newItem.eventRecurrenceEndDate
+          ? new Date(newItem.eventRecurrenceEndDate + 'T23:59:59').toISOString()
+          : null
       };
 
       const res = await fetch('/api/schedule', {
@@ -576,7 +588,9 @@ export default function InteractiveWeekView() {
         startTime: '09:00',
         endTime: '',
         location: '',
-        description: ''
+        description: '',
+        eventRepeats: 'NONE',
+        eventRecurrenceEndDate: ''
       }));
       fetchData();
     } catch (error) {
@@ -592,17 +606,25 @@ export default function InteractiveWeekView() {
     }
 
     try {
+      // Use parentEventId if present (for occurrences), otherwise use id
+      const eventId = editModal.parentEventId || editModal.id;
+
       const res = await fetch('/api/schedule', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: editModal.id,
+          id: eventId,
+          parentEventId: editModal.parentEventId || undefined,
           title: editModal.title,
           category: editModal.category ?? null,
           location: editModal.location ?? null,
           description: editModal.description ?? null,
           startsAt: editModal.startsAt ? new Date(editModal.startsAt).toISOString() : undefined,
-          endsAt: editModal.endsAt ? new Date(editModal.endsAt).toISOString() : null
+          endsAt: editModal.endsAt ? new Date(editModal.endsAt).toISOString() : null,
+          isRecurring: editModal.isRecurring ?? false,
+          recurrencePattern: editModal.recurrencePattern ?? null,
+          recurrenceInterval: editModal.recurrenceInterval ?? null,
+          recurrenceEndDate: editModal.recurrenceEndDate ? new Date(editModal.recurrenceEndDate).toISOString() : null
         })
       });
 
@@ -695,19 +717,19 @@ export default function InteractiveWeekView() {
       : `${Math.abs(weekOffset)} weeks ago`;
 
   return (
-    <main style={styles.main} className="cork-board">
-      <section style={styles.hero} className="hero-tape handwritten">
+    <main style={{ ...styles.main, color: theme?.card?.text ?? styles.main.color }} className="cork-board">
+      <section style={{ ...styles.hero, background: theme?.hero?.bg, color: theme?.hero?.text, borderColor: theme?.hero?.border }} className="hero-tape handwritten">
         <h1 style={styles.title}>Family Planner</h1>
         <p style={styles.subtitle}>Track chores and events in one place.</p>
       </section>
 
-      <section style={styles.controls}>
+      <section style={{ ...styles.controls, background: theme?.controls?.bg, borderColor: theme?.controls?.border }}>
         <div style={styles.weekNav}>
-          <button onClick={() => setWeekOffset(weekOffset - 1)} style={styles.navButton}>
+          <button onClick={() => setWeekOffset(weekOffset - 1)} style={{ ...styles.navButton, background: theme?.card?.bg?.[0] ?? theme?.button?.primary, color: theme?.button?.primaryText ?? theme?.card?.text, borderColor: theme?.card?.border }}>
             ← Previous
           </button>
           <span style={styles.weekLabel}>{weekLabel}</span>
-          <button onClick={() => setWeekOffset(weekOffset + 1)} style={styles.navButton}>
+          <button onClick={() => setWeekOffset(weekOffset + 1)} style={{ ...styles.navButton, background: theme?.card?.bg?.[0] ?? theme?.button?.primary, color: theme?.button?.primaryText ?? theme?.card?.text, borderColor: theme?.card?.border }}>
             Next →
           </button>
         </div>
@@ -717,15 +739,15 @@ export default function InteractiveWeekView() {
             onClick={handlePlanThisWeek}
             icon="📅"
             label={planWeekLoading ? 'Planning…' : 'Plan This Week'}
-            color="#ffd9a8"
+            color={theme?.card?.bg?.[1] ?? '#ffd9a8'}
             disabled={planWeekLoading}
           />
-          <QuickAddButton onClick={() => setQuickAddModal('chore')} icon="+" label="Add Chore" color="#c9f7a5" />
-          <QuickAddButton onClick={() => setQuickAddModal('event')} icon="+" label="Add Event" color="#ffd9a8" />
+          <QuickAddButton onClick={() => setQuickAddModal('chore')} icon="+" label="Add Chore" color={theme?.button?.primary ?? theme?.card?.bg?.[2] ?? '#c9f7a5'} />
+          <QuickAddButton onClick={() => setQuickAddModal('event')} icon="+" label="Add Event" color={theme?.card?.bg?.[1] ?? '#ffd9a8'} />
         </div>
       </section>
 
-      {loading && <div style={styles.loading}>Loading...</div>}
+      {loading && <div style={{ ...styles.loading, color: theme?.loading?.text }}>Loading...</div>}
 
       {!loading && (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -739,6 +761,8 @@ export default function InteractiveWeekView() {
                   style={{
                     ...styles.card,
                     background: noteColors[index % noteColors.length],
+                    borderColor: theme?.card?.border,
+                    boxShadow: theme?.card?.shadow ? `2px 3px 8px ${theme.card.shadow}, 4px 6px 16px ${theme.card.shadow}` : undefined,
                     transform: noteRotations[index % noteRotations.length]
                   }}
                 >
@@ -773,14 +797,17 @@ export default function InteractiveWeekView() {
                               )}
                             </>
                           );
+                          const eventBg = getEventColor(work.type || 'WORK', isDarkMode);
                           if (work.isSynthetic) {
                             return (
                               <li
                                 key={work.id}
                                 style={{
                                   ...styles.eventItem,
-                                  background: `linear-gradient(135deg, ${category.lightColor} 0%, ${category.lightColor}dd 100%)`,
-                                  borderLeft: `4px solid ${work.memberColor || category.darkColor}`
+                                  background: `linear-gradient(135deg, ${eventBg} 0%, ${eventBg}dd 100%)`,
+                                  borderLeft: `4px solid ${work.memberColor || category.darkColor}`,
+                                  borderColor: theme?.card?.border,
+                                  color: theme?.card?.text
                                 }}
                                 title="From family profile"
                               >
@@ -802,8 +829,10 @@ export default function InteractiveWeekView() {
                               }}
                               style={{
                                 ...styles.eventItem,
-                                background: `linear-gradient(135deg, ${category.lightColor} 0%, ${category.lightColor}dd 100%)`,
-                                borderLeft: `4px solid ${category.darkColor}`
+                                background: `linear-gradient(135deg, ${eventBg} 0%, ${eventBg}dd 100%)`,
+                                borderLeft: `4px solid ${category.darkColor}`,
+                                borderColor: theme?.card?.border,
+                                color: theme?.card?.text
                               }}
                             >
                               <div style={styles.eventContent}>
@@ -815,7 +844,7 @@ export default function InteractiveWeekView() {
                                   {titleContent}
                                 </span>
                                 <button
-                                  onClick={() => deleteEvent(work.id)}
+                                  onClick={() => deleteEvent(work.id, work.parentEventId)}
                                   style={styles.miniDeleteBtn}
                                 >
                                   ×
@@ -837,6 +866,9 @@ export default function InteractiveWeekView() {
                       <ul style={styles.eventList}>
                         {day.events.map((event) => {
                           const category = getEventCategory(event.type || 'PERSONAL');
+                          const eventBg = getEventColor(event.type || 'PERSONAL', isDarkMode);
+                          const timeStr = formatTimeRange(event.startsAt, event.endsAt);
+                          const categoryLabel = getEventCategoryLabel(event.category);
                           return (
                             <DraggableItem
                               key={event.id}
@@ -848,20 +880,31 @@ export default function InteractiveWeekView() {
                               }}
                               style={{
                                 ...styles.eventItem,
-                                background: `linear-gradient(135deg, ${category.lightColor} 0%, ${category.lightColor}dd 100%)`,
-                                borderLeft: `4px solid ${category.darkColor}`
+                                background: `linear-gradient(135deg, ${eventBg} 0%, ${eventBg}dd 100%)`,
+                                borderLeft: `4px solid ${category.darkColor}`,
+                                borderColor: theme?.card?.border,
+                                color: theme?.card?.text
                               }}
                             >
                               <div style={styles.eventContent}>
                                 <span style={styles.eventIcon}>{category.icon}</span>
-                                <span
-                                  style={styles.eventTitle}
-                                  onClick={() => setEditModal(event)}
-                                >
-                                  {event.title}
-                                </span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={styles.eventTopRow}>
+                                    <span style={styles.eventTime}>{timeStr}</span>
+                                    <span style={styles.eventCategoryBadge}>{categoryLabel}</span>
+                                  </div>
+                                  <span
+                                    style={styles.eventTitle}
+                                    onClick={() => setEditModal(event)}
+                                  >
+                                    {event.title}
+                                  </span>
+                                  {event.location && (
+                                    <div style={styles.eventLocation}>{event.location}</div>
+                                  )}
+                                </div>
                                 <button
-                                  onClick={() => deleteEvent(event.id)}
+                                  onClick={() => deleteEvent(event.id, event.parentEventId)}
                                   style={styles.miniDeleteBtn}
                                 >
                                   ×
@@ -894,9 +937,11 @@ export default function InteractiveWeekView() {
                               style={{
                                 ...styles.choreItem,
                                 background: chore.completed
-                                  ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9dd 100%)'
-                                  : 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%)',
-                                borderLeft: `4px solid ${chore.completed ? '#66bb6a' : memberColor}`,
+                                  ? (theme?.card?.bg?.[2] ? `linear-gradient(135deg, ${theme.card.bg[2]} 0%, ${theme.card.bg[2]}dd 100%)` : 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9dd 100%)')
+                                  : (theme?.controls?.bg ?? theme?.card?.bg?.[1] ?? 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.5) 100%)'),
+                                borderLeft: `4px solid ${chore.completed ? (theme?.toast?.success?.border ?? '#66bb6a') : memberColor}`,
+                                borderColor: theme?.card?.border,
+                                color: theme?.card?.text,
                                 opacity: chore.completed ? 0.85 : 1
                               }}
                             >
@@ -1000,10 +1045,11 @@ export default function InteractiveWeekView() {
                 style={{
                   ...styles.card,
                   background: noteColors[0],
+                  borderColor: theme?.card?.border,
+                  boxShadow: theme?.card?.shadow ? `0 20px 40px ${theme.card.shadow}` : '0 20px 40px rgba(70, 45, 11, 0.4)',
                   transform: 'rotate(2deg)',
                   opacity: 0.9,
                   cursor: 'grabbing',
-                  boxShadow: '0 20px 40px rgba(70, 45, 11, 0.4)',
                   padding: '0.75rem',
                   minHeight: 'auto'
                 }}
@@ -1024,8 +1070,8 @@ export default function InteractiveWeekView() {
               onClick={() => setSelectedMember(null)}
               style={{
                 ...styles.memberFilterBtn,
-                background: !selectedMember ? '#3f2d1d' : 'rgba(255, 255, 255, 0.6)',
-                color: !selectedMember ? 'white' : '#3f2d1d'
+                background: !selectedMember ? (theme?.nav?.text ?? '#3f2d1d') : (theme?.controls?.bg ?? 'rgba(255, 255, 255, 0.6)'),
+                color: !selectedMember ? (theme?.nav?.bg ?? 'white') : (theme?.card?.text ?? '#3f2d1d')
               }}
             >
               All
@@ -1036,8 +1082,8 @@ export default function InteractiveWeekView() {
                 onClick={() => setSelectedMember(member.name)}
                 style={{
                   ...styles.memberFilterBtn,
-                  background: selectedMember === member.name ? member.color : 'rgba(255, 255, 255, 0.6)',
-                  color: selectedMember === member.name ? 'white' : '#3f2d1d',
+                  background: selectedMember === member.name ? member.color : (theme?.controls?.bg ?? 'rgba(255, 255, 255, 0.6)'),
+                  color: selectedMember === member.name ? 'white' : (theme?.card?.text ?? '#3f2d1d'),
                   border: `2px solid ${member.color}`
                 }}
               >
@@ -1053,9 +1099,9 @@ export default function InteractiveWeekView() {
           </div>
 
           {!selectedMember && (
-            <div style={styles.statsGrid}>
+            <div style={{ ...styles.statsGrid, background: theme?.controls?.bg, borderColor: theme?.card?.border }}>
               {memberStats.map((stat) => (
-                <div key={stat.id} style={styles.statCard}>
+                <div key={stat.id} style={{ ...styles.statCard, background: theme?.card?.bg?.[0], borderColor: theme?.card?.border }}>
                   <MemberAvatar
                     name={stat.name}
                     color={stat.color}
@@ -1238,6 +1284,32 @@ export default function InteractiveWeekView() {
                   value={newItem.description}
                   onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
                 />
+
+                <label style={styles.modalLabel}>Repeats</label>
+                <select
+                  style={styles.modalInput}
+                  value={newItem.eventRepeats}
+                  onChange={(e) => setNewItem({ ...newItem, eventRepeats: e.target.value })}
+                >
+                  <option value="NONE">None (one-time)</option>
+                  <option value="DAILY">Daily</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="MONTHLY">Monthly</option>
+                  <option value="YEARLY">Yearly</option>
+                </select>
+
+                {newItem.eventRepeats !== 'NONE' && (
+                  <>
+                    <label style={styles.modalLabel}>Ends on (optional)</label>
+                    <input
+                      type="date"
+                      style={styles.modalInput}
+                      value={newItem.eventRecurrenceEndDate}
+                      onChange={(e) => setNewItem({ ...newItem, eventRecurrenceEndDate: e.target.value })}
+                      placeholder="Leave blank for no end date"
+                    />
+                  </>
+                )}
               </>
             )}
 
@@ -1340,12 +1412,46 @@ value={editModal.category || EVENT_CATEGORIES[0].value}
               onChange={(e) => setEditModal({ ...editModal, description: e.target.value })}
             />
 
+            <label style={styles.modalLabel}>Repeats</label>
+            <select
+              style={styles.modalInput}
+              value={editModal.isRecurring ? (editModal.recurrencePattern || 'WEEKLY') : 'NONE'}
+              onChange={(e) => {
+                const pattern = e.target.value;
+                setEditModal({
+                  ...editModal,
+                  isRecurring: pattern !== 'NONE',
+                  recurrencePattern: pattern !== 'NONE' ? pattern : null,
+                  recurrenceInterval: pattern !== 'NONE' ? (editModal.recurrenceInterval || 1) : null
+                });
+              }}
+            >
+              <option value="NONE">None (one-time)</option>
+              <option value="DAILY">Daily</option>
+              <option value="WEEKLY">Weekly</option>
+              <option value="MONTHLY">Monthly</option>
+              <option value="YEARLY">Yearly</option>
+            </select>
+
+            {editModal.isRecurring && (
+              <>
+                <label style={styles.modalLabel}>Ends on (optional)</label>
+                <input
+                  type="date"
+                  style={styles.modalInput}
+                  value={editModal.recurrenceEndDate ? new Date(editModal.recurrenceEndDate).toISOString().split('T')[0] : ''}
+                  onChange={(e) => setEditModal({ ...editModal, recurrenceEndDate: e.target.value ? new Date(e.target.value + 'T23:59:59').toISOString() : null })}
+                  placeholder="Leave blank for no end date"
+                />
+              </>
+            )}
+
             <button onClick={handleEventEdit} style={styles.modalButton}>
               Update Event
             </button>
 
             <button
-              onClick={() => deleteEvent(editModal.id)}
+              onClick={() => deleteEvent(editModal.id, editModal.parentEventId)}
               style={{ ...styles.modalButton, background: 'rgba(186, 62, 62, 0.14)', color: '#8b1f1f', border: '1px solid rgba(186, 62, 62, 0.55)' }}
             >
               Delete Event
@@ -1590,13 +1696,38 @@ const styles = {
     marginRight: '0.25rem',
     flexShrink: 0
   },
+  eventTopRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    marginBottom: '0.15rem',
+    flexWrap: 'wrap'
+  },
+  eventTime: {
+    fontSize: '0.75rem',
+    opacity: 0.9
+  },
+  eventCategoryBadge: {
+    fontSize: '0.65rem',
+    fontWeight: 700,
+    padding: '0.1rem 0.4rem',
+    borderRadius: 9999,
+    background: 'rgba(0,0,0,0.12)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.04em'
+  },
   eventTitle: {
-    flex: 1,
     cursor: 'pointer',
     textDecoration: 'underline',
     textDecorationStyle: 'dotted',
     fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
-    fontWeight: 400
+    fontWeight: 400,
+    display: 'block'
+  },
+  eventLocation: {
+    fontSize: '0.72rem',
+    opacity: 0.8,
+    marginTop: '0.15rem'
   },
   miniDeleteBtn: {
     background: 'rgba(186, 62, 62, 0.15)',

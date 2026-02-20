@@ -6,15 +6,18 @@ import Button from '../components/Button';
 import { Label, Input, Select } from '../components/form';
 import { MAIN_PADDING_WITH_NAV, CONTENT_WIDTH_FORM } from '../../lib/layout';
 
+// Preset id for dropdown; category maps to Prisma EventCategory enum
 const EVENT_PRESETS = [
-  { value: 'DOCTOR', label: 'Doctor Appointment', icon: '🩺' },
-  { value: 'DENTIST', label: 'Dentist Appointment', icon: '🦷' },
-  { value: 'SCHOOL', label: 'School Event', icon: '🏫' },
-  { value: 'CHURCH', label: 'Church', icon: '⛪' },
-  { value: 'FAMILY', label: 'Family Event', icon: '👨‍👩‍👧‍👦' },
-  { value: 'SPORTS', label: 'Sports', icon: '🏅' },
-  { value: 'BIRTHDAY', label: 'Birthday', icon: '🎂' },
-  { value: 'GENERAL', label: 'General', icon: '📌' }
+  { value: 'doctor', label: 'Doctor Appointment', icon: '🩺', category: 'APPOINTMENT' },
+  { value: 'dentist', label: 'Dentist Appointment', icon: '🦷', category: 'APPOINTMENT' },
+  { value: 'school', label: 'School Event', icon: '🏫', category: 'SCHOOL' },
+  { value: 'practice', label: 'Practice', icon: '🏃', category: 'SPORTS' },
+  { value: 'game', label: 'Game', icon: '⚽', category: 'SPORTS' },
+  { value: 'church', label: 'Church', icon: '⛪', category: 'CHURCH' },
+  { value: 'family', label: 'Family Event', icon: '👨‍👩‍👧‍👦', category: 'FAMILY' },
+  { value: 'sports', label: 'Sports', icon: '🏅', category: 'SPORTS' },
+  { value: 'birthday', label: 'Birthday', icon: '🎂', category: 'BIRTHDAY' },
+  { value: 'general', label: 'Other (custom)', icon: '📌', category: 'GENERAL' }
 ];
 
 function fmtDateTime(d) {
@@ -54,7 +57,7 @@ export default function SchedulePage({ searchParams }) {
   const [events, setEvents] = useState([]);
 
   // Form state
-  const [preset, setPreset] = useState('GENERAL');
+  const [preset, setPreset] = useState('general');
   const [title, setTitle] = useState('');
   const [day, setDay] = useState('Monday');
   const [startTime, setStartTime] = useState('09:00');
@@ -66,6 +69,10 @@ export default function SchedulePage({ searchParams }) {
     const pad = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   });
+  const [location, setLocation] = useState('');
+  const [description, setDescription] = useState('');
+  const [repeats, setRepeats] = useState('NONE'); // NONE, DAILY, WEEKLY, MONTHLY, YEARLY
+  const [recurrenceEndDate, setRecurrenceEndDate] = useState('');
 
   const initialToast = useMemo(() => {
     const saved = searchParams?.saved === '1';
@@ -164,19 +171,17 @@ export default function SchedulePage({ searchParams }) {
 
       const { startsAt, endsAt } = computeStartsEnds();
 
-      // API expects: day, event, isRecurring..., plus anything extra we include
       const payload = {
-        day,
-        event: `${chosen.icon} ${name}`.trim(),
-        // new fields for PATCH/DB (your prisma supports endsAt already)
-        type: 'EVENT',
-        category: preset, // maps to EventCategory enum (GENERAL, SPORTS, BIRTHDAY, APPOINTMENT)
+        title: name,
+        category: chosen.category,
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
-        isRecurring: false,
-        recurrencePattern: null,
-        recurrenceInterval: null,
-        recurrenceEndDate: null
+        location: location.trim() || null,
+        description: description.trim() || null,
+        isRecurring: repeats !== 'NONE',
+        recurrencePattern: repeats !== 'NONE' ? repeats : null,
+        recurrenceInterval: repeats !== 'NONE' ? 1 : null,
+        recurrenceEndDate: repeats !== 'NONE' && recurrenceEndDate ? new Date(recurrenceEndDate + 'T23:59:59').toISOString() : null
       };
 
       const res = await fetch('/api/schedule', {
@@ -189,7 +194,11 @@ export default function SchedulePage({ searchParams }) {
 
       showToast('success', data?.message || '✓ Saved.');
       setTitle('');
-      setPreset('GENERAL');
+      setPreset('general');
+      setLocation('');
+      setDescription('');
+      setRepeats('NONE');
+      setRecurrenceEndDate('');
 
       await fetchEvents();
     } catch (err) {
@@ -258,7 +267,7 @@ export default function SchedulePage({ searchParams }) {
           </p>
         )}
 
-        <div style={styles.listBox}>
+        <div style={{ ...styles.listBox, background: theme.controls?.bg ?? styles.listBox.background, border: `1px solid ${theme.card?.border ?? 'rgba(98, 73, 24, 0.22)'}` }}>
           <div style={styles.listHeader}>
             <h2 style={styles.listTitle}>Upcoming</h2>
             <span style={styles.listMeta}>{upcoming.upcoming.length} item(s)</span>
@@ -271,7 +280,7 @@ export default function SchedulePage({ searchParams }) {
           ) : (
             <ul style={styles.list}>
               {upcoming.upcoming.map((evt) => (
-                <li key={evt.id} style={styles.listItem}>
+                <li key={evt.id} style={{ ...styles.listItem, background: theme.card?.bg?.[1] ?? theme.controls?.bg ?? styles.listItem.background, border: `1px solid ${theme.card?.border ?? 'rgba(98, 73, 24, 0.18)'}` }}>
                   <div style={styles.itemMain}>
                     <div style={styles.itemTopRow}>
                       <strong style={styles.itemTitle}>{evt.title}</strong>
@@ -298,7 +307,7 @@ export default function SchedulePage({ searchParams }) {
         </div>
 
         <div ref={formRef} />
-        <div style={styles.formDivider} />
+        <div style={{ ...styles.formDivider, background: theme.card?.border ?? styles.formDivider.background }} />
 
         <h2 style={styles.formTitle}>Add Event</h2>
 
@@ -373,12 +382,51 @@ export default function SchedulePage({ searchParams }) {
             </div>
           </div>
 
+          <Label>Location (optional)</Label>
+          <Input
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Ex: Rome Family Dental"
+            style={styles.inputSpacing}
+          />
+
+          <Label>Notes (optional)</Label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Any extra details..."
+            style={{ ...styles.input, minHeight: 70, resize: 'vertical' }}
+          />
+
+          <Label>Repeats</Label>
+          <Select value={repeats} onChange={(e) => setRepeats(e.target.value)} style={styles.inputSpacing}>
+            <option value="NONE">None (one-time)</option>
+            <option value="DAILY">Daily</option>
+            <option value="WEEKLY">Weekly</option>
+            <option value="MONTHLY">Monthly</option>
+            <option value="YEARLY">Yearly</option>
+          </Select>
+
+          {repeats !== 'NONE' && (
+            <>
+              <Label>Ends on (optional)</Label>
+              <Input
+                type="date"
+                value={recurrenceEndDate}
+                onChange={(e) => setRecurrenceEndDate(e.target.value)}
+                placeholder="Leave blank for no end date"
+                style={styles.inputSpacing}
+              />
+              <small style={styles.helpText}>Leave blank if this event repeats indefinitely.</small>
+            </>
+          )}
+
           <Button type="submit" variant="primary" disabled={loading}>
             {loading ? 'Saving…' : 'Save Event'}
           </Button>
         </form>
 
-        <div style={styles.pastBox}>
+        <div style={{ ...styles.pastBox, background: theme.controls?.bg ?? styles.pastBox.background, border: `1px solid ${theme.card?.border ?? 'rgba(98, 73, 24, 0.14)'}` }}>
           <div style={styles.listHeader}>
             <h2 style={styles.listTitle}>Recent Past</h2>
             <span style={styles.listMeta}>{upcoming.past.length} item(s)</span>
@@ -389,7 +437,7 @@ export default function SchedulePage({ searchParams }) {
           ) : (
             <ul style={styles.list}>
               {upcoming.past.map((evt) => (
-                <li key={evt.id} style={styles.listItemCompact}>
+                <li key={evt.id} style={{ ...styles.listItemCompact, background: theme.card?.bg?.[2] ?? theme.controls?.bg ?? styles.listItemCompact.background, border: `1px solid ${theme.card?.border ?? 'rgba(98, 73, 24, 0.14)'}` }}>
                   <span>
                     <strong>{evt.title}</strong> — {fmtDateTime(evt.startsAt)}
                     {evt.endsAt ? ` → ${fmtDateTime(evt.endsAt)}` : ''}

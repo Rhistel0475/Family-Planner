@@ -21,7 +21,7 @@ export default function BottomNav() {
       {/* Spacer to prevent content from being hidden behind fixed nav */}
       <div style={styles.spacer} />
 
-      <nav style={{...styles.nav, background: theme.nav.bg, borderTop: `2px solid ${theme.nav.border}`}}>
+      <nav style={{ ...styles.nav, background: theme?.nav?.bg ?? '#ffe77a', borderTop: `2px solid ${theme?.nav?.border ?? 'rgba(98, 73, 24, 0.2)'}` }}>
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -30,8 +30,8 @@ export default function BottomNav() {
               href={item.href}
               style={{
                 ...styles.navItem,
-                background: isActive ? theme.nav.hover : 'transparent',
-                color: theme.nav.text
+                background: isActive ? (theme?.nav?.hover ?? 'rgba(255, 245, 157, 0.5)') : 'transparent',
+                color: theme?.nav?.text ?? '#3f2d1d'
               }}
             >
               <span style={styles.icon}>{item.icon}</span>
