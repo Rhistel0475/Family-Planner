@@ -15,10 +15,10 @@ This document describes the app’s styling approach and the Chores sub-theme.
 
 ## Chores sub-theme (distinct)
 
-The **Chores** list and **Chore Board** use a **distinct sub-theme** on purpose:
+The **Chores** page (including the Chore Board) uses a **distinct sub-theme** on purpose:
 
-- **Scope:** `app/chores/page.js`, `app/chores/board/page.js`, `app/chores/chores.module.css`, `app/chores/board/board.module.css`.
-- **Look:** Brown gradient background (`#8b6f47` → `#a0826d`), cream post-it cards (`#fef3c7`), amber primary actions (`#f59e0b`), system font stack in the CSS modules.
+- **Scope:** `app/chores/page.js`, `app/chores/chores.module.css`. (The route `/chores/board` redirects to `/chores`.)
+- **Look:** Brown gradient background (`#8b6f47` → `#a0826d`), cream post-it cards (`#fef3c7`), amber primary actions (`#f59e0b`), system font stack in the CSS module.
 - **Why separate:** Keeps the chore board visually distinct (cork + post-its) while the rest of the app uses the shared theme. Add/Edit chore flow uses the **shared** Modal and theme-based form components so that flow is consistent with the app.
 
 Do not mix the Chores brown/amber palette with the main app theme elsewhere; keep it confined to the Chores area.
