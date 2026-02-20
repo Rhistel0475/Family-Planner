@@ -35,6 +35,7 @@ export async function GET(request) {
               familyId: family.id,
               templateKey: chore.templateKey,
               title: chore.title,
+              description: chore.description || null,
               isRecurring: false,
               frequencyType: 'ONE_TIME',
               eligibilityMode: 'ALL',
@@ -68,6 +69,7 @@ export async function GET(request) {
           familyId: family.id,
           templateKey: chore.templateKey,
           title: chore.title,
+          description: chore.description || null,
           isRecurring: false,
           frequencyType: 'ONE_TIME',
           customEveryDays: null,
@@ -118,7 +120,7 @@ export async function PATCH(request) {
 
     // Validate each setting
     for (const setting of settings) {
-      const { templateKey, isRecurring, frequencyType, customEveryDays, daysPerWeek, eligibilityMode, eligibleMemberIds, defaultAssigneeMemberId } = setting;
+      const { templateKey, title, description, isRecurring, frequencyType, customEveryDays, daysPerWeek, eligibilityMode, eligibleMemberIds, defaultAssigneeMemberId } = setting;
 
       if (!templateKey) {
         return NextResponse.json(
@@ -170,6 +172,8 @@ export async function PATCH(request) {
             }
           },
           update: {
+            ...(setting.title != null && { title: setting.title }),
+            ...(setting.description !== undefined && { description: setting.description?.trim() || null }),
             isRecurring: setting.isRecurring,
             frequencyType: setting.frequencyType,
             customEveryDays: setting.customEveryDays || null,
@@ -182,6 +186,7 @@ export async function PATCH(request) {
             familyId: family.id,
             templateKey: setting.templateKey,
             title: setting.title,
+            description: setting.description?.trim() || null,
             isRecurring: setting.isRecurring,
             frequencyType: setting.frequencyType,
             customEveryDays: setting.customEveryDays || null,

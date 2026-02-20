@@ -1,8 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { useTheme } from '../providers/ThemeProvider';
 
 export default function UpcomingChores({ chores, onToggle }) {
+  const { theme } = useTheme();
+  const cardBg = theme.card?.bg?.[2] || theme.hero?.bg || 'rgba(255,255,255,0.95)';
+  const textColor = theme.card?.text || '#3f2d1d';
+  const borderColor = theme.card?.border || 'rgba(0,0,0,0.1)';
   const [localChores, setLocalChores] = useState(chores);
 
   // Get today's day name
@@ -29,43 +34,55 @@ export default function UpcomingChores({ chores, onToggle }) {
     const isCompleted = localChores.find(c => c.id === chore.id)?.completed || chore.completed;
 
     return (
-      <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 12,
+          padding: 12,
+          borderRadius: 8,
+          background: 'rgba(0,0,0,0.05)'
+        }}
+      >
         <button
           onClick={() => handleToggle(chore.id, isCompleted)}
-          className={`flex-shrink-0 w-5 h-5 rounded border-2 transition-all ${
-            isCompleted
-              ? 'bg-green-500 border-green-500'
-              : 'border-gray-300 hover:border-green-500'
-          }`}
+          style={{
+            flexShrink: 0,
+            width: 20,
+            height: 20,
+            borderRadius: 4,
+            border: `2px solid ${isCompleted ? '#22c55e' : 'rgba(0,0,0,0.2)'}`,
+            background: isCompleted ? '#22c55e' : 'transparent',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
         >
           {isCompleted && (
-            <svg
-              className="w-full h-full text-white"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={3}
-                d="M5 13l4 4L19 7"
-              />
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
             </svg>
           )}
         </button>
-        <div className="flex-1 min-w-0">
+        <div style={{ flex: 1, minWidth: 0 }}>
           <h4
-            className={`text-sm font-medium ${
-              isCompleted ? 'text-gray-400 line-through' : 'text-gray-900'
-            }`}
+            style={{
+              fontSize: '0.875rem',
+              fontWeight: 500,
+              margin: 0,
+              color: textColor,
+              opacity: isCompleted ? 0.6 : 1,
+              textDecoration: isCompleted ? 'line-through' : 'none'
+            }}
           >
             {chore.title}
           </h4>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-gray-500">{chore.dueDay}</span>
-            <span className="text-xs text-gray-400">•</span>
-            <span className="text-xs text-gray-500">{chore.assignedTo}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+            <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{chore.dueDay}</span>
+            <span style={{ fontSize: '0.75rem', opacity: 0.5 }}>•</span>
+            <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{chore.assignedTo}</span>
           </div>
         </div>
       </div>
@@ -73,30 +90,37 @@ export default function UpcomingChores({ chores, onToggle }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Upcoming Chores</h2>
-        <span className="text-sm text-gray-500">
+    <div
+      style={{
+        background: cardBg,
+        borderRadius: 8,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        border: `1px solid ${borderColor}`,
+        padding: '1.5rem'
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: textColor }}>Upcoming Chores</h2>
+        <span style={{ fontSize: '0.875rem', color: textColor, opacity: 0.8 }}>
           {incompleteChores.length} to do
         </span>
       </div>
 
       {incompleteChores.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-4xl mb-3">🎉</div>
-          <p className="text-gray-600 font-medium">All caught up!</p>
-          <p className="text-sm text-gray-500 mt-1">No pending chores</p>
+        <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🎉</div>
+          <p style={{ fontWeight: 500, color: textColor }}>All caught up!</p>
+          <p style={{ fontSize: '0.875rem', marginTop: 4, opacity: 0.7 }}>No pending chores</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {/* Today's Chores */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {todayChores.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>
                 <span>🔥</span>
                 <span>Today ({today})</span>
               </h3>
-              <div className="space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {todayChores.map(chore => (
                   <ChoreItem key={chore.id} chore={chore} />
                 ))}
@@ -104,20 +128,19 @@ export default function UpcomingChores({ chores, onToggle }) {
             </div>
           )}
 
-          {/* Rest of Week */}
           {otherChores.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>
                 <span>📅</span>
                 <span>This Week</span>
               </h3>
-              <div className="space-y-2">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {otherChores.slice(0, 5).map(chore => (
                   <ChoreItem key={chore.id} chore={chore} />
                 ))}
                 {otherChores.length > 5 && (
-                  <div className="text-center py-2">
-                    <span className="text-sm text-gray-500">
+                  <div style={{ textAlign: 'center', padding: 8 }}>
+                    <span style={{ fontSize: '0.875rem', opacity: 0.7 }}>
                       +{otherChores.length - 5} more chores
                     </span>
                   </div>

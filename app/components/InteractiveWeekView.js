@@ -15,17 +15,20 @@ import DateTimePicker from './DateTimePicker';
 import CategorySelector from './CategorySelector';
 import { getEventCategory } from '../../lib/eventConfig';
 import { createSmartTaskInstances } from '../../lib/smartAssignment';
+import { PREDEFINED_CHORES } from '../../lib/boardChores';
+import { parseWorkingHours, format24hTo12h } from '../../lib/workingHoursUtils';
+import { getInitials, getAvatarStyle } from '../../lib/avatarUtils';
+import MemberAvatar from './MemberAvatar';
 
+// Must match Prisma EventCategory enum: GENERAL, FAMILY, CHURCH, SCHOOL, SPORTS, BIRTHDAY, APPOINTMENT
 const EVENT_CATEGORIES = [
-  'Doctor Appointment',
-  'Dentist Appointment',
-  'School Event',
-  'Church',
-  'Family Event',
-  'Birthday',
-  'Sports / Practice',
-  'Meeting',
-  'Other'
+  { label: 'Doctor/Dentist Appointment', value: 'APPOINTMENT' },
+  { label: 'School Event', value: 'SCHOOL' },
+  { label: 'Church', value: 'CHURCH' },
+  { label: 'Family Event', value: 'FAMILY' },
+  { label: 'Birthday', value: 'BIRTHDAY' },
+  { label: 'Sports / Practice', value: 'SPORTS' },
+  { label: 'Meeting / Other', value: 'GENERAL' }
 ];
 
 function pad(n) {
@@ -73,28 +76,25 @@ export default function InteractiveWeekView() {
     title: '',
     assignedTo: '',
     day: 'Monday',
-    choreTemplate: 'Clean Bedroom',
+    choreTemplate: '',
+    choreDescription: '',
     availableToAll: true,
     frequency: 'ONCE',
 
     // For events:
-    category: EVENT_CATEGORIES[0],
+    category: EVENT_CATEGORIES[0].value,
     startTime: '09:00',
     endTime: '',
     location: '',
     description: ''
   });
   const [activeItem, setActiveItem] = useState(null);
+  const [editingChoreId, setEditingChoreId] = useState(null);
+  const [boardSettings, setBoardSettings] = useState([]);
 
-  const defaultChoreTemplates = [
-    'Clean Bedroom',
-    'Clean Kitchen',
-    'Clean Living Room',
-    'Take Out Trash',
-    'Do Laundry',
-    'Wash Dishes',
-    'Vacuum Floors'
-  ];
+  const choreTemplates = boardSettings.length > 0
+    ? boardSettings.map((s) => s.title)
+    : PREDEFINED_CHORES.map((c) => c.title);
 
   const noteColors = ['#fff59d', '#ffd9a8', '#c9f7a5', '#ffd6e7', '#b3e5fc', '#e1bee7', '#ffeaa7'];
   const noteRotations = ['rotate(-1.5deg)', 'rotate(1deg)', 'rotate(-0.8deg)', 'rotate(1.2deg)', 'rotate(-0.5deg)', 'rotate(0.9deg)', 'rotate(-1.1deg)'];
@@ -147,11 +147,17 @@ export default function InteractiveWeekView() {
       const weekEnd = new Date(weekDates[6].date);
       weekEnd.setHours(23, 59, 59, 999);
 
-      const [eventsRes, choresRes, membersRes] = await Promise.all([
+      const [eventsRes, choresRes, membersRes, boardRes] = await Promise.all([
         fetch('/api/schedule'),
         fetch('/api/chores'),
-        fetch('/api/family-members')
+        fetch('/api/family-members'),
+        fetch('/api/chore-board')
       ]);
+
+      if (boardRes.ok) {
+        const boardData = await boardRes.json();
+        setBoardSettings(Array.isArray(boardData.settings) ? boardData.settings : []);
+      }
 
       if (eventsRes.ok) {
         const eventsData = await eventsRes.json();
@@ -224,9 +230,34 @@ export default function InteractiveWeekView() {
       if (!res.ok) throw new Error('Failed to delete');
 
       setChores(chores.filter((c) => c.id !== choreId));
+      setEditingChoreId((id) => (id === choreId ? null : id));
       showToast('Chore deleted');
     } catch (error) {
       showToast('Failed to delete chore', 'error');
+    }
+  };
+
+  const updateChoreTitle = async (choreId, newTitle) => {
+    const t = newTitle?.trim();
+    if (!t) return;
+    const chore = chores.find((c) => c.id === choreId);
+    if (!chore || chore.title === t) {
+      setEditingChoreId(null);
+      return;
+    }
+    try {
+      const res = await fetch('/api/chores', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: choreId, title: t })
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      setChores(chores.map((c) => (c.id === choreId ? { ...c, title: t } : c)));
+      showToast('Chore updated');
+    } catch (error) {
+      showToast('Failed to update chore', 'error');
+    } finally {
+      setEditingChoreId(null);
     }
   };
 
@@ -417,6 +448,24 @@ export default function InteractiveWeekView() {
     }
   };
 
+  const [planWeekLoading, setPlanWeekLoading] = useState(false);
+
+  const handlePlanThisWeek = async () => {
+    setPlanWeekLoading(true);
+    try {
+      const res = await fetch('/api/ai/generate-weekly-chores', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate weekly chores');
+      const count = data.created?.length ?? 0;
+      showToast(count > 0 ? `Created ${count} chores and assigned them` : data.message || 'Weekly chores generated');
+      fetchData();
+    } catch (error) {
+      showToast(error.message || 'Failed to plan week', 'error');
+    } finally {
+      setPlanWeekLoading(false);
+    }
+  };
+
   const handleQuickAdd = async () => {
     if (quickAddModal === 'chore') {
       const choreTitle = newItem.choreTemplate === 'CUSTOM' ? newItem.title.trim() : newItem.choreTemplate;
@@ -428,6 +477,7 @@ export default function InteractiveWeekView() {
       try {
         const chorePayload = {
           title: choreTitle,
+          description: newItem.choreDescription?.trim() || null,
           assignedTo: newItem.availableToAll ? 'All Members' : newItem.assignedTo || 'Unassigned',
           dueDay: newItem.day,
           isRecurring: newItem.frequency !== 'ONCE',
@@ -450,7 +500,8 @@ export default function InteractiveWeekView() {
           title: '',
           assignedTo: '',
           day: 'Monday',
-          choreTemplate: 'Clean Bedroom',
+          choreTemplate: choreTemplates[0] || 'Clean Bedroom',
+          choreDescription: '',
           availableToAll: true,
           frequency: 'ONCE'
         }));
@@ -521,7 +572,7 @@ export default function InteractiveWeekView() {
         ...p,
         title: '',
         day: 'Monday',
-        category: EVENT_CATEGORIES[0],
+        category: EVENT_CATEGORIES[0].value,
         startTime: '09:00',
         endTime: '',
         location: '',
@@ -575,8 +626,39 @@ export default function InteractiveWeekView() {
     const dayEvents = events.filter((item) => toDayName(item.startsAt) === day.day);
     const dayChores = filteredChores.filter((item) => item.dueDay === day.day);
 
-    const workEvents = dayEvents.filter((e) => e.category === 'WORK');
-    const nonWorkEvents = dayEvents.filter((e) => e.category !== 'WORK');
+    const workEvents = dayEvents.filter((e) => e.type === 'WORK');
+    const nonWorkEvents = dayEvents.filter((e) => e.type !== 'WORK');
+
+    const dayKey = day.day.toLowerCase();
+    const isWeekday = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'].includes(dayKey);
+    const syntheticWork = [];
+    for (const member of members) {
+      const avail = member.availability || {};
+      const dayData = avail[dayKey];
+      if (dayData?.available === false) continue;
+      let times = null;
+      if (dayData?.from && dayData?.to) {
+        times = { from: dayData.from, to: dayData.to };
+      } else {
+        const parsed = parseWorkingHours(member.workingHours);
+        if (!parsed || !isWeekday) continue;
+        times = parsed;
+      }
+      syntheticWork.push({
+        id: `synth-${member.id}-${day.day}`,
+        title: `${member.name} - Work`,
+        type: 'WORK',
+        memberId: member.id,
+        memberColor: member.color || '#3b82f6',
+        from: times.from,
+        to: times.to,
+        day: day.day,
+        date: day.dateLabel,
+        dateObj: day.date,
+        isSynthetic: true
+      });
+    }
+    const mergedWorkEvents = [...workEvents, ...syntheticWork];
 
     const completedCount = dayChores.filter((c) => c.completed).length;
     const totalCount = dayChores.length;
@@ -585,7 +667,7 @@ export default function InteractiveWeekView() {
       day: day.day,
       date: day.dateLabel,
       events: nonWorkEvents,
-      workEvents,
+      workEvents: mergedWorkEvents,
       chores: dayChores,
       progress: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
       completedCount,
@@ -631,6 +713,13 @@ export default function InteractiveWeekView() {
         </div>
 
         <div style={styles.quickActions}>
+          <QuickAddButton
+            onClick={handlePlanThisWeek}
+            icon="📅"
+            label={planWeekLoading ? 'Planning…' : 'Plan This Week'}
+            color="#ffd9a8"
+            disabled={planWeekLoading}
+          />
           <QuickAddButton onClick={() => setQuickAddModal('chore')} icon="+" label="Add Chore" color="#c9f7a5" />
           <QuickAddButton onClick={() => setQuickAddModal('event')} icon="+" label="Add Event" color="#ffd9a8" />
         </div>
@@ -669,6 +758,39 @@ export default function InteractiveWeekView() {
                       <ul style={styles.eventList}>
                         {day.workEvents.map((work) => {
                           const category = getEventCategory(work.type || 'WORK');
+                          const timeStr = work.isSynthetic
+                            ? `${format24hTo12h(work.from)}–${format24hTo12h(work.to)}`
+                            : work.startsAt
+                            ? formatTimeRange(work.startsAt, work.endsAt)
+                            : '';
+                          const titleContent = (
+                            <>
+                              {work.title}
+                              {timeStr && (
+                                <span style={{ fontSize: '0.75rem', opacity: 0.8, marginLeft: 4 }}>
+                                  {timeStr}
+                                </span>
+                              )}
+                            </>
+                          );
+                          if (work.isSynthetic) {
+                            return (
+                              <li
+                                key={work.id}
+                                style={{
+                                  ...styles.eventItem,
+                                  background: `linear-gradient(135deg, ${category.lightColor} 0%, ${category.lightColor}dd 100%)`,
+                                  borderLeft: `4px solid ${work.memberColor || category.darkColor}`
+                                }}
+                                title="From family profile"
+                              >
+                                <div style={styles.eventContent}>
+                                  <span style={styles.eventIcon}>{category.icon}</span>
+                                  <span style={styles.eventTitle}>{titleContent}</span>
+                                </div>
+                              </li>
+                            );
+                          }
                           return (
                             <DraggableItem
                               key={work.id}
@@ -690,7 +812,7 @@ export default function InteractiveWeekView() {
                                   style={styles.eventTitle}
                                   onClick={() => setEditModal(work)}
                                 >
-                                  {work.title}
+                                  {titleContent}
                                 </span>
                                 <button
                                   onClick={() => deleteEvent(work.id)}
@@ -778,7 +900,7 @@ export default function InteractiveWeekView() {
                                 opacity: chore.completed ? 0.85 : 1
                               }}
                             >
-                              <div style={styles.choreLabel}>
+                              <div style={styles.choreRow}>
                                 <button
                                   type="button"
                                   onClick={() => toggleChoreCompletion(chore)}
@@ -793,30 +915,61 @@ export default function InteractiveWeekView() {
                                 >
                                   {chore.completed ? '✓' : '○'}
                                 </button>
-                                <span style={{
-                                  ...styles.choreText,
-                                  textDecoration: chore.completed ? 'line-through' : 'none',
-                                  opacity: chore.completed ? 0.7 : 1,
-                                  fontWeight: chore.completed ? 400 : 600
-                                }}>
-                                  {chore.title}
-                                </span>
-                              </div>
-                              <div style={styles.choreActions}>
+                                {editingChoreId === chore.id ? (
+                                  <input
+                                    type="text"
+                                    defaultValue={chore.title}
+                                    autoFocus
+                                    onBlur={(e) => updateChoreTitle(chore.id, e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') {
+                                        e.target.blur();
+                                      } else if (e.key === 'Escape') {
+                                        setEditingChoreId(null);
+                                      }
+                                    }}
+                                    style={styles.choreEditInput}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                ) : (
+                                  <span
+                                    style={{
+                                      ...styles.choreText,
+                                      textDecoration: chore.completed ? 'line-through' : 'none',
+                                      opacity: chore.completed ? 0.7 : 1,
+                                      fontWeight: chore.completed ? 400 : 600
+                                    }}
+                                    onClick={() => setEditingChoreId(chore.id)}
+                                    title="Click to edit"
+                                  >
+                                    {chore.title}
+                                  </span>
+                                )}
+                                <span style={{ opacity: 0.5, margin: '0 0.25rem' }}>·</span>
                                 <span
                                   style={{
                                     ...styles.assignee,
                                     background: `${memberColor}22`,
                                     color: memberColor,
-                                    border: `1.5px solid ${memberColor}`,
-                                    padding: '0.2rem 0.5rem',
-                                    borderRadius: 6,
-                                    fontSize: '0.7rem',
-                                    fontWeight: 700
+                                    border: `1px solid ${memberColor}`,
+                                    padding: '0.15rem 0.4rem',
+                                    borderRadius: 4,
+                                    fontSize: '0.65rem',
+                                    fontWeight: 600
                                   }}
                                 >
                                   {chore.assignedTo}
                                 </span>
+                                {editingChoreId !== chore.id && (
+                                  <button
+                                    onClick={() => setEditingChoreId(chore.id)}
+                                    style={styles.editBtn}
+                                    aria-label="Edit chore"
+                                    title="Edit name"
+                                  >
+                                    ✎
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => deleteChore(chore.id)}
                                   style={styles.deleteBtn}
@@ -825,6 +978,9 @@ export default function InteractiveWeekView() {
                                   ×
                                 </button>
                               </div>
+                              {chore.description && (
+                                <div style={styles.choreDescription}>{chore.description}</div>
+                              )}
                             </DraggableItem>
                           );
                         })}
@@ -885,7 +1041,13 @@ export default function InteractiveWeekView() {
                   border: `2px solid ${member.color}`
                 }}
               >
-                {member.avatar} {member.name}
+                <MemberAvatar
+                  name={member.name}
+                  color={member.color}
+                  style={getAvatarStyle(member.avatar)}
+                  size="sm"
+                />
+                {member.name}
               </button>
             ))}
           </div>
@@ -894,7 +1056,12 @@ export default function InteractiveWeekView() {
             <div style={styles.statsGrid}>
               {memberStats.map((stat) => (
                 <div key={stat.id} style={styles.statCard}>
-                  <div style={{ ...styles.statAvatar, background: stat.color }}>{stat.avatar}</div>
+                  <MemberAvatar
+                    name={stat.name}
+                    color={stat.color}
+                    style={getAvatarStyle(stat.avatar)}
+                    size="sm"
+                  />
                   <div style={styles.statInfo}>
                     <div style={styles.statName}>{stat.name}</div>
                     <div style={styles.statProgress}>
@@ -921,10 +1088,10 @@ export default function InteractiveWeekView() {
                 <label style={styles.modalLabel}>Standard Chore</label>
                 <select
                   style={styles.modalInput}
-                  value={newItem.choreTemplate}
+                  value={newItem.choreTemplate || choreTemplates[0] || ''}
                   onChange={(e) => setNewItem({ ...newItem, choreTemplate: e.target.value })}
                 >
-                  {defaultChoreTemplates.map((chore) => (
+                  {choreTemplates.map((chore) => (
                     <option key={chore} value={chore}>
                       {chore}
                     </option>
@@ -944,6 +1111,15 @@ export default function InteractiveWeekView() {
                     />
                   </>
                 )}
+
+                <label style={styles.modalLabel}>Description (optional)</label>
+                <textarea
+                  style={{ ...styles.modalInput, minHeight: 60 }}
+                  placeholder="e.g. Wipe counters, dishes"
+                  value={newItem.choreDescription}
+                  onChange={(e) => setNewItem({ ...newItem, choreDescription: e.target.value })}
+                  rows={2}
+                />
 
                 <label style={styles.modalLabel}>Availability</label>
                 <select
@@ -967,7 +1143,7 @@ export default function InteractiveWeekView() {
                         <option value="">Select member...</option>
                         {members.map((member) => (
                           <option key={member.id} value={member.name}>
-                            {member.avatar} {member.name}
+                            {getInitials(member.name)} · {member.name}
                           </option>
                         ))}
                       </select>
@@ -1017,8 +1193,8 @@ export default function InteractiveWeekView() {
                   onChange={(e) => setNewItem({ ...newItem, category: e.target.value })}
                 >
                   {EVENT_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
+                    <option key={c.value} value={c.value}>
+                      {c.label}
                     </option>
                   ))}
                 </select>
@@ -1091,14 +1267,14 @@ export default function InteractiveWeekView() {
             <label style={styles.modalLabel}>Category</label>
             <select
               style={styles.modalInput}
-              value={editModal.category || EVENT_CATEGORIES[0]}
-              onChange={(e) => setEditModal({ ...editModal, category: e.target.value })}
-            >
-              {EVENT_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
+value={editModal.category || EVENT_CATEGORIES[0].value}
+                  onChange={(e) => setEditModal({ ...editModal, category: e.target.value })}
+                >
+                  {EVENT_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>
+                      {c.label}
+                    </option>
+                  ))}
             </select>
 
             <label style={styles.modalLabel}>Event Name</label>
@@ -1453,9 +1629,15 @@ const styles = {
     background: 'rgba(255,255,255,0.5)',
     border: '1px solid rgba(98, 73, 24, 0.18)',
     borderRadius: 8,
-    padding: '0.6rem 0.7rem',
-    fontSize: '0.85rem',
+    padding: '0.4rem 0.5rem',
+    fontSize: '0.8rem',
     transition: 'all 0.2s ease'
+  },
+  choreRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    flexWrap: 'wrap'
   },
   choreLabel: {
     display: 'flex',
@@ -1464,35 +1646,53 @@ const styles = {
     cursor: 'pointer',
     marginBottom: '0.2rem'
   },
-  checkbox: {
-    width: '16px',
-    height: '16px',
-    cursor: 'pointer'
-  },
   choreIcon: {
-    fontSize: '1rem',
+    fontSize: '0.9rem',
     fontWeight: 700,
     color: '#66bb6a',
-    marginLeft: '-0.2rem'
+    marginLeft: '-0.1rem',
+    flexShrink: 0
   },
   choreText: {
     flex: 1,
-    fontSize: '0.9rem',
+    minWidth: 0,
+    fontSize: '0.8rem',
     fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
-    fontWeight: 400
+    fontWeight: 400,
+    cursor: 'pointer'
   },
-  choreActions: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  choreEditInput: {
+    flex: 1,
+    minWidth: 80,
+    fontSize: '0.8rem',
+    padding: '0.15rem 0.3rem',
+    border: '1px solid rgba(98, 73, 24, 0.3)',
+    borderRadius: 4,
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive"
+  },
+  choreDescription: {
+    fontSize: '0.7rem',
+    opacity: 0.75,
     marginTop: '0.2rem',
-    paddingLeft: '1.5rem',
-    gap: '0.5rem'
+    marginLeft: '1.2rem',
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive"
   },
   assignee: {
+    fontSize: '0.65rem',
+    fontWeight: 600,
+    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive",
+    flexShrink: 0
+  },
+  editBtn: {
+    background: 'rgba(98, 73, 24, 0.1)',
+    border: '1px solid rgba(98, 73, 24, 0.2)',
+    borderRadius: 3,
+    color: '#5b4228',
+    cursor: 'pointer',
     fontSize: '0.75rem',
-    fontWeight: 400,
-    fontFamily: "var(--font-handwritten), 'Permanent Marker', cursive"
+    lineHeight: 1,
+    padding: '0.15rem 0.3rem',
+    flexShrink: 0
   },
   deleteBtn: {
     background: 'rgba(186, 62, 62, 0.15)',
@@ -1500,11 +1700,12 @@ const styles = {
     borderRadius: 3,
     color: '#8b1f1f',
     cursor: 'pointer',
-    fontSize: '1.2rem',
+    fontSize: '1rem',
     lineHeight: 1,
-    padding: '0 0.3rem',
-    width: '20px',
-    height: '20px'
+    padding: '0.1rem 0.25rem',
+    width: '18px',
+    height: '18px',
+    flexShrink: 0
   },
   noChores: {
     fontSize: '0.85rem',
@@ -1538,7 +1739,8 @@ const styles = {
     border: '1px solid rgba(98, 73, 24, 0.24)',
     background: 'rgba(255,255,255,0.9)',
     color: '#3f2d1d',
-    fontSize: '0.95rem'
+    fontSize: '0.95rem',
+    fontFamily: "'Trebuchet MS', 'Segoe UI', Arial, sans-serif"
   },
   modalButton: {
     width: '100%',

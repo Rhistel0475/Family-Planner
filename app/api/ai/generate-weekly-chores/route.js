@@ -45,8 +45,10 @@ export async function POST() {
       where: {
         familyId: family.id,
         isRecurring: true,
-        frequencyType: 'WEEKLY',
-        daysPerWeek: { not: null }
+        OR: [
+          { frequencyType: 'WEEKLY', daysPerWeek: { not: null } },
+          { frequencyType: 'DAILY' }
+        ]
       }
     });
 
@@ -54,7 +56,7 @@ export async function POST() {
       return NextResponse.json({
         created: [],
         assignments: [],
-        message: 'No chore board entries have weekly frequency with days-per-week set. Configure chores on the Chores page first.'
+        message: 'No chore board entries have weekly or daily frequency. Configure recurring chores on the Chores page first.'
       });
     }
 
@@ -71,19 +73,21 @@ export async function POST() {
     const createdChores = [];
 
     for (const board of boardSettings) {
-      const daysPerWeek = board.daysPerWeek || 1;
-      const days = distributeDays(daysPerWeek);
+      const days = board.frequencyType === 'DAILY'
+        ? [...DAY_NAMES]
+        : distributeDays(board.daysPerWeek || 1);
 
       for (const day of days) {
         const chore = await prisma.chore.create({
           data: {
             familyId: family.id,
             title: board.title,
+            description: board.description || null,
             assignedTo: 'Unassigned',
             dueDay: day,
             completed: false,
             isRecurring: true,
-            recurrencePattern: 'WEEKLY'
+            recurrencePattern: board.frequencyType === 'DAILY' ? 'DAILY' : 'WEEKLY'
           }
         });
 

@@ -29,7 +29,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { title, assignedTo, dueDay } = body;
+    const { title, assignedTo, dueDay, description } = body;
 
     if (!title || !dueDay) {
       return NextResponse.json(
@@ -44,6 +44,7 @@ export async function POST(request) {
       data: {
         familyId: family.id,
         title: title.trim(),
+        description: description?.trim() || null,
         assignedTo: assignedTo?.trim() || 'Unassigned',
         dueDay: dueDay.trim(),
         completed: false
@@ -69,7 +70,7 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { id, completed, title, assignedTo, dueDay } = body;
+    const { id, completed, title, assignedTo, dueDay, description } = body;
 
     if (!id) {
       return NextResponse.json(
@@ -84,6 +85,7 @@ export async function PATCH(request) {
       updateData.completedAt = completed ? new Date() : null;
     }
     if (title !== undefined) updateData.title = title;
+    if (description !== undefined) updateData.description = description?.trim() || null;
     if (assignedTo !== undefined) updateData.assignedTo = assignedTo;
     if (dueDay !== undefined) updateData.dueDay = dueDay;
 

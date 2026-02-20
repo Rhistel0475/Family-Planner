@@ -494,6 +494,26 @@ const styles = {
   formDivider: { height: 1, background: 'rgba(98, 73, 24, 0.2)', margin: '1rem 0' },
   formTitle: { margin: 0, marginBottom: '0.65rem' },
   inputSpacing: { marginBottom: '0.8rem' },
+
+  label: {
+    fontSize: '0.8rem',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+    marginBottom: '0.28rem',
+    display: 'block',
+    fontWeight: 700
+  },
+  input: {
+    width: '100%',
+    marginBottom: '0.8rem',
+    borderRadius: 6,
+    border: '1px solid rgba(98, 73, 24, 0.24)',
+    padding: '0.55rem',
+    background: 'rgba(255,255,255,0.74)',
+    color: '#3f2d1d',
+    fontSize: '0.9rem',
+    fontFamily: "'Trebuchet MS', 'Segoe UI', Arial, sans-serif"
+  },
   helpText: { display: 'block', marginTop: '-0.5rem', marginBottom: '0.8rem', opacity: 0.85, fontWeight: 700 },
 
   modeRow: { display: 'flex', gap: '1rem', marginBottom: '0.8rem', flexWrap: 'wrap' },

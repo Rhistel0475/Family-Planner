@@ -1,6 +1,8 @@
 'use client';
 
 import { useTheme } from '../providers/ThemeProvider';
+import { getAvatarStyle } from '../../lib/avatarUtils';
+import MemberAvatar from './MemberAvatar';
 
 export default function StatsWidget({ stats, isExpanded, onToggle }) {
   const { theme } = useTheme();
@@ -91,8 +93,14 @@ export default function StatsWidget({ stats, isExpanded, onToggle }) {
             }}
           >
             <div style={{...styles.statLabel, color: theme.card.text}}>🏆 Top Performer</div>
-            <div style={{...styles.statValue, color: theme.card.text}}>
-              {stats.topPerformer.avatar} {stats.topPerformer.name}
+            <div style={{...styles.statValue, color: theme.card.text, display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+              <MemberAvatar
+                name={stats.topPerformer.name}
+                color={stats.topPerformer.color}
+                style={getAvatarStyle(stats.topPerformer.avatar)}
+                size="sm"
+              />
+              {stats.topPerformer.name}
             </div>
             <div style={{...styles.statSubtext, color: theme.card.text}}>
               {stats.topPerformer.percentage}% complete
@@ -185,7 +193,12 @@ export default function StatsWidget({ stats, isExpanded, onToggle }) {
                 <span style={{...styles.rank, color: theme.card.text}}>
                   {index + 1}.
                 </span>
-                <span style={styles.avatar}>{member.avatar}</span>
+                <MemberAvatar
+                  name={member.name}
+                  color={member.color}
+                  style={getAvatarStyle(member.avatar)}
+                  size="sm"
+                />
                 <span style={{...styles.name, color: theme.card.text}}>
                   {member.name}
                 </span>

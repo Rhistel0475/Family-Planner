@@ -17,6 +17,8 @@ import {
   AVAILABILITY_DAYS
 } from '../../lib/memberConstants';
 import { MAIN_PADDING_WITH_NAV, CONTENT_WIDTH_FORM } from '../../lib/layout';
+import { AVATAR_STYLES, getInitials, getAvatarStyle } from '../../lib/avatarUtils';
+import MemberAvatar from '../components/MemberAvatar';
 
 const PRESET_COLORS = [
   { name: 'Blue', value: '#3b82f6' },
@@ -29,15 +31,17 @@ const PRESET_COLORS = [
   { name: 'Teal', value: '#14b8a6' }
 ];
 
-const AVATAR_EMOJIS = ['👨', '👩', '👦', '👧', '🧑', '👴', '👵', '👶'];
-
 const WORKING_HOURS_PRESETS = [
   'Off',
+  '6:00 AM - 2:00 PM',
+  '6:00 AM - 3:00 PM',
   '7:00 AM - 3:00 PM',
   '8:00 AM - 4:00 PM',
   '9:00 AM - 5:00 PM',
   '10:00 AM - 6:00 PM',
   '11:00 AM - 7:00 PM',
+  '12:00 PM - 8:00 PM',
+  '1:00 PM - 9:00 PM',
   'Custom…'
 ];
 
@@ -61,7 +65,7 @@ function buildDefaultFormData() {
     role: 'member',
     relationship: '',
     color: PRESET_COLORS[0].value,
-    avatar: AVATAR_EMOJIS[0],
+    avatar: 'circle',
     workingHours: '',
     availability: { ...DEFAULT_AVAILABILITY },
     activities: '',
@@ -215,7 +219,7 @@ export default function FamilyPage() {
       role: member.role || 'member',
       relationship: member.relationship || '',
       color: member.color || PRESET_COLORS[0].value,
-      avatar: member.avatar || AVATAR_EMOJIS[0],
+      avatar: getAvatarStyle(member.avatar),
       workingHours: member.workingHours || '',
       availability: member.availability || { ...DEFAULT_AVAILABILITY },
       activities: member.activities || '',
@@ -342,18 +346,25 @@ export default function FamilyPage() {
         ))}
       </select>
 
-      <label style={s.label}>Avatar</label>
+      <label style={s.label}>Avatar style</label>
       <div style={s.avatarGrid}>
-        {AVATAR_EMOJIS.map(emoji => (
+        {AVATAR_STYLES.map(style => (
           <button
-            key={emoji}
-            onClick={() => updateForm({ avatar: emoji })}
+            key={style.id}
+            onClick={() => updateForm({ avatar: style.id })}
             style={{
               ...s.avatarOption,
-              border: formData.avatar === emoji ? '3px solid #3b82f6' : '1px solid rgba(98,73,24,0.2)'
+              border: formData.avatar === style.id ? '3px solid #3b82f6' : '1px solid rgba(98,73,24,0.2)'
             }}
             type="button"
-          >{emoji}</button>
+          >
+            <MemberAvatar
+              name="AB"
+              color={formData.color}
+              style={style.id}
+              size="sm"
+            />
+          </button>
         ))}
       </div>
 
@@ -382,9 +393,11 @@ export default function FamilyPage() {
       <select
         style={s.input}
         value={
-          WORKING_HOURS_PRESETS.includes(formData.workingHours || '')
-            ? (formData.workingHours || '')
-            : 'Custom…'
+          !formData.workingHours?.trim()
+            ? 'Off'
+            : WORKING_HOURS_PRESETS.includes(formData.workingHours)
+              ? formData.workingHours
+              : 'Custom…'
         }
         onChange={e => {
           const v = e.target.value;
@@ -599,9 +612,12 @@ export default function FamilyPage() {
           {members.map(member => (
             <article key={member.id} style={s.card}>
               <div style={s.cardHeader}>
-                <div style={{ ...s.avatar, background: member.color || PRESET_COLORS[0].value }}>
-                  {member.avatar || AVATAR_EMOJIS[0]}
-                </div>
+                <MemberAvatar
+                  name={member.name}
+                  color={member.color || PRESET_COLORS[0].value}
+                  style={getAvatarStyle(member.avatar)}
+                  size="lg"
+                />
               </div>
 
               <div style={s.cardBody}>
@@ -622,12 +638,10 @@ export default function FamilyPage() {
                 </div>
 
                 <div style={s.infoGrid}>
-                  {member.workingHours ? (
-                    <div style={s.infoItem}>
-                      <span style={s.infoIcon}>🕐</span>
-                      <span style={s.infoText}>{member.workingHours}</span>
-                    </div>
-                  ) : null}
+                  <div style={s.infoItem}>
+                    <span style={s.infoIcon}>🕐</span>
+                    <span style={s.infoText}>{member.workingHours?.trim() || 'Off'}</span>
+                  </div>
 
                   {member.abilities && member.abilities.length > 0 && (
                     <div style={s.infoItem}>
@@ -818,10 +832,11 @@ const s = {
   row2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' },
   col: { display: 'grid', gap: '0.25rem' },
 
-  avatarGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' },
+  avatarGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem' },
   avatarOption: {
-    padding: '0.6rem', fontSize: '1.8rem', borderRadius: 8,
-    background: 'rgba(255,255,255,0.6)', cursor: 'pointer', textAlign: 'center'
+    padding: '0.5rem', borderRadius: 8,
+    background: 'rgba(255,255,255,0.6)', cursor: 'pointer',
+    display: 'flex', alignItems: 'center', justifyContent: 'center'
   },
   colorGrid: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' },
   colorOption: { width: '100%', height: 40, borderRadius: 8, cursor: 'pointer' },
@@ -841,7 +856,8 @@ const s = {
     display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.1rem'
   },
   timeInput: {
-    width: '100%', padding: '0.15rem', fontSize: '0.65rem',
+    width: '100%', padding: '0.15rem', fontSize: '0.9rem',
+    fontFamily: "'Trebuchet MS', 'Segoe UI', Arial, sans-serif",
     border: '1px solid rgba(98,73,24,0.15)', borderRadius: 3,
     background: 'rgba(255,255,255,0.8)'
   },

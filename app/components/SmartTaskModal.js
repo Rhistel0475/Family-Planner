@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useTheme } from '../providers/ThemeProvider';
 import Modal from './Modal';
 import { DAY_NAMES } from '../../lib/constants';
+import { getInitials } from '../../lib/avatarUtils';
 
 export default function SmartTaskModal({ isOpen, onClose, onSubmit, members }) {
   const { theme } = useTheme();
@@ -237,7 +238,7 @@ export default function SmartTaskModal({ isOpen, onClose, onSubmit, members }) {
               <option value="">Select person...</option>
               {members.map(member => (
                 <option key={member.id} value={member.name}>
-                  {member.avatar} {member.name}
+                  {getInitials(member.name)} · {member.name}
                 </option>
               ))}
             </select>

@@ -1,6 +1,12 @@
 'use client';
 
+import { useTheme } from '../providers/ThemeProvider';
+
 export default function WeekProgress({ events, chores }) {
+  const { theme } = useTheme();
+  const cardBg = theme.card?.bg?.[1] || theme.hero?.bg || 'rgba(255,255,255,0.95)';
+  const textColor = theme.card?.text || '#3f2d1d';
+  const borderColor = theme.card?.border || 'rgba(0,0,0,0.1)';
   // Get start and end of current week (Monday to Sunday)
   const getWeekBounds = () => {
     const now = new Date();
@@ -25,9 +31,11 @@ export default function WeekProgress({ events, chores }) {
     return eventDate >= start && eventDate < end;
   });
 
+  // Get day names for current week (Mon-Sun)
+  const weekDayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const weekChores = chores.filter(chore => {
-    const choreDate = new Date(chore.createdAt);
-    return choreDate >= start && choreDate < end;
+    const dueDay = chore.dueDay || '';
+    return weekDayNames.includes(dueDay);
   });
 
   // Calculate stats
@@ -46,29 +54,38 @@ export default function WeekProgress({ events, chores }) {
   }, {});
 
   const StatCard = ({ label, value, subtext, color = 'blue' }) => {
-    const colorClasses = {
-      blue: 'bg-blue-50 text-blue-700 border-blue-200',
-      green: 'bg-green-50 text-green-700 border-green-200',
-      purple: 'bg-purple-50 text-purple-700 border-purple-200',
-      orange: 'bg-orange-50 text-orange-700 border-orange-200'
+    const colorStyles = {
+      blue: { bg: 'rgba(59,130,246,0.15)', color: '#1d4ed8', border: 'rgba(59,130,246,0.3)' },
+      green: { bg: 'rgba(34,197,94,0.15)', color: '#15803d', border: 'rgba(34,197,94,0.3)' },
+      purple: { bg: 'rgba(168,85,247,0.15)', color: '#6b21a8', border: 'rgba(168,85,247,0.3)' },
+      orange: { bg: 'rgba(249,115,22,0.15)', color: '#c2410c', border: 'rgba(249,115,22,0.3)' }
     };
+    const s = colorStyles[color] || colorStyles.blue;
 
     return (
-      <div className={`rounded-lg border p-4 ${colorClasses[color]}`}>
-        <div className="text-2xl font-bold">{value}</div>
-        <div className="text-sm font-medium mt-1">{label}</div>
+      <div style={{ borderRadius: 8, border: `1px solid ${s.border}`, padding: 16, background: s.bg }}>
+        <div style={{ fontSize: '1.5rem', fontWeight: 700, color: s.color }}>{value}</div>
+        <div style={{ fontSize: '0.875rem', fontWeight: 500, marginTop: 4, color: textColor }}>{label}</div>
         {subtext && (
-          <div className="text-xs opacity-75 mt-1">{subtext}</div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.75, marginTop: 4, color: textColor }}>{subtext}</div>
         )}
       </div>
     );
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">This Week</h2>
-        <div className="text-sm text-gray-500">
+    <div
+      style={{
+        background: cardBg,
+        borderRadius: 8,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        border: `1px solid ${borderColor}`,
+        padding: '1.5rem'
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: textColor }}>This Week</h2>
+        <div style={{ fontSize: '0.875rem', color: textColor, opacity: 0.8 }}>
           {start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
           {' - '}
           {end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -77,24 +94,29 @@ export default function WeekProgress({ events, chores }) {
 
       {/* Progress Bar */}
       {totalChores > 0 && (
-        <div className="mb-6">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="font-medium text-gray-700">Chore Completion</span>
-            <span className="text-gray-600">
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.875rem', marginBottom: 8 }}>
+            <span style={{ fontWeight: 500, color: textColor }}>Chore Completion</span>
+            <span style={{ color: textColor, opacity: 0.8 }}>
               {completedChores} of {totalChores} ({Math.round(completionRate)}%)
             </span>
           </div>
-          <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+          <div style={{ width: '100%', background: 'rgba(0,0,0,0.15)', borderRadius: 9999, height: 12, overflow: 'hidden' }}>
             <div
-              className="h-full bg-gradient-to-r from-green-500 to-green-600 transition-all duration-500 rounded-full"
-              style={{ width: `${completionRate}%` }}
+              style={{
+                height: '100%',
+                background: 'linear-gradient(90deg, #22c55e, #16a34a)',
+                borderRadius: 9999,
+                width: `${completionRate}%`,
+                transition: 'width 0.5s'
+              }}
             />
           </div>
         </div>
       )}
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 16 }}>
         <StatCard
           label="Total Events"
           value={totalEvents}
@@ -123,22 +145,30 @@ export default function WeekProgress({ events, chores }) {
 
       {/* Category Breakdown */}
       {Object.keys(eventsByCategory).length > 0 && (
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">
+        <div style={{ marginTop: 24, paddingTop: 24, borderTop: `1px solid ${borderColor}` }}>
+          <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: 12, color: textColor }}>
             Events by Category
           </h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             {Object.entries(eventsByCategory)
               .sort(([, a], [, b]) => b - a)
               .map(([category, count]) => (
                 <div
                   key={category}
-                  className="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    fontSize: '0.875rem',
+                    background: 'rgba(0,0,0,0.05)',
+                    borderRadius: 8,
+                    padding: '8px 12px'
+                  }}
                 >
-                  <span className="font-medium text-gray-700 capitalize">
+                  <span style={{ fontWeight: 500, color: textColor, textTransform: 'capitalize' }}>
                     {category.toLowerCase()}
                   </span>
-                  <span className="text-gray-600 font-semibold">{count}</span>
+                  <span style={{ fontWeight: 600, color: textColor }}>{count}</span>
                 </div>
               ))}
           </div>

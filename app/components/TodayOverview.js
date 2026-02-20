@@ -1,8 +1,13 @@
 'use client';
 
+import { useTheme } from '../providers/ThemeProvider';
 import { EVENT_CATEGORIES } from '../../lib/eventConfig';
 
 export default function TodayOverview({ events }) {
+  const { theme } = useTheme();
+  const cardBg = theme.card?.bg?.[0] || theme.hero?.bg || 'rgba(255,255,255,0.95)';
+  const textColor = theme.card?.text || '#3f2d1d';
+  const borderColor = theme.card?.border || 'rgba(0,0,0,0.1)';
   // Get today's events
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -49,24 +54,42 @@ export default function TodayOverview({ events }) {
     const category = EVENT_CATEGORIES[event.type] || EVENT_CATEGORIES.PERSONAL;
 
     return (
-      <div className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 12,
+          padding: 12,
+          borderRadius: 8,
+          background: 'rgba(0,0,0,0.05)'
+        }}
+      >
         <div
-          className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center text-xl"
-          style={{ backgroundColor: `${category.lightColor}40` }}
+          style={{
+            flexShrink: 0,
+            width: 40,
+            height: 40,
+            borderRadius: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '1.25rem',
+            background: `${category.lightColor}40`
+          }}
         >
           {category.icon}
         </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline gap-2">
-            <span className="text-sm text-gray-500 font-medium">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <span style={{ fontSize: '0.875rem', opacity: 0.8, fontWeight: 500 }}>
               {formatTime(event.startsAt)}
             </span>
-            <h4 className="text-sm font-medium text-gray-900 truncate">
+            <h4 style={{ fontSize: '0.875rem', fontWeight: 500, margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: textColor }}>
               {event.title}
             </h4>
           </div>
           {event.description && (
-            <p className="text-xs text-gray-600 mt-1 line-clamp-1">
+            <p style={{ fontSize: '0.75rem', marginTop: 4, opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {event.description}
             </p>
           )}
@@ -79,13 +102,13 @@ export default function TodayOverview({ events }) {
     if (events.length === 0) return null;
 
     return (
-      <div className="mb-4 last:mb-0">
-        <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+      <div style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: '0.875rem', fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8, color: textColor }}>
           <span>{emoji}</span>
           <span>{title}</span>
-          <span className="text-gray-400 font-normal">({events.length})</span>
+          <span style={{ fontWeight: 400, opacity: 0.7 }}>({events.length})</span>
         </h3>
-        <div className="space-y-2">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {events.map(event => (
             <EventCard key={event.id} event={event} />
           ))}
@@ -95,10 +118,18 @@ export default function TodayOverview({ events }) {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold text-gray-900">Today's Schedule</h2>
-        <div className="text-sm text-gray-500">
+    <div
+      style={{
+        background: cardBg,
+        borderRadius: 8,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        border: `1px solid ${borderColor}`,
+        padding: '1.5rem'
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, color: textColor }}>Today's Schedule</h2>
+        <div style={{ fontSize: '0.875rem', color: textColor, opacity: 0.8 }}>
           {today.toLocaleDateString('en-US', {
             weekday: 'long',
             month: 'short',
@@ -108,10 +139,10 @@ export default function TodayOverview({ events }) {
       </div>
 
       {todayEvents.length === 0 ? (
-        <div className="text-center py-12">
-          <div className="text-4xl mb-3">📅</div>
-          <p className="text-gray-600 font-medium">No events scheduled for today</p>
-          <p className="text-sm text-gray-500 mt-1">Enjoy your free time!</p>
+        <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📅</div>
+          <p style={{ fontWeight: 500, color: textColor, opacity: 0.9 }}>No events scheduled for today</p>
+          <p style={{ fontSize: '0.875rem', marginTop: 4, opacity: 0.7 }}>Enjoy your free time!</p>
         </div>
       ) : (
         <div>

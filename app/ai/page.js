@@ -10,6 +10,7 @@ export default function AIAssistantPage() {
   const { theme } = useTheme();
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [applyAllLoading, setApplyAllLoading] = useState(false);
   const [message, setMessage] = useState('');
   const [selectedTab, setSelectedTab] = useState('chores');
 
@@ -35,6 +36,26 @@ export default function AIAssistantPage() {
       setMessage('Failed to connect to AI service');
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function applyAllSuggestions() {
+    setApplyAllLoading(true);
+    setMessage('');
+    try {
+      const res = await fetch('/api/ai/chores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ applyAll: true })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to apply');
+      setSuggestions([]);
+      setMessage(`✅ ${data.message || 'All chores assigned!'}`);
+    } catch (err) {
+      setMessage(err.message || 'Failed to apply all');
+    } finally {
+      setApplyAllLoading(false);
     }
   }
 
@@ -143,7 +164,16 @@ export default function AIAssistantPage() {
 
             {suggestions.length > 0 && (
               <div style={styles.suggestionsList}>
-                <h3>Suggestions ({suggestions.length})</h3>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                  <h3 style={{ margin: 0 }}>Suggestions ({suggestions.length})</h3>
+                  <button
+                    onClick={applyAllSuggestions}
+                    disabled={applyAllLoading}
+                    style={{ ...styles.applyButton, padding: '0.5rem 1rem', width: 'auto' }}
+                  >
+                    {applyAllLoading ? 'Applying…' : 'Accept All'}
+                  </button>
+                </div>
                 {suggestions.map((suggestion) => (
                   <div key={suggestion.choreId} style={styles.suggestionCard}>
                     <p style={styles.suggestionTitle}>{suggestion.choreTitle}</p>

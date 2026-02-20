@@ -6,8 +6,10 @@ import TodayOverview from '../components/TodayOverview';
 import WeekProgress from '../components/WeekProgress';
 import QuickActions from '../components/QuickActions';
 import UpcomingChores from '../components/UpcomingChores';
+import { useTheme } from '../providers/ThemeProvider';
 
 export default function DashboardPage() {
+  const { theme } = useTheme();
   const [events, setEvents] = useState([]);
   const [chores, setChores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -51,14 +53,18 @@ export default function DashboardPage() {
     }
   };
 
+  const textColor = theme.card?.text || '#3f2d1d';
+  const isDark = theme.main && theme.main.includes('1a1a1a');
+  const mutedColor = isDark ? 'rgba(255,255,255,0.7)' : '#6b7280';
+
   if (loading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded w-1/4 mb-8"></div>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 h-64 bg-gray-200 rounded-lg"></div>
-            <div className="h-64 bg-gray-200 rounded-lg"></div>
+      <div style={{ maxWidth: 1280, margin: '0 auto', padding: '2rem 1rem' }}>
+        <div style={{ opacity: 0.7 }}>
+          <div style={{ height: 32, background: 'rgba(255,255,255,0.2)', borderRadius: 4, width: '25%', marginBottom: 32 }} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 24 }}>
+            <div style={{ gridColumn: 'span 2', height: 256, background: 'rgba(255,255,255,0.2)', borderRadius: 8 }} />
+            <div style={{ height: 256, background: 'rgba(255,255,255,0.2)', borderRadius: 8 }} />
           </div>
         </div>
       </div>
@@ -66,45 +72,52 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div style={{ maxWidth: 1280, margin: '0 auto', padding: '2rem 1rem', color: textColor }}>
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-gray-600 mt-1">
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: '1.875rem', fontWeight: 700, margin: 0, color: textColor }}>Dashboard</h1>
+        <p style={{ marginTop: 4, color: mutedColor }}>
           Welcome back! Here's what's happening today.
         </p>
       </div>
 
       {/* Quick Actions */}
-      <div className="mb-6">
+      <div style={{ marginBottom: 24 }}>
         <QuickActions />
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gap: 24
+        }}
+        className="dashboard-grid"
+      >
         {/* Left Column - Today & Week Progress */}
-        <div className="lg:col-span-2 space-y-6">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <TodayOverview events={events} />
           <WeekProgress events={events} chores={chores} />
         </div>
 
         {/* Right Column - Upcoming Chores */}
-        <div className="lg:col-span-1">
+        <div>
           <UpcomingChores chores={chores} onToggle={handleChoreToggle} />
         </div>
       </div>
 
       {/* Navigation Footer */}
-      <div className="mt-8 flex gap-4 justify-center">
+      <div style={{ marginTop: 32, display: 'flex', gap: 16, justifyContent: 'center' }}>
         <Link
-          href="/schedule-viewer"
-          className="text-blue-600 hover:text-blue-700 font-medium"
+          href="/"
+          style={{ color: '#3b82f6', fontWeight: 500, textDecoration: 'none' }}
         >
           View Full Calendar →
         </Link>
         <Link
           href="/chores"
-          className="text-blue-600 hover:text-blue-700 font-medium"
+          style={{ color: '#3b82f6', fontWeight: 500, textDecoration: 'none' }}
         >
           Manage Chores →
         </Link>

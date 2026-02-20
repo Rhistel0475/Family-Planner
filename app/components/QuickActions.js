@@ -1,78 +1,93 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  CalendarDaysIcon,
-  ClipboardDocumentCheckIcon,
-  PlusCircleIcon,
-  ChartBarIcon
-} from '@heroicons/react/24/outline';
+import { useTheme } from '../providers/ThemeProvider';
 
 export default function QuickActions() {
+  const { theme } = useTheme();
   const actions = [
     {
       name: 'View Calendar',
-      href: '/schedule-viewer',
-      icon: CalendarDaysIcon,
+      href: '/',
+      icon: '📅',
       description: 'Browse your weekly schedule',
-      color: 'blue'
+      color: '#3b82f6'
     },
     {
       name: 'Manage Chores',
       href: '/chores',
-      icon: ClipboardDocumentCheckIcon,
+      icon: '✓',
       description: 'View and update chores',
-      color: 'green'
+      color: '#22c55e'
     },
     {
       name: 'Add Event',
-      href: '/schedule-viewer',
-      icon: PlusCircleIcon,
+      href: '/',
+      icon: '+',
       description: 'Create a new event',
-      color: 'purple'
+      color: '#a855f7'
     },
     {
-      name: 'Reports',
-      href: '/reports',
-      icon: ChartBarIcon,
-      description: 'View activity reports',
-      color: 'orange'
+      name: 'AI Assistant',
+      href: '/ai',
+      icon: '🤖',
+      description: 'Smart chore assignments',
+      color: '#f59e0b'
     }
   ];
 
-  const colorClasses = {
-    blue: 'bg-blue-500 hover:bg-blue-600',
-    green: 'bg-green-500 hover:bg-green-600',
-    purple: 'bg-purple-500 hover:bg-purple-600',
-    orange: 'bg-orange-500 hover:bg-orange-600'
-  };
-
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {actions.map((action) => {
-          const Icon = action.icon;
-          return (
-            <Link
-              key={action.name}
-              href={action.href}
-              className="group relative overflow-hidden rounded-lg border-2 border-gray-200 hover:border-gray-300 transition-all hover:shadow-md"
+    <div
+      style={{
+        background: theme.card?.bg?.[0] || theme.hero?.bg || 'rgba(255,255,255,0.95)',
+        color: theme.card?.text || '#3f2d1d',
+        borderRadius: 8,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+        border: `1px solid ${theme.card?.border || 'rgba(0,0,0,0.1)'}`,
+        padding: '1.5rem'
+      }}
+    >
+      <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem', color: theme.card?.text || '#3f2d1d' }}>
+        Quick Actions
+      </h2>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
+        {actions.map((action) => (
+          <Link
+            key={action.name}
+            href={action.href}
+            style={{
+              display: 'block',
+              padding: '1rem',
+              borderRadius: 8,
+              border: `2px solid ${theme.card?.border || 'rgba(0,0,0,0.1)'}`,
+              textDecoration: 'none',
+              color: 'inherit',
+              transition: 'all 0.2s',
+              background: 'rgba(255,255,255,0.5)'
+            }}
+          >
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 8,
+                background: action.color,
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.5rem',
+                marginBottom: '0.75rem'
+              }}
             >
-              <div className="p-4">
-                <div
-                  className={`w-12 h-12 rounded-lg ${colorClasses[action.color]} flex items-center justify-center mb-3 transition-transform group-hover:scale-110`}
-                >
-                  <Icon className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-gray-900 mb-1">
-                  {action.name}
-                </h3>
-                <p className="text-xs text-gray-600">{action.description}</p>
-              </div>
-            </Link>
-          );
-        })}
+              {action.icon}
+            </div>
+            <h3 style={{ fontWeight: 600, marginBottom: '0.25rem', fontSize: '0.95rem' }}>
+              {action.name}
+            </h3>
+            <p style={{ fontSize: '0.75rem', opacity: 0.8 }}>{action.description}</p>
+          </Link>
+        ))}
       </div>
     </div>
   );
