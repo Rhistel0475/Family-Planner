@@ -41,7 +41,7 @@ model FamilyMember {
   dietaryRestrictions String[] @default([])
 
   color  String? @default("#3b82f6")
-  avatar String? @default("👤")
+  avatar String? @default("circle")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

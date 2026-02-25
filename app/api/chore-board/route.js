@@ -102,6 +102,43 @@ export async function GET(request) {
   }
 }
 
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const templateKey = searchParams.get('templateKey');
+
+    if (!templateKey) {
+      return NextResponse.json({ error: 'Missing templateKey' }, { status: 400 });
+    }
+
+    if (!templateKey.startsWith('custom_')) {
+      return NextResponse.json({ error: 'Only custom chore board entries can be deleted' }, { status: 400 });
+    }
+
+    const family = await getOrCreateDefaultFamily();
+
+    const existing = await prisma.choreBoard.findUnique({
+      where: { familyId_templateKey: { familyId: family.id, templateKey } }
+    });
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Chore board entry not found' }, { status: 404 });
+    }
+
+    await prisma.choreBoard.delete({
+      where: { familyId_templateKey: { familyId: family.id, templateKey } }
+    });
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error('Chore Board DELETE error:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete chore board entry', details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(request) {
   try {
     const body = await request.json();

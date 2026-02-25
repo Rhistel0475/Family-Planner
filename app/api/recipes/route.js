@@ -16,24 +16,29 @@ export async function GET(request) {
     where,
     orderBy: [{ cookDay: 'asc' }, { createdAt: 'desc' }]
   });
-  return NextResponse.json(recipes);
+  return NextResponse.json({ recipes });
 }
 
 export async function POST(request) {
-  const formData = await request.formData();
-  const name = String(formData.get('name') || '').trim();
-  const ingredients = String(formData.get('ingredients') || '').trim();
-  const cookDay = String(formData.get('cookDay') || '').trim();
-  const instructions = String(formData.get('instructions') || '').trim() || null;
-  const sourceUrl = String(formData.get('sourceUrl') || '').trim() || null;
+  let body;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+  const name = String(body?.name || '').trim();
+  const ingredients = String(body?.ingredients || '').trim();
+  const cookDay = String(body?.cookDay || '').trim();
+  const instructions = String(body?.instructions || '').trim() || null;
+  const sourceUrl = String(body?.sourceUrl || '').trim() || null;
 
   if (!name || !ingredients || !cookDay) {
-    return NextResponse.redirect(new URL('/recipes?error=1', request.url));
+    return NextResponse.json({ error: 'name, ingredients, and cookDay are required' }, { status: 400 });
   }
 
   const family = await getOrCreateDefaultFamily();
 
-  await prisma.recipe.create({
+  const recipe = await prisma.recipe.create({
     data: {
       familyId: family.id,
       name,
@@ -44,7 +49,7 @@ export async function POST(request) {
     }
   });
 
-  return NextResponse.redirect(new URL('/recipes?saved=1', request.url));
+  return NextResponse.json(recipe, { status: 201 });
 }
 
 export async function PATCH(request) {

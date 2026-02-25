@@ -161,7 +161,7 @@ export default function ChoresPage() {
 
   const handleAssignUnassigned = async () => {
     setAssigningLoading(true);
-    setMessage('');
+    setMessage(null);
     try {
       const res = await fetch('/api/ai/chores', {
         method: 'POST',
@@ -290,6 +290,26 @@ export default function ChoresPage() {
     }
   };
 
+  const handleDeleteChore = async (templateKey) => {
+    if (!confirm('Delete this custom chore?')) return;
+    try {
+      const res = await fetch(`/api/chore-board?templateKey=${encodeURIComponent(templateKey)}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok && res.status !== 204) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to delete');
+      }
+      setMessage({ type: 'success', text: 'Chore deleted.' });
+      setTimeout(() => {
+        fetchBoardSettings();
+        setMessage(null);
+      }, 800);
+    } catch (err) {
+      setMessage({ type: 'error', text: err.message || 'Failed to delete' });
+    }
+  };
+
   if (loading) {
     return <div className={styles.loading}>Loading chore board...</div>;
   }
@@ -397,6 +417,7 @@ export default function ChoresPage() {
             onFrequencyChange={(freq) => handleFrequencyChange(setting.templateKey, freq)}
             onEligibilityModeChange={(mode) => handleEligibilityModeChange(setting.templateKey, mode)}
             onToggleMember={(memberId) => handleToggleMember(setting.templateKey, memberId)}
+            onDelete={setting.templateKey.startsWith('custom_') ? () => handleDeleteChore(setting.templateKey) : null}
           />
         ))}
       </div>
@@ -497,7 +518,8 @@ function ChoreCard({
   onChange,
   onFrequencyChange,
   onEligibilityModeChange,
-  onToggleMember
+  onToggleMember,
+  onDelete
 }) {
   const rotation = getRotationAngle(setting.templateKey);
   const statusStr = getStatusString(setting);
@@ -660,6 +682,18 @@ function ChoreCard({
               Use SELECTED if you only want certain people eligible for this chore.
             </small>
           </div>
+
+          {onDelete && (
+            <div className={styles.section}>
+              <button
+                type="button"
+                className={styles.deleteButton}
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              >
+                Delete this chore
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

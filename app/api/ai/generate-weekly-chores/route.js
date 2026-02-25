@@ -46,8 +46,11 @@ export async function POST() {
         familyId: family.id,
         isRecurring: true,
         OR: [
+          { frequencyType: 'DAILY' },
           { frequencyType: 'WEEKLY', daysPerWeek: { not: null } },
-          { frequencyType: 'DAILY' }
+          { frequencyType: 'BIWEEKLY' },
+          { frequencyType: 'MONTHLY' },
+          { frequencyType: 'CUSTOM', customEveryDays: { not: null } }
         ]
       }
     });
@@ -56,7 +59,7 @@ export async function POST() {
       return NextResponse.json({
         created: [],
         assignments: [],
-        message: 'No chore board entries have weekly or daily frequency. Configure recurring chores on the Chores page first.'
+        message: 'No chore board entries have a recurring frequency. Configure recurring chores on the Chores page first.'
       });
     }
 
@@ -73,9 +76,28 @@ export async function POST() {
     const createdChores = [];
 
     for (const board of boardSettings) {
-      const days = board.frequencyType === 'DAILY'
-        ? [...DAY_NAMES]
-        : distributeDays(board.daysPerWeek || 1);
+      let days;
+      if (board.frequencyType === 'DAILY') {
+        days = [...DAY_NAMES];
+      } else if (board.frequencyType === 'WEEKLY') {
+        days = distributeDays(board.daysPerWeek || 1);
+      } else if (board.frequencyType === 'BIWEEKLY') {
+        // One occurrence every other week — schedule once this week
+        days = [DAY_NAMES[0]];
+      } else if (board.frequencyType === 'MONTHLY') {
+        // One occurrence per month — schedule once this week
+        days = [DAY_NAMES[0]];
+      } else if (board.frequencyType === 'CUSTOM' && board.customEveryDays) {
+        // How many times does this chore occur in a 7-day span?
+        const timesPerWeek = Math.max(1, Math.floor(7 / board.customEveryDays));
+        days = distributeDays(timesPerWeek);
+      } else {
+        days = [DAY_NAMES[0]];
+      }
+
+      const defaultAssigneeName = board.defaultAssigneeMemberId
+        ? members.find((m) => m.id === board.defaultAssigneeMemberId)?.name || 'Unassigned'
+        : 'Unassigned';
 
       for (const day of days) {
         const chore = await prisma.chore.create({
@@ -83,11 +105,11 @@ export async function POST() {
             familyId: family.id,
             title: board.title,
             description: board.description || null,
-            assignedTo: 'Unassigned',
+            assignedTo: defaultAssigneeName,
             dueDay: day,
             completed: false,
             isRecurring: true,
-            recurrencePattern: board.frequencyType === 'DAILY' ? 'DAILY' : 'WEEKLY'
+            recurrencePattern: board.frequencyType === 'DAILY' ? 'DAILY' : board.frequencyType === 'MONTHLY' ? 'MONTHLY' : 'WEEKLY'
           }
         });
 

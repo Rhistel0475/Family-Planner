@@ -456,3 +456,19 @@
   outline: 2px solid #f59e0b;
   outline-offset: 2px;
 }
+
+.deleteButton {
+  padding: 0.45rem 1rem;
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid #ef4444;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.deleteButton:hover {
+  background: #ef4444;
+  color: white;
+}

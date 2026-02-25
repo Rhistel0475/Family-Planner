@@ -99,7 +99,15 @@ export default function SchedulePage({ searchParams }) {
   const fetchEvents = async () => {
     try {
       setListLoading(true);
-      const res = await fetch('/api/schedule', { method: 'GET' });
+      // Pass a 6-month window so recurring events are expanded into individual occurrences
+      const now = new Date();
+      const end = new Date(now);
+      end.setMonth(end.getMonth() + 6);
+      const params = new URLSearchParams({
+        start: now.toISOString(),
+        end: end.toISOString()
+      });
+      const res = await fetch(`/api/schedule?${params}`, { method: 'GET' });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || 'Failed to load events');
       setEvents(Array.isArray(data.events) ? data.events : []);

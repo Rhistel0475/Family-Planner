@@ -32,8 +32,8 @@ export default function RecipesPage() {
 
   function refetchRecipes() {
     return fetch('/api/recipes')
-      .then((res) => (res.ok ? res.json() : []))
-      .then(setRecipes)
+      .then((res) => (res.ok ? res.json() : { recipes: [] }))
+      .then((data) => setRecipes(Array.isArray(data.recipes) ? data.recipes : []))
       .catch(() => setRecipes([]));
   }
 
@@ -117,27 +117,18 @@ export default function RecipesPage() {
         router.push('/recipes?error=1');
         return;
       }
-      const formData = new FormData();
-      formData.set('name', name.trim());
-      formData.set('ingredients', ingredients.trim());
-      formData.set('cookDay', cookDay);
-      if (instructions.trim()) formData.set('instructions', instructions.trim());
-      if (sourceUrl.trim()) formData.set('sourceUrl', sourceUrl.trim());
       const res = await fetch('/api/recipes', {
         method: 'POST',
-        body: formData,
-        redirect: 'manual'
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          ingredients: ingredients.trim(),
+          cookDay,
+          instructions: instructions.trim() || null,
+          sourceUrl: sourceUrl.trim() || null
+        })
       });
-      if (res.status >= 300 && res.status < 400) {
-        const loc = res.headers.get('Location');
-        if (loc) {
-          const u = new URL(loc, window.location.origin);
-          router.push(u.pathname + u.search);
-          clearForm();
-          return;
-        }
-      }
-      if (res.ok) {
+      if (res.ok || res.status === 201) {
         router.push('/recipes?saved=1');
         clearForm();
         await refetchRecipes();
