@@ -538,7 +538,12 @@ function ChoreCard({
       }}
     >
       <div className={styles.cardHeader}>
-        <h3>{setting.title}</h3>
+        <div className={styles.titleRow}>
+          <h3>{setting.title}</h3>
+          {setting.templateKey.startsWith('custom_') && (
+            <span className={styles.customBadge}>Custom</span>
+          )}
+        </div>
         <div className={styles.status}>{statusStr}</div>
         <div className={styles.expandIcon}>{expanded ? '−' : '+'}</div>
       </div>
